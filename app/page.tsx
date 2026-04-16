@@ -1172,7 +1172,7 @@ function Team() {
             <FadeSection delay={220}>
               <div style={{ marginTop: "28px" }}>
                 <h3 style={{ fontSize: "22px", fontWeight: 300, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
-                  Jaeson Park
+                  Jinhwi Park
                 </h3>
                 <p style={{ marginTop: "5px", fontSize: "11px", letterSpacing: "0.16em", textTransform: "uppercase", color: "#9a9a9a" }}>
                   Founder & CEO, ArtXpark Inc.
