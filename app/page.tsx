@@ -395,7 +395,7 @@ function Hero() {
         </div>{/* end left column */}
 
         {/* Right — phone mockup */}
-        <FadeSection delay={200} className="hidden md:block">
+        <FadeSection delay={200} className="flex justify-center">
           <PhoneCard />
         </FadeSection>
       </div>
