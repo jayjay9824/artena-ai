@@ -1,5 +1,7 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import { MarketReport, MarketReportData } from "./components/MarketReport";
+import { ArtistReport, ArtistReportData } from "./components/ArtistReport";
 
 const EMOTION_KEYS: [string, string, string][] = [
   ["calm", "차분함", "#4A7A5A"],
@@ -54,6 +56,10 @@ export default function AnalyzePage() {
   const [textQuery, setTextQuery] = useState("");
   const [activeInput, setActiveInput] = useState<"image" | "camera" | "text">("image");
   const [mktTab, setMktTab] = useState("works");
+  const [reportType, setReportType] = useState<"market" | "artist" | null>(null);
+  const [reportData, setReportData] = useState<MarketReportData | ArtistReportData | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -110,6 +116,29 @@ export default function AnalyzePage() {
   const reset = () => {
     setScreen("upload"); setAnimated(false); setAnalysis(null);
     setImagePreview(null); setError(null); setTextQuery(""); setMktTab("works");
+    setReportType(null); setReportData(null);
+  };
+
+  const generateReport = async (type: "market" | "artist") => {
+    if (!analysis) return;
+    setReportType(type);
+    setReportData(null);
+    setReportLoading(true);
+    try {
+      const res = await fetch("/api/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, analysis }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      setReportData(json.data);
+      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    } catch {
+      setReportType(null);
+    } finally {
+      setReportLoading(false);
+    }
   };
 
   const S: React.CSSProperties = {
@@ -381,6 +410,49 @@ export default function AnalyzePage() {
           <p style={{ fontSize: 9, color: "#ccc", marginTop: 10 }}>※ 데이터는 AI 추정 정보로, 실제와 다를 수 있습니다</p>
         </div>
       </div>
+
+      {/* Generate Report Buttons */}
+      <div style={{ marginBottom: 18 }}>
+        <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".2em", textTransform: "uppercase", marginBottom: 12 }}>ARTENA Intelligence Layer</p>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+          <button
+            onClick={() => generateReport("market")}
+            disabled={reportLoading}
+            style={{ padding: "13px 10px", background: reportType === "market" && !reportLoading ? "#000" : "#FFFFFF", color: reportType === "market" && !reportLoading ? "#fff" : "#000", border: "1px solid #D8D8D8", fontFamily: "inherit", fontSize: 11, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "market" ? 0.4 : 1, transition: "all .2s" }}
+          >
+            {reportLoading && reportType === "market" ? "Generating..." : "Market Intelligence Report"}
+          </button>
+          <button
+            onClick={() => generateReport("artist")}
+            disabled={reportLoading}
+            style={{ padding: "13px 10px", background: reportType === "artist" && !reportLoading ? "#000" : "#FFFFFF", color: reportType === "artist" && !reportLoading ? "#fff" : "#000", border: "1px solid #D8D8D8", fontFamily: "inherit", fontSize: 11, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "artist" ? 0.4 : 1, transition: "all .2s" }}
+          >
+            {reportLoading && reportType === "artist" ? "Generating..." : "Artist Intelligence Report"}
+          </button>
+        </div>
+      </div>
+
+      {/* Report Output */}
+      {reportLoading && (
+        <div ref={reportRef} style={{ background: "#FAFAFA", border: "1px solid #EBEBEB", padding: "48px 36px", marginBottom: 18, display: "flex", flexDirection: "column", alignItems: "center", gap: 16 }}>
+          <div style={{ width: 32, height: 32, border: "2px solid #EBEBEB", borderTop: "2px solid #7C6FF7", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          <div style={{ textAlign: "center" }}>
+            <p style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>Generating Intelligence Report</p>
+            <p style={{ fontSize: 11, color: "#BBB" }}>Analyzing with institutional-grade AI...</p>
+          </div>
+        </div>
+      )}
+      {!reportLoading && reportData && reportType === "market" && (
+        <div ref={reportRef} style={{ marginBottom: 18 }}>
+          <MarketReport data={reportData as MarketReportData} />
+        </div>
+      )}
+      {!reportLoading && reportData && reportType === "artist" && (
+        <div ref={reportRef} style={{ marginBottom: 18 }}>
+          <ArtistReport data={reportData as ArtistReportData} />
+        </div>
+      )}
 
       <button onClick={reset} style={{ width: "100%", padding: "11px 0", background: "#1a1a18", color: "#fff", border: "none", fontFamily: "inherit", fontSize: 11, letterSpacing: ".08em", cursor: "pointer", borderRadius: 8 }}>
         새 작품 분석하기
