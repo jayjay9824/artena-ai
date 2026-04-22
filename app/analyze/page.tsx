@@ -9,6 +9,12 @@ const EMOTION_KEYS: [string, string, string][] = [
   ["movement", "움직임", "#7A3A5A"],
 ];
 
+interface Work { title: string; year: string; medium: string; location: string; }
+interface Auction { date: string; work: string; house: string; result: string; estimate: string; note: string; }
+interface Collection { inst: string; city: string; period: string; work: string; }
+interface Critic { critic: string; source: string; year: string; quote: string; }
+interface Exhibition { title: string; venue: string; city: string; year: string; type: string; }
+
 interface Analysis {
   title?: string;
   artist?: string;
@@ -19,6 +25,11 @@ interface Analysis {
   colorPalette?: string[];
   keywords?: string[];
   marketNote?: string;
+  works?: Work[];
+  auctions?: Auction[];
+  collections?: Collection[];
+  critics?: Critic[];
+  exhibitions?: Exhibition[];
 }
 
 function LoadingSpinner() {
@@ -42,6 +53,7 @@ export default function AnalyzePage() {
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [textQuery, setTextQuery] = useState("");
   const [activeInput, setActiveInput] = useState<"image" | "camera" | "text">("image");
+  const [mktTab, setMktTab] = useState("works");
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -97,7 +109,7 @@ export default function AnalyzePage() {
 
   const reset = () => {
     setScreen("upload"); setAnimated(false); setAnalysis(null);
-    setImagePreview(null); setError(null); setTextQuery("");
+    setImagePreview(null); setError(null); setTextQuery(""); setMktTab("works");
   };
 
   const S: React.CSSProperties = {
@@ -209,10 +221,23 @@ export default function AnalyzePage() {
     </div>
   );
 
+  const MKT_TABS = [
+    { id: "works", l: "대표작" },
+    { id: "auction", l: "경매 이력" },
+    { id: "collection", l: "기관 소장" },
+    { id: "critics", l: "평론" },
+    { id: "exhibition", l: "전시" },
+  ];
+
   const a = analysis || {};
   const emotions = a.emotions || {};
   const keywords = a.keywords || [];
   const colorPalette = a.colorPalette || [];
+  const works = a.works || [];
+  const auctions = a.auctions || [];
+  const collections = a.collections || [];
+  const critics = a.critics || [];
+  const exhibitions = a.exhibitions || [];
 
   return (
     <div style={S}>
@@ -264,15 +289,98 @@ export default function AnalyzePage() {
         })}
       </div>
 
-      {a.marketNote && (
-        <div style={{ border: "0.5px solid #e8e3db", borderRadius: 10, overflow: "hidden", marginBottom: 18 }}>
-          <div style={{ background: "#1a1a18", padding: "13px 16px" }}>
-            <span style={{ fontSize: 9, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.3)", display: "block", marginBottom: 6 }}>Market Intelligence</span>
-            <p style={{ fontSize: 12, color: "rgba(255,255,255,.7)", lineHeight: 1.65, margin: "0 0 5px 0" }}>{a.marketNote}</p>
-            <p style={{ fontSize: 9, color: "rgba(255,255,255,.22)", margin: 0 }}>경매가는 참고용이며 실제 낙찰가와 다를 수 있습니다</p>
+      <div style={{ border: "0.5px solid #e8e3db", borderRadius: 10, overflow: "hidden", marginBottom: 18 }}>
+        <div style={{ background: "#1a1a18", padding: "10px 16px 0" }}>
+          <div style={{ marginBottom: 8 }}>
+            <span style={{ fontSize: 9, letterSpacing: ".16em", textTransform: "uppercase", color: "rgba(255,255,255,.3)" }}>Market Intelligence</span>
+            {a.marketNote && <p style={{ fontSize: 12, color: "rgba(255,255,255,.6)", lineHeight: 1.6, margin: "6px 0 0 0" }}>{a.marketNote}</p>}
+          </div>
+          <div style={{ display: "flex", overflowX: "auto" }}>
+            {MKT_TABS.map(t => (
+              <button key={t.id} onClick={() => setMktTab(t.id)} style={{ padding: "7px 13px", border: "none", background: "transparent", fontFamily: "inherit", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", color: mktTab === t.id ? "#fff" : "rgba(255,255,255,.4)", borderBottom: mktTab === t.id ? "2px solid #fff" : "2px solid transparent" }}>
+                {t.l}
+              </button>
+            ))}
           </div>
         </div>
-      )}
+        <div style={{ padding: "4px 14px 14px" }}>
+          {mktTab === "works" && (works.length === 0
+            ? <p style={{ fontSize: 12, color: "#ccc", padding: "12px 0", fontStyle: "italic" }}>데이터 없음</p>
+            : works.map((w, i) => (
+              <div key={i} style={{ padding: "10px 0", borderBottom: "0.5px solid #f5f2ee" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 2 }}>
+                  <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{w.title}</p>
+                  <span style={{ fontSize: 11, color: "#bbb", marginLeft: 8, flexShrink: 0 }}>{w.year}</span>
+                </div>
+                <p style={{ fontSize: 11, color: "#aaa", marginBottom: 1 }}>{w.medium}</p>
+                <p style={{ fontSize: 11, color: "#888" }}>📍 {w.location}</p>
+              </div>
+            ))
+          )}
+          {mktTab === "auction" && (auctions.length === 0
+            ? <p style={{ fontSize: 12, color: "#ccc", padding: "12px 0", fontStyle: "italic" }}>데이터 없음</p>
+            : auctions.map((au, i) => (
+              <div key={i} style={{ padding: "10px 0", borderBottom: "0.5px solid #f5f2ee", display: "grid", gridTemplateColumns: "1fr auto", gap: 8 }}>
+                <div>
+                  <div style={{ display: "flex", gap: 6, marginBottom: 3 }}>
+                    <span style={{ fontSize: 10, color: "#bbb" }}>{au.date}</span>
+                    <span style={{ fontSize: 10, background: "#f5f3ef", color: "#888", padding: "1px 7px", borderRadius: 8 }}>{au.house}</span>
+                  </div>
+                  <p style={{ fontSize: 12, marginBottom: 1 }}>{au.work}</p>
+                  <p style={{ fontSize: 10, color: "#ccc" }}>추정가 {au.estimate}</p>
+                  {au.note && <p style={{ fontSize: 10, color: "#888", fontStyle: "italic" }}>{au.note}</p>}
+                </div>
+                <p style={{ fontSize: 14, fontWeight: 500, paddingLeft: 8 }}>{au.result}</p>
+              </div>
+            ))
+          )}
+          {mktTab === "collection" && (collections.length === 0
+            ? <p style={{ fontSize: 12, color: "#ccc", padding: "12px 0", fontStyle: "italic" }}>데이터 없음</p>
+            : collections.map((col, i) => (
+              <div key={i} style={{ padding: "10px 0", borderBottom: "0.5px solid #f5f2ee", display: "flex", gap: 10 }}>
+                <div style={{ width: 32, height: 32, borderRadius: 6, background: "#f0ece8", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 15 }}>🏛</div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                    <p style={{ fontSize: 13, fontWeight: 500, margin: 0 }}>{col.inst}</p>
+                    <span style={{ fontSize: 10, background: "#EAF4ED", color: "#1E6B45", padding: "1px 7px", borderRadius: 8 }}>소장중</span>
+                  </div>
+                  <p style={{ fontSize: 11, color: "#bbb" }}>{col.city} · {col.period}</p>
+                  <p style={{ fontSize: 11, color: "#aaa", fontStyle: "italic" }}>{col.work}</p>
+                </div>
+              </div>
+            ))
+          )}
+          {mktTab === "critics" && (critics.length === 0
+            ? <p style={{ fontSize: 12, color: "#ccc", padding: "12px 0", fontStyle: "italic" }}>데이터 없음</p>
+            : critics.map((r, i) => (
+              <div key={i} style={{ padding: "11px 0", borderBottom: "0.5px solid #f5f2ee" }}>
+                <div style={{ display: "flex", gap: 7, alignItems: "center", marginBottom: 6 }}>
+                  <p style={{ fontSize: 12, fontWeight: 500, margin: 0 }}>{r.critic}</p>
+                  <span style={{ fontSize: 10, background: "#f5f3ef", color: "#888", padding: "1px 7px", borderRadius: 8 }}>{r.source}</span>
+                  <span style={{ fontSize: 10, color: "#ccc" }}>{r.year}</span>
+                </div>
+                <p style={{ fontSize: 12, color: "#444", fontStyle: "italic", lineHeight: 1.7, paddingLeft: 9, borderLeft: "2px solid #ece8e2" }}>"{r.quote}"</p>
+              </div>
+            ))
+          )}
+          {mktTab === "exhibition" && (exhibitions.length === 0
+            ? <p style={{ fontSize: 12, color: "#ccc", padding: "12px 0", fontStyle: "italic" }}>데이터 없음</p>
+            : exhibitions.map((ex, i) => {
+              const tc = ex.type === "solo" ? ["#EAF4ED", "#1E6B45", "개인"] : ex.type === "fair" ? ["#EEF0FA", "#3A4A8A", "페어"] : ["#f0ece8", "#888", "그룹"];
+              return (
+                <div key={i} style={{ padding: "9px 0", borderBottom: "0.5px solid #f5f2ee", display: "flex", gap: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: 6, background: tc[0], display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 500, color: tc[1], flexShrink: 0 }}>{tc[2]}</div>
+                  <div>
+                    <p style={{ fontSize: 12, fontWeight: 500, marginBottom: 2 }}>{ex.title}</p>
+                    <p style={{ fontSize: 11, color: "#bbb" }}>{ex.venue}, {ex.city} · {ex.year}</p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <p style={{ fontSize: 9, color: "#ccc", marginTop: 10 }}>※ 데이터는 AI 추정 정보로, 실제와 다를 수 있습니다</p>
+        </div>
+      </div>
 
       <button onClick={reset} style={{ width: "100%", padding: "11px 0", background: "#1a1a18", color: "#fff", border: "none", fontFamily: "inherit", fontSize: 11, letterSpacing: ".08em", cursor: "pointer", borderRadius: 8 }}>
         새 작품 분석하기
