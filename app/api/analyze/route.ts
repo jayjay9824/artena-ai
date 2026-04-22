@@ -3,30 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-export async function POST(req: NextRequest) {
-  try {
-    const formData = await req.formData();
-    const file = formData.get("image") as File;
-    if (!file) return NextResponse.json({ success: false, error: "이미지가 없습니다" }, { status: 400 });
-
-    const arrayBuffer = await file.arrayBuffer();
-    const base64Image = Buffer.from(arrayBuffer).toString("base64");
-    const mediaType = file.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
-
-    const message = await client.messages.create({
-      model: "claude-opus-4-7",
-      max_tokens: 2000,
-      messages: [
-        {
-          role: "user",
-          content: [
-            {
-              type: "image",
-              source: { type: "base64", media_type: mediaType, data: base64Image },
-            },
-            {
-              type: "text",
-              text: `당신은 세계적인 미술 전문가입니다. 이 미술 작품을 깊이 있게 분석해주세요.
+const PROMPT = `당신은 세계적인 미술 전문가입니다. 이 미술 작품을 깊이 있게 분석해주세요.
 
 다음 형식의 JSON으로 응답해주세요 (JSON만, 다른 텍스트 없이):
 {
@@ -45,23 +22,62 @@ export async function POST(req: NextRequest) {
   "colorPalette": ["주요 색상1", "주요 색상2", "주요 색상3"],
   "keywords": ["핵심 키워드1", "핵심 키워드2", "핵심 키워드3"],
   "marketNote": "시장 가치나 컬렉터 관점에서의 간단한 설명 (1-2문장, 한국어)"
-}`,
-            },
-          ],
-        },
-      ],
+}`;
+
+export async function POST(req: NextRequest) {
+  try {
+    const contentType = req.headers.get("content-type") || "";
+
+    // 텍스트 검색
+    if (contentType.includes("application/json")) {
+      const { query } = await req.json();
+      if (!query) return NextResponse.json({ success: false, error: "검색어가 없습니다" }, { status: 400 });
+
+      const message = await client.messages.create({
+        model: "claude-opus-4-7",
+        max_tokens: 2000,
+        messages: [{
+          role: "user",
+          content: `다음 작품에 대해 분석해주세요: "${query}"\n\n${PROMPT}`,
+        }],
+      });
+
+      const text = message.content.find((b) => b.type === "text");
+      if (!text || text.type !== "text") throw new Error("응답 없음");
+      const match = text.text.match(/\{[\s\S]*\}/);
+      if (!match) throw new Error("JSON 파싱 실패");
+      return NextResponse.json({ success: true, data: JSON.parse(match[0]) });
+    }
+
+    // 이미지 업로드 / 카메라
+    const formData = await req.formData();
+    const file = formData.get("image") as File;
+    if (!file) return NextResponse.json({ success: false, error: "이미지가 없습니다" }, { status: 400 });
+
+    const base64Image = Buffer.from(await file.arrayBuffer()).toString("base64");
+    const mediaType = file.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+    const message = await client.messages.create({
+      model: "claude-opus-4-7",
+      max_tokens: 2000,
+      messages: [{
+        role: "user",
+        content: [
+          { type: "image", source: { type: "base64", media_type: mediaType, data: base64Image } },
+          { type: "text", text: PROMPT },
+        ],
+      }],
     });
 
-    const textContent = message.content.find((b) => b.type === "text");
-    if (!textContent || textContent.type !== "text") throw new Error("텍스트 응답 없음");
+    const text = message.content.find((b) => b.type === "text");
+    if (!text || text.type !== "text") throw new Error("응답 없음");
+    const match = text.text.match(/\{[\s\S]*\}/);
+    if (!match) throw new Error("JSON 파싱 실패");
+    return NextResponse.json({ success: true, data: JSON.parse(match[0]) });
 
-    const jsonMatch = textContent.text.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error("JSON 파싱 실패");
-
-    return NextResponse.json({ success: true, data: JSON.parse(jsonMatch[0]) });
   } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : "알 수 없는 오류";
-    console.error("분석 오류:", message);
-    return NextResponse.json({ success: false, error: message }, { status: 500 });
+    const msg = err instanceof Error ? err.message : "알 수 없는 오류";
+    console.error("분석 오류:", msg);
+    return NextResponse.json({ success: false, error: msg }, { status: 500 });
   }
 }
