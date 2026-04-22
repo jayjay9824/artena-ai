@@ -15,7 +15,7 @@ function SectionBlock({ number, title, children }: { number: string; title: stri
     <div style={{ marginBottom: 40 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #F5F5F5" }}>
         <span style={{ fontSize: 10, color: "#7C6FF7", fontWeight: 600, letterSpacing: ".14em" }}>{number}</span>
-        <span style={{ fontSize: 10, color: "#000", letterSpacing: ".16em", textTransform: "uppercase" as const, fontWeight: 500 }}>{title}</span>
+        <span style={{ fontSize: 10, color: "#000", letterSpacing: ".16em", textTransform: "uppercase" as const, fontWeight: 700, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>{title}</span>
       </div>
       {children}
     </div>
@@ -79,7 +79,7 @@ export function ArtistReport({ data }: { data: ArtistReportData }) {
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 36, paddingBottom: 24, borderBottom: "1px solid #F0F0F0" }}>
         <div>
           <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>ARTENA Intelligence Layer</span>
-          <h2 style={{ fontSize: 18, fontWeight: 400, color: "#000", letterSpacing: ".01em", margin: 0 }}>Artist Intelligence Report</h2>
+          <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", letterSpacing: ".01em", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>Artist Intelligence Report</h2>
         </div>
         <div style={{ textAlign: "right" as const }}>
           <span style={{ fontSize: 9, color: "#CCC", letterSpacing: ".12em", display: "block", marginBottom: 4 }}>GENERATED</span>

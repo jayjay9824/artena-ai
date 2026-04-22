@@ -142,7 +142,7 @@ export default function AnalyzePage() {
   };
 
   const S: React.CSSProperties = {
-    fontFamily: "system-ui,sans-serif", fontSize: 14, color: "#1a1a18",
+    fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18",
     padding: "20px 22px", maxWidth: 640, margin: "0 auto", background: "#F8F7F4", minHeight: "100vh",
   };
 
@@ -152,7 +152,7 @@ export default function AnalyzePage() {
       onClick={() => setActiveInput(id)}
       style={{
         flex: 1, padding: "10px 0", border: "none", background: "transparent",
-        fontFamily: "inherit", cursor: "pointer", display: "flex", flexDirection: "column",
+        fontFamily: "'KakaoSmallSans', system-ui, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column",
         alignItems: "center", gap: 5,
         borderBottom: activeInput === id ? "2px solid #1a1a18" : "2px solid transparent",
         color: activeInput === id ? "#1a1a18" : "#bbb",
@@ -168,7 +168,7 @@ export default function AnalyzePage() {
     <div style={S}>
       <div style={{ marginBottom: 22, paddingBottom: 12, borderBottom: "0.5px solid #e8e3db" }}>
         <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 3 }}>
-          <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "Georgia,serif" }}>ARTENA</span>
+          <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
           <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
         </div>
         <p style={{ fontSize: 12, color: "#bbb", margin: 0 }}>작품을 올리면 감성 분석 + 시장 데이터를 함께 보여드립니다</p>
@@ -227,12 +227,12 @@ export default function AnalyzePage() {
                 onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); analyzeText(); } }}
                 placeholder={"예: 모네의 수련 연작\n예: 파란 배경에 점들로 가득한 추상화\n예: 김환기 귀로"}
                 rows={5}
-                style={{ width: "100%", border: "0.5px solid #e0dbd4", borderRadius: 10, padding: "14px 16px", fontFamily: "inherit", fontSize: 13, color: "#1a1a18", background: "#fff", resize: "none", outline: "none", lineHeight: 1.7, marginBottom: 12 }}
+                style={{ width: "100%", border: "0.5px solid #e0dbd4", borderRadius: 10, padding: "14px 16px", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 13, color: "#1a1a18", background: "#fff", resize: "none", outline: "none", lineHeight: 1.7, marginBottom: 12 }}
               />
               <button
                 onClick={analyzeText}
                 disabled={!textQuery.trim()}
-                style={{ width: "100%", padding: "13px 0", background: textQuery.trim() ? "#1a1a18" : "#e0dbd4", color: textQuery.trim() ? "#fff" : "#bbb", border: "none", fontFamily: "inherit", fontSize: 13, letterSpacing: ".06em", cursor: textQuery.trim() ? "pointer" : "default", borderRadius: 8, transition: "all .2s" }}
+                style={{ width: "100%", padding: "13px 0", background: textQuery.trim() ? "#1a1a18" : "#e0dbd4", color: textQuery.trim() ? "#fff" : "#bbb", border: "none", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 13, letterSpacing: ".06em", cursor: textQuery.trim() ? "pointer" : "default", borderRadius: 8, transition: "all .2s" }}
               >
                 분석하기
               </button>
@@ -271,8 +271,8 @@ export default function AnalyzePage() {
   return (
     <div style={S}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 16, paddingBottom: 12, borderBottom: "0.5px solid #e8e3db" }}>
-        <span style={{ fontSize: 15, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "Georgia,serif" }}>ARTENA</span>
-        <button onClick={reset} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#bbb", fontFamily: "inherit" }}>← 새 작품</button>
+        <span style={{ fontSize: 15, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
+        <button onClick={reset} style={{ marginLeft: "auto", background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#bbb", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>← 새 작품</button>
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: imagePreview ? "100px 1fr" : "1fr", gap: 14, marginBottom: 18 }}>
@@ -326,7 +326,7 @@ export default function AnalyzePage() {
           </div>
           <div style={{ display: "flex", overflowX: "auto" }}>
             {MKT_TABS.map(t => (
-              <button key={t.id} onClick={() => setMktTab(t.id)} style={{ padding: "7px 13px", border: "none", background: "transparent", fontFamily: "inherit", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", color: mktTab === t.id ? "#fff" : "rgba(255,255,255,.4)", borderBottom: mktTab === t.id ? "2px solid #fff" : "2px solid transparent" }}>
+              <button key={t.id} onClick={() => setMktTab(t.id)} style={{ padding: "7px 13px", border: "none", background: "transparent", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11, cursor: "pointer", whiteSpace: "nowrap", color: mktTab === t.id ? "#fff" : "rgba(255,255,255,.4)", borderBottom: mktTab === t.id ? "2px solid #fff" : "2px solid transparent" }}>
                 {t.l}
               </button>
             ))}
@@ -418,14 +418,14 @@ export default function AnalyzePage() {
           <button
             onClick={() => generateReport("market")}
             disabled={reportLoading}
-            style={{ padding: "13px 10px", background: reportType === "market" && !reportLoading ? "#000" : "#FFFFFF", color: reportType === "market" && !reportLoading ? "#fff" : "#000", border: "1px solid #D8D8D8", fontFamily: "inherit", fontSize: 11, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "market" ? 0.4 : 1, transition: "all .2s" }}
+            style={{ padding: "13px 10px", background: reportType === "market" && !reportLoading ? "#000" : "#FFFFFF", color: reportType === "market" && !reportLoading ? "#fff" : "#000", border: "1px solid #D8D8D8", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "market" ? 0.4 : 1, transition: "all .2s" }}
           >
             {reportLoading && reportType === "market" ? "Generating..." : "Market Intelligence Report"}
           </button>
           <button
             onClick={() => generateReport("artist")}
             disabled={reportLoading}
-            style={{ padding: "13px 10px", background: reportType === "artist" && !reportLoading ? "#000" : "#FFFFFF", color: reportType === "artist" && !reportLoading ? "#fff" : "#000", border: "1px solid #D8D8D8", fontFamily: "inherit", fontSize: 11, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "artist" ? 0.4 : 1, transition: "all .2s" }}
+            style={{ padding: "13px 10px", background: reportType === "artist" && !reportLoading ? "#000" : "#FFFFFF", color: reportType === "artist" && !reportLoading ? "#fff" : "#000", border: "1px solid #D8D8D8", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "artist" ? 0.4 : 1, transition: "all .2s" }}
           >
             {reportLoading && reportType === "artist" ? "Generating..." : "Artist Intelligence Report"}
           </button>
@@ -454,7 +454,7 @@ export default function AnalyzePage() {
         </div>
       )}
 
-      <button onClick={reset} style={{ width: "100%", padding: "11px 0", background: "#1a1a18", color: "#fff", border: "none", fontFamily: "inherit", fontSize: 11, letterSpacing: ".08em", cursor: "pointer", borderRadius: 8 }}>
+      <button onClick={reset} style={{ width: "100%", padding: "11px 0", background: "#1a1a18", color: "#fff", border: "none", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11, letterSpacing: ".08em", cursor: "pointer", borderRadius: 8 }}>
         새 작품 분석하기
       </button>
     </div>

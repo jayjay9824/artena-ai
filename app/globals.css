@@ -2,8 +2,55 @@
 @tailwind components;
 @tailwind utilities;
 
+/* KakaoSmallSans */
+@font-face {
+  font-family: 'KakaoSmallSans';
+  src: url('/fonts/KakaoSmallSans-Light.woff2') format('woff2'),
+       url('/fonts/KakaoSmallSans-Light.woff') format('woff');
+  font-weight: 300;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'KakaoSmallSans';
+  src: url('/fonts/KakaoSmallSans-Regular.woff2') format('woff2'),
+       url('/fonts/KakaoSmallSans-Regular.woff') format('woff');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'KakaoSmallSans';
+  src: url('/fonts/KakaoSmallSans-Bold.woff2') format('woff2'),
+       url('/fonts/KakaoSmallSans-Bold.woff') format('woff');
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* KakaoBigSans */
+@font-face {
+  font-family: 'KakaoBigSans';
+  src: url('/fonts/KakaoBigSans-Regular.woff2') format('woff2'),
+       url('/fonts/KakaoBigSans-Regular.woff') format('woff');
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'KakaoBigSans';
+  src: url('/fonts/KakaoBigSans-Bold.woff2') format('woff2'),
+       url('/fonts/KakaoBigSans-Bold.woff') format('woff');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'KakaoBigSans';
+  src: url('/fonts/KakaoBigSans-ExtraBold.woff2') format('woff2'),
+       url('/fonts/KakaoBigSans-ExtraBold.woff') format('woff');
+  font-weight: 800;
+  font-display: swap;
+}
+
 :root {
-  --font-inter: "Inter", system-ui, sans-serif;
+  --font-small: 'KakaoSmallSans', system-ui, sans-serif;
+  --font-big: 'KakaoBigSans', system-ui, sans-serif;
 }
 
 html {
