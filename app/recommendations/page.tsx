@@ -248,6 +248,13 @@ export default function RecommendationsPage() {
             </svg>
           </NavIcon>
 
+          <NavIcon href="/taste" label="취향">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.3" />
+              <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2.5 2.5" />
+            </svg>
+          </NavIcon>
+
           <NavIcon href="/recommendations" label="추천" active>
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
               <path d="M10 2.5L12.2 8H18L13.4 11.5L15.2 17L10 13.8L4.8 17L6.6 11.5L2 8H7.8L10 2.5Z"

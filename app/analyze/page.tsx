@@ -155,7 +155,7 @@ export default function AnalyzePage() {
             <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
             <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
           </div>
-          <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
             <a href="/collection" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
                 <rect x="2" y="2" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
@@ -164,6 +164,13 @@ export default function AnalyzePage() {
                 <rect x="10" y="10" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
               </svg>
               <span style={{ fontSize: 9, letterSpacing: ".08em" }}>컬렉션</span>
+            </a>
+            <a href="/taste" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <circle cx="9" cy="9" r="3" stroke="currentColor" strokeWidth="1.2" />
+                <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.1" strokeDasharray="2.2 2.2" />
+              </svg>
+              <span style={{ fontSize: 9, letterSpacing: ".08em" }}>취향</span>
             </a>
             <a href="/recommendations" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
               <svg width="18" height="18" viewBox="0 0 18 18" fill="none">

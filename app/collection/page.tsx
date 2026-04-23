@@ -445,43 +445,38 @@ export default function CollectionPage() {
           )}
         </div>
 
-        {/* ── Bottom: Scan Artwork CTA ─────────────────────────── */}
-        {displayItems.length > 0 && (
-          <div style={{ position: "fixed" as const, bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 640, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderTop: "0.5px solid #EBEBEB", padding: "12px 24px 20px", display: "flex", gap: 10, alignItems: "center", boxSizing: "border-box" as const }}>
-            {/* Collection nav indicator */}
-            <div style={{ flex: 1, display: "flex", gap: 16, alignItems: "center" }}>
-              <a href="/analyze" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#C0C0C0" }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <rect x="2" y="2" width="16" height="16" rx="3" stroke="currentColor" strokeWidth="1.4" />
-                  <path d="M7 10h6M10 7v6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                </svg>
-                <span style={{ fontSize: 9, letterSpacing: ".04em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>Scan</span>
-              </a>
-              <a href="/collection" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#0F0F0F" }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <rect x="2" y="2" width="7" height="7" rx="1" fill="currentColor" />
-                  <rect x="11" y="2" width="7" height="7" rx="1" fill="currentColor" />
-                  <rect x="2" y="11" width="7" height="7" rx="1" fill="currentColor" />
-                  <rect x="11" y="11" width="7" height="7" rx="1" fill="currentColor" />
-                </svg>
-                <span style={{ fontSize: 9, letterSpacing: ".04em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontWeight: 600 }}>Collection</span>
-              </a>
-              <a href="/recommendations" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#BBBBBB" }}>
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-                  <path d="M10 2.5L12.2 8H18L13.4 11.5L15.2 17L10 13.8L4.8 17L6.6 11.5L2 8H7.8L10 2.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="currentColor" fillOpacity="0.12" />
-                </svg>
-                <span style={{ fontSize: 9, letterSpacing: ".04em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>추천</span>
-              </a>
-            </div>
-            <a
-              href="/analyze"
-              style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "11px 20px", background: "#0F0F0F", color: "#FFF", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11, letterSpacing: ".06em", textDecoration: "none", flexShrink: 0 }}
-            >
-              <span style={{ fontSize: 9, color: "#7C6FF7" }}>◆</span>
-              Scan Artwork
-            </a>
-          </div>
-        )}
+        {/* ── Bottom Nav ───────────────────────────────────────── */}
+        <div style={{ position: "fixed" as const, bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 640, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderTop: "0.5px solid #EBEBEB", padding: "10px 22px 22px", display: "flex", justifyContent: "space-around", alignItems: "center", boxSizing: "border-box" as const, zIndex: 100 }}>
+          <a href="/analyze" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#BBBBBB", flex: 1 }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="8.2" stroke="currentColor" strokeWidth="1.3" />
+              <path d="M7 10h6M10 7v6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <span style={{ fontSize: 9, letterSpacing: ".07em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>스캔</span>
+          </a>
+          <a href="/collection" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#0F0F0F", flex: 1 }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1" fill="currentColor" />
+              <rect x="11" y="2.5" width="6.5" height="6.5" rx="1" fill="currentColor" />
+              <rect x="2.5" y="11" width="6.5" height="6.5" rx="1" fill="currentColor" />
+              <rect x="11" y="11" width="6.5" height="6.5" rx="1" fill="currentColor" />
+            </svg>
+            <span style={{ fontSize: 9, letterSpacing: ".07em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontWeight: 600 }}>컬렉션</span>
+          </a>
+          <a href="/taste" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#BBBBBB", flex: 1 }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.3" />
+              <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2.5 2.5" />
+            </svg>
+            <span style={{ fontSize: 9, letterSpacing: ".07em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>취향</span>
+          </a>
+          <a href="/recommendations" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#BBBBBB", flex: 1 }}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+              <path d="M10 2.5L12.2 8H18L13.4 11.5L15.2 17L10 13.8L4.8 17L6.6 11.5L2 8H7.8L10 2.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="currentColor" fillOpacity="0.12" />
+            </svg>
+            <span style={{ fontSize: 9, letterSpacing: ".07em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>추천</span>
+          </a>
+        </div>
       </div>
     </>
   );
