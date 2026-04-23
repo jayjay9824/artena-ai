@@ -106,6 +106,20 @@ function ScanScreen() {
       if (!json.success) throw new Error(json.error || "분석 실패");
       setAnalysis(json.data);
       setScreen("result");
+
+      // Async image fetch — show result immediately, image loads in background
+      const d = json.data;
+      const category = d.category ?? "painting";
+      const isArch = category === "architecture" || category === "artifact" || category === "cultural_site";
+      const imageQuery = isArch
+        ? (d.title ?? "")
+        : [d.title, d.artist].filter(Boolean).join(" ");
+      if (imageQuery.trim()) {
+        fetch(`/api/wiki-image?q=${encodeURIComponent(imageQuery)}`)
+          .then(r => r.json())
+          .then(img => { if (img.url) setImagePreview(img.url); })
+          .catch(() => {});
+      }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
       setScreen("upload");
