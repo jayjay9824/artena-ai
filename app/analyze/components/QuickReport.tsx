@@ -311,24 +311,37 @@ export function QuickReport({
           <div style={{ position: "absolute" as const, inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.42) 0%, transparent 30%, transparent 48%, rgba(0,0,0,0.86) 100%)" }} />
 
           {/* Top nav */}
-          <div style={{ position: "absolute" as const, top: 0, left: 0, right: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "54px 18px 0" }}>
+          <div style={{ position: "absolute" as const, top: 0, left: 0, right: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "52px 18px 0" }}>
+            {/* Back button — pill with label */}
             <button
               onClick={onReset}
-              style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(0,0,0,0.32)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+              style={{
+                display: "flex", alignItems: "center", gap: 6,
+                padding: "9px 16px 9px 11px",
+                background: "rgba(255,255,255,0.92)",
+                backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                border: "none", borderRadius: 24, cursor: "pointer",
+                boxShadow: "0 2px 12px rgba(0,0,0,0.18)",
+              }}
             >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                <path d="M10 3L5 8L10 13" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M9 2L4 7L9 12" stroke="#111" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#111", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", letterSpacing: "-.01em" }}>
+                뒤로
+              </span>
             </button>
+
+            {/* Share button */}
             <button
-              style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(0,0,0,0.32)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+              style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.18)" }}
               onClick={() => {
                 if (navigator.share) navigator.share({ title: a.artist ?? "", text: a.title ?? "" });
               }}
             >
               <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <path d="M10 2L13.5 5.5L10 9" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M13.5 5.5H5.5C4.1 5.5 3 6.6 3 8V13" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M10 2L13.5 5.5L10 9" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M13.5 5.5H5.5C4.1 5.5 3 6.6 3 8V13" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           </div>
@@ -478,12 +491,21 @@ export function QuickReport({
           )}
 
           {/* Reset link */}
-          <div style={{ paddingTop: 20, paddingBottom: 8, textAlign: "center" as const }}>
+          <div style={{ paddingTop: 24, paddingBottom: 12, display: "flex", justifyContent: "center" as const }}>
             <button
               onClick={onReset}
-              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 11, color: "#CCC", letterSpacing: ".04em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}
+              style={{
+                display: "flex", alignItems: "center", gap: 7,
+                background: "#F4F4F4", border: "0.5px solid #E4E4E4",
+                borderRadius: 24, padding: "11px 22px", cursor: "pointer",
+                fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+                fontSize: 12, color: "#444", letterSpacing: ".02em", fontWeight: 500,
+              }}
             >
-              ← 새 작품 분석하기
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none">
+                <path d="M8.5 1.5L3.5 6.5L8.5 11.5" stroke="#444" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              새 작품 분석하기
             </button>
           </div>
         </div>

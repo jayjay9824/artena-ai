@@ -12,7 +12,7 @@ import { useCollection } from "../collection/hooks/useCollection";
 import { BottomNav } from "../components/BottomNav";
 
 const PAGE_STYLES = `
-  .rec-back-btn:hover { background: rgba(0,0,0,0.5) !important; }
+  .rec-back-btn:hover { opacity: 0.85; }
 `;
 
 function BackBtn({ onClick }: { onClick: () => void }) {
@@ -21,17 +21,22 @@ function BackBtn({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       className="rec-back-btn"
       style={{
-        position: "fixed", top: 48, left: 18,
-        width: 36, height: 36, borderRadius: "50%",
-        background: "rgba(0,0,0,0.32)", border: "none", cursor: "pointer",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
-        zIndex: 200, transition: "background .15s",
+        position: "fixed", top: 50, left: 18,
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "9px 16px 9px 11px",
+        background: "rgba(255,255,255,0.92)",
+        backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+        border: "none", borderRadius: 24, cursor: "pointer",
+        boxShadow: "0 2px 12px rgba(0,0,0,0.18)",
+        zIndex: 200, transition: "opacity .15s",
       }}
     >
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M10 3L5 8L10 13" stroke="white" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+        <path d="M9 2L4 7L9 12" stroke="#111" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
+      <span style={{ fontSize: 13, fontWeight: 600, color: "#111", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", letterSpacing: "-.01em" }}>
+        뒤로
+      </span>
     </button>
   );
 }
