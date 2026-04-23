@@ -3,9 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const PROMPT = `당신은 세계적인 미술 전문가입니다. 이 미술 작품을 깊이 있게 분석해주세요.
-
-다음 형식의 JSON으로 응답해주세요 (JSON만, 다른 텍스트 없이):
+const JSON_SCHEMA = `다음 형식의 JSON으로만 응답하세요 (JSON 외 다른 텍스트 일절 없이):
 {
   "title": "추정 작품명 또는 '알 수 없음'",
   "artist": "추정 작가명 또는 '미상'",
@@ -39,7 +37,18 @@ const PROMPT = `당신은 세계적인 미술 전문가입니다. 이 미술 작
   ]
 }
 
-작품이 잘 알려진 경우 실제 데이터를 사용하고, 덜 알려진 경우 합리적으로 추정한 데이터를 제공하세요. 각 배열은 최소 3개 항목을 포함하세요.`;
+잘 알려진 작가/작품이면 실제 공개 데이터를 사용하고, 덜 알려진 경우 전문가적으로 추정하세요. 각 배열은 최소 3개 항목을 포함하세요.`;
+
+// 이미지 분석용 프롬프트
+const IMAGE_PROMPT = `당신은 세계적인 미술 전문가입니다. 제공된 작품 이미지를 깊이 있게 분석해주세요.\n\n${JSON_SCHEMA}`;
+
+// 텍스트 검색용 프롬프트 (이미지 없음 — 작가명, 작품명, 설명 기반)
+const TEXT_PROMPT = (query: string) =>
+  `당신은 세계적인 미술 전문가이자 시장 분석가입니다.\n` +
+  `사용자가 입력한 정보: "${query}"\n\n` +
+  `위 정보를 바탕으로 해당 작가 또는 작품을 분석하세요. ` +
+  `작가명이 주어진 경우 그 작가의 대표작을 기준으로 분석하세요.\n\n` +
+  JSON_SCHEMA;
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,9 +62,10 @@ export async function POST(req: NextRequest) {
       const message = await client.messages.create({
         model: "claude-opus-4-7",
         max_tokens: 2000,
+        thinking: { type: "adaptive" },
         messages: [{
           role: "user",
-          content: `다음 작품에 대해 분석해주세요: "${query}"\n\n${PROMPT}`,
+          content: TEXT_PROMPT(query),
         }],
       });
 
@@ -77,11 +87,12 @@ export async function POST(req: NextRequest) {
     const message = await client.messages.create({
       model: "claude-opus-4-7",
       max_tokens: 2000,
+      thinking: { type: "adaptive" },
       messages: [{
         role: "user",
         content: [
           { type: "image", source: { type: "base64", media_type: mediaType, data: base64Image } },
-          { type: "text", text: PROMPT },
+          { type: "text", text: IMAGE_PROMPT },
         ],
       }],
     });

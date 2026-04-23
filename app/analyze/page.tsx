@@ -41,8 +41,8 @@ function LoadingSpinner() {
       <div style={{ width: 40, height: 40, border: "3px solid #f0ece8", borderTop: "3px solid #1a1a18", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ textAlign: "center" }}>
-        <p style={{ fontSize: 14, color: "#555", marginBottom: 4 }}>작품을 분석하고 있습니다</p>
-        <p style={{ fontSize: 11, color: "#bbb" }}>Claude가 감성과 시장 데이터를 분석 중...</p>
+        <p style={{ fontSize: 14, color: "#555", marginBottom: 4 }}>작가와 작품을 ARTENA AI가 분석중입니다</p>
+        <p style={{ fontSize: 11, color: "#bbb" }}>시장 데이터, 작품 이력, 경매 기록을 분석하고 있습니다...</p>
       </div>
     </div>
   );
