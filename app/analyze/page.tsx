@@ -150,9 +150,15 @@ export default function AnalyzePage() {
   if (screen === "upload" || screen === "loading") return (
     <div style={S}>
       <div style={{ marginBottom: 22, paddingBottom: 12, borderBottom: "0.5px solid #e8e3db" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 3 }}>
-          <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
-          <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
+            <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
+            <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
+          </div>
+          <a href="/collection" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
+            <span style={{ fontSize: 18, lineHeight: 1 }}>◆</span>
+            <span style={{ fontSize: 9, letterSpacing: ".08em" }}>컬렉션</span>
+          </a>
         </div>
         <p style={{ fontSize: 12, color: "#bbb", margin: 0 }}>작품을 올리면 감성 분석 + 시장 데이터를 함께 보여드립니다</p>
       </div>

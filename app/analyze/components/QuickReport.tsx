@@ -1,31 +1,21 @@
 "use client";
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { MarketIntelligenceReport, MarketIntelligenceData } from "./MarketIntelligenceReport";
+import {
+  useCollection, makeItemId,
+  CollectionAnalysis,
+  CollectionAuction, CollectionWork, CollectionMuseum, CollectionCritic, CollectionExhibition,
+} from "../../collection/hooks/useCollection";
 
 /* ── Types ───────────────────────────────────────────────────── */
 
-interface Work       { title: string; year: string; medium: string; location: string; }
-interface Auction    { date: string; work: string; house: string; result: string; estimate: string; note: string; }
-interface Collection { inst: string; city: string; period: string; work: string; }
-interface Critic     { critic: string; source: string; year: string; quote: string; }
-interface Exhibition { title: string; venue: string; city: string; year: string; type: string; }
+type Work       = CollectionWork;
+type Auction    = CollectionAuction;
+type Collection = CollectionMuseum;
+type Critic     = CollectionCritic;
+type Exhibition = CollectionExhibition;
 
-export interface QRAnalysis {
-  title?: string;
-  artist?: string;
-  year?: string;
-  style?: string;
-  description?: string;
-  emotions?: Record<string, number>;
-  colorPalette?: string[];
-  keywords?: string[];
-  marketNote?: string;
-  works?: Work[];
-  auctions?: Auction[];
-  collections?: Collection[];
-  critics?: Critic[];
-  exhibitions?: Exhibition[];
-}
+export type QRAnalysis = CollectionAnalysis;
 
 export interface QuickReportProps {
   analysis: QRAnalysis;
@@ -208,11 +198,38 @@ export function QuickReport({
   reportData,
 }: QuickReportProps) {
   const [actions, setActions] = useState({ liked: false, saved: false, collected: false });
+  const { items, upsert, patch } = useCollection();
+  const itemId = makeItemId(a.artist, a.title);
+
+  // Sync initial state from collection on mount / when itemId changes
+  useEffect(() => {
+    const existing = items.find(i => i.id === itemId);
+    if (existing) {
+      setActions({ liked: existing.liked, saved: existing.saved, collected: existing.collected });
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId]);
 
   const toggle = useCallback((key: "liked" | "saved" | "collected") => {
-    setActions(prev => ({ ...prev, [key]: !prev[key] }));
-    // Future: logEvent({ type: key, timestamp: new Date().toISOString() })
-  }, []);
+    setActions(prev => {
+      const next = { ...prev, [key]: !prev[key] };
+      const isNew = !items.find(i => i.id === itemId);
+      if (isNew) {
+        upsert({
+          id: itemId,
+          savedAt: new Date().toISOString(),
+          liked: next.liked,
+          saved: next.saved,
+          collected: next.collected,
+          analysis: a,
+          imagePreview: imagePreview ?? null,
+        });
+      } else {
+        patch(itemId, { [key]: next[key] });
+      }
+      return next;
+    });
+  }, [itemId, items, a, imagePreview, upsert, patch]);
 
   const position   = deriveMarketPosition(a);
   const confidence = deriveConfidence(a);
@@ -438,14 +455,14 @@ export function QuickReport({
           {/* Primary: like / save / collect */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 24px 4px", gap: 4 }}>
             <ActionBtn
-              icon="♡"
+              icon={actions.liked ? "♥" : "♡"}
               label="좋아요"
               active={actions.liked}
               activeColor="#E04848"
               onClick={() => toggle("liked")}
             />
             <ActionBtn
-              icon="◇"
+              icon={actions.saved ? "◆" : "◇"}
               label="저장하기"
               active={actions.saved}
               activeColor="#1856FF"
@@ -453,7 +470,7 @@ export function QuickReport({
               primary
             />
             <ActionBtn
-              icon="△"
+              icon={actions.collected ? "▲" : "△"}
               label="컬렉션 추가"
               active={actions.collected}
               activeColor="#3DAA78"
