@@ -430,6 +430,18 @@ export default function AnalyzePage() {
             {reportLoading && reportType === "artist" ? "Generating..." : "Artist Intelligence Report"}
           </button>
         </div>
+        {/* Price Estimator CTA */}
+        <a
+          href={`/valuation?artist=${encodeURIComponent(analysis?.artist || "")}`}
+          style={{
+            display: "block", marginTop: 8, padding: "13px 10px", textAlign: "center",
+            background: "#F3F2FF", border: "1px solid #D8D4FF", color: "#7C6FF7",
+            fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11,
+            letterSpacing: ".04em", textDecoration: "none", fontWeight: 600,
+          }}
+        >
+          Market Value Estimator →
+        </a>
       </div>
 
       {/* Report Output */}
