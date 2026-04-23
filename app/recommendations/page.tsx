@@ -9,6 +9,7 @@ import { QuickReport } from "../analyze/components/QuickReport";
 import { MarketIntelligenceData } from "../analyze/components/MarketIntelligenceReport";
 import { Recommendation } from "./types/recommendation";
 import { useCollection } from "../collection/hooks/useCollection";
+import { BottomNav } from "../components/BottomNav";
 
 const PAGE_STYLES = `
   .rec-back-btn:hover { background: rgba(0,0,0,0.5) !important; }
@@ -35,18 +36,7 @@ function BackBtn({ onClick }: { onClick: () => void }) {
   );
 }
 
-function NavIcon({ href, active, children, label }: { href: string; active?: boolean; children: React.ReactNode; label: string }) {
-  return (
-    <a href={href} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: active ? "#1856FF" : "#BBBBBB", flex: 1 }}>
-      {children}
-      <span style={{ fontSize: 9, letterSpacing: ".07em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontWeight: active ? 600 : 400 }}>
-        {label}
-      </span>
-    </a>
-  );
-}
-
-export default function RecommendationsPage() {
+function RecommendationsPage() {
   const { recs, images, activeFilter, setFilter, toggleAction } = useRecommendations();
   const { items } = useCollection();
   const [selectedRec, setSelectedRec] = useState<Recommendation | null>(null);
@@ -220,52 +210,12 @@ export default function RecommendationsPage() {
         {/* ── Spacer so last card isn't behind nav ───────────────── */}
         <div style={{ height: 24 }} />
 
-        {/* ── Bottom Nav ─────────────────────────────────────────── */}
-        <div style={{
-          position: "fixed", bottom: 0, left: "50%", transform: "translateX(-50%)",
-          width: "100%", maxWidth: 640,
-          background: "rgba(255,255,255,0.96)",
-          backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-          borderTop: "0.5px solid #EBEBEB",
-          display: "flex", alignItems: "center", justifyContent: "space-around",
-          padding: "10px 22px 22px",
-          boxSizing: "border-box" as const,
-          zIndex: 100,
-        }}>
-          <NavIcon href="/analyze" label="스캔">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="8.2" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M7 10h6M10 7v6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-          </NavIcon>
-
-          <NavIcon href="/collection" label="컬렉션">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-              <rect x="11" y="2.5" width="6.5" height="6.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-              <rect x="2.5" y="11" width="6.5" height="6.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-              <rect x="11" y="11" width="6.5" height="6.5" rx="1" stroke="currentColor" strokeWidth="1.3" />
-            </svg>
-          </NavIcon>
-
-          <NavIcon href="/taste" label="취향">
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.3" />
-              <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2.5 2.5" />
-            </svg>
-          </NavIcon>
-
-          <NavIcon href="/recommendations" label="추천" active>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2.5L12.2 8H18L13.4 11.5L15.2 17L10 13.8L4.8 17L6.6 11.5L2 8H7.8L10 2.5Z"
-                stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"
-                fill="currentColor" fillOpacity="0.15"
-              />
-            </svg>
-          </NavIcon>
-        </div>
+        <BottomNav currentTab="recommendations" />
 
       </div>
     </>
   );
 }
+
+export { RecommendationsPage as RecommendationsPageContent };
+export default RecommendationsPage;

@@ -3,6 +3,7 @@ import React, { useState, useMemo } from "react";
 import { useCollection, CollectionItem, makeItemId } from "./hooks/useCollection";
 import { QuickReport } from "../analyze/components/QuickReport";
 import { MarketIntelligenceData } from "../analyze/components/MarketIntelligenceReport";
+import { BottomNav } from "../components/BottomNav";
 
 /* ── Mock demo items (shown when collection is empty) ────────── */
 
@@ -301,7 +302,7 @@ const COL_STYLES = `
 
 /* ── Main page ───────────────────────────────────────────────── */
 
-export default function CollectionPage() {
+function CollectionPage() {
   const { items, hydrated, patch } = useCollection();
   const [selectedItem, setSelectedItem] = useState<CollectionItem | null>(null);
   const [sortBy, setSortBy] = useState<SortKey>("recent");
@@ -445,39 +446,11 @@ export default function CollectionPage() {
           )}
         </div>
 
-        {/* ── Bottom Nav ───────────────────────────────────────── */}
-        <div style={{ position: "fixed" as const, bottom: 0, left: "50%", transform: "translateX(-50%)", width: "100%", maxWidth: 640, background: "rgba(255,255,255,0.96)", backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)", borderTop: "0.5px solid #EBEBEB", padding: "10px 22px 22px", display: "flex", justifyContent: "space-around", alignItems: "center", boxSizing: "border-box" as const, zIndex: 100 }}>
-          <a href="/analyze" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#BBBBBB", flex: 1 }}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="8.2" stroke="currentColor" strokeWidth="1.3" />
-              <path d="M7 10h6M10 7v6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-            <span style={{ fontSize: 9, letterSpacing: ".07em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>스캔</span>
-          </a>
-          <a href="/collection" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#0F0F0F", flex: 1 }}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <rect x="2.5" y="2.5" width="6.5" height="6.5" rx="1" fill="currentColor" />
-              <rect x="11" y="2.5" width="6.5" height="6.5" rx="1" fill="currentColor" />
-              <rect x="2.5" y="11" width="6.5" height="6.5" rx="1" fill="currentColor" />
-              <rect x="11" y="11" width="6.5" height="6.5" rx="1" fill="currentColor" />
-            </svg>
-            <span style={{ fontSize: 9, letterSpacing: ".07em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontWeight: 600 }}>컬렉션</span>
-          </a>
-          <a href="/taste" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#BBBBBB", flex: 1 }}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.3" />
-              <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.2" strokeDasharray="2.5 2.5" />
-            </svg>
-            <span style={{ fontSize: 9, letterSpacing: ".07em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>취향</span>
-          </a>
-          <a href="/recommendations" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#BBBBBB", flex: 1 }}>
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path d="M10 2.5L12.2 8H18L13.4 11.5L15.2 17L10 13.8L4.8 17L6.6 11.5L2 8H7.8L10 2.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="currentColor" fillOpacity="0.12" />
-            </svg>
-            <span style={{ fontSize: 9, letterSpacing: ".07em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>추천</span>
-          </a>
-        </div>
+        <BottomNav currentTab="collection" />
       </div>
     </>
   );
 }
+
+export { CollectionPage as CollectionPageContent };
+export default CollectionPage;

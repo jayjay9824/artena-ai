@@ -1,32 +1,30 @@
 "use client";
-import { useState, useRef } from "react";
-import { MarketReportData } from "./components/MarketReport";
-import { ArtistReportData } from "./components/ArtistReport";
+import React, { useState, useRef, useEffect } from "react";
 import { MarketIntelligenceData } from "./components/MarketIntelligenceReport";
 import { QuickReport } from "./components/QuickReport";
+import { TabProvider, useTabNav, AppTab } from "../context/TabContext";
+import { BottomNav } from "../components/BottomNav";
+import { CollectionPageContent } from "../collection/page";
+import { TastePageContent } from "../taste/page";
+import { RecommendationsPageContent } from "../recommendations/page";
 
-interface Work { title: string; year: string; medium: string; location: string; }
-interface Auction { date: string; work: string; house: string; result: string; estimate: string; note: string; }
+/* ── Types (kept local for the scan analysis shape) ───────────── */
+
+interface Work       { title: string; year: string; medium: string; location: string; }
+interface Auction    { date: string; work: string; house: string; result: string; estimate: string; note: string; }
 interface Collection { inst: string; city: string; period: string; work: string; }
-interface Critic { critic: string; source: string; year: string; quote: string; }
+interface Critic     { critic: string; source: string; year: string; quote: string; }
 interface Exhibition { title: string; venue: string; city: string; year: string; type: string; }
 
 interface Analysis {
-  title?: string;
-  artist?: string;
-  year?: string;
-  style?: string;
-  description?: string;
-  emotions?: Record<string, number>;
-  colorPalette?: string[];
-  keywords?: string[];
-  marketNote?: string;
-  works?: Work[];
-  auctions?: Auction[];
-  collections?: Collection[];
-  critics?: Critic[];
-  exhibitions?: Exhibition[];
+  title?: string; artist?: string; year?: string; style?: string;
+  description?: string; emotions?: Record<string, number>; colorPalette?: string[];
+  keywords?: string[]; marketNote?: string;
+  works?: Work[]; auctions?: Auction[]; collections?: Collection[];
+  critics?: Critic[]; exhibitions?: Exhibition[];
 }
+
+/* ── Loading spinner ──────────────────────────────────────────── */
 
 function LoadingSpinner() {
   return (
@@ -41,7 +39,9 @@ function LoadingSpinner() {
   );
 }
 
-export default function AnalyzePage() {
+/* ── Scan screen (upload → loading → QuickReport) ─────────────── */
+
+function ScanScreen() {
   const [screen, setScreen] = useState("upload");
   const [error, setError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -52,7 +52,7 @@ export default function AnalyzePage() {
   const [reportData, setReportData] = useState<MarketIntelligenceData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef  = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const analyzeImage = async (file: File) => {
@@ -64,7 +64,7 @@ export default function AnalyzePage() {
     try {
       const formData = new FormData();
       formData.append("image", file);
-      const res = await fetch("/api/analyze", { method: "POST", body: formData });
+      const res  = await fetch("/api/analyze", { method: "POST", body: formData });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "분석 실패");
       setAnalysis(json.data);
@@ -81,11 +81,7 @@ export default function AnalyzePage() {
     setError(null);
     setScreen("loading");
     try {
-      const res = await fetch("/api/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: textQuery }),
-      });
+      const res  = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: textQuery }) });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "분석 실패");
       setAnalysis(json.data);
@@ -108,11 +104,7 @@ export default function AnalyzePage() {
     setReportData(null);
     setReportLoading(true);
     try {
-      const res = await fetch("/api/market-intelligence", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ analysis }),
-      });
+      const res  = await fetch("/api/market-intelligence", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ analysis }) });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
       setReportData(json.data as MarketIntelligenceData);
@@ -123,20 +115,30 @@ export default function AnalyzePage() {
     }
   };
 
-  const S: React.CSSProperties = {
-    fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18",
-    padding: "20px 22px", maxWidth: 640, margin: "0 auto", background: "#F8F7F4", minHeight: "100vh",
-    boxSizing: "border-box", overflowX: "hidden",
-  };
+  // QuickReport result — full screen, no bottom nav
+  if (screen === "result") {
+    return (
+      <QuickReport
+        analysis={analysis ?? {}}
+        imagePreview={imagePreview}
+        sourceType={activeInput === "camera" ? "camera" : activeInput === "text" ? "text" : "image"}
+        onReset={reset}
+        onFullReport={generateIntelligenceReport}
+        reportLoading={reportLoading && reportType === "intelligence"}
+        reportData={reportType === "intelligence" && !reportLoading ? (reportData as MarketIntelligenceData | null) : null}
+      />
+    );
+  }
 
+  // Upload / Loading
   const tabBtn = (id: "image" | "camera" | "text", icon: string, label: string) => (
     <button
       key={id}
       onClick={() => setActiveInput(id)}
       style={{
         flex: 1, padding: "10px 0", border: "none", background: "transparent",
-        fontFamily: "'KakaoSmallSans', system-ui, sans-serif", cursor: "pointer", display: "flex", flexDirection: "column",
-        alignItems: "center", gap: 5,
+        fontFamily: "'KakaoSmallSans', system-ui, sans-serif", cursor: "pointer",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
         borderBottom: activeInput === id ? "2px solid #1a1a18" : "2px solid transparent",
         color: activeInput === id ? "#1a1a18" : "#bbb",
         transition: "all .15s",
@@ -147,52 +149,30 @@ export default function AnalyzePage() {
     </button>
   );
 
-  if (screen === "upload" || screen === "loading") return (
-    <div style={S}>
+  return (
+    <div style={{
+      fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18",
+      padding: "20px 22px 100px", maxWidth: 640, margin: "0 auto", background: "#F8F7F4",
+      minHeight: "100vh", boxSizing: "border-box", overflowX: "hidden",
+    }}>
+      {/* Header — ARTENA branding only */}
       <div style={{ marginBottom: 22, paddingBottom: 12, borderBottom: "0.5px solid #e8e3db" }}>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 3 }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10 }}>
-            <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
-            <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
-          </div>
-          <div style={{ display: "flex", gap: 14, alignItems: "center" }}>
-            <a href="/collection" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <rect x="2" y="2" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
-                <rect x="10" y="2" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
-                <rect x="2" y="10" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
-                <rect x="10" y="10" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
-              </svg>
-              <span style={{ fontSize: 9, letterSpacing: ".08em" }}>컬렉션</span>
-            </a>
-            <a href="/taste" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <circle cx="9" cy="9" r="3" stroke="currentColor" strokeWidth="1.2" />
-                <circle cx="9" cy="9" r="6.5" stroke="currentColor" strokeWidth="1.1" strokeDasharray="2.2 2.2" />
-              </svg>
-              <span style={{ fontSize: 9, letterSpacing: ".08em" }}>취향</span>
-            </a>
-            <a href="/recommendations" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
-              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
-                <path d="M9 2L11 7H17L12.5 10L14.2 15.5L9 12.5L3.8 15.5L5.5 10L1 7H7L9 2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
-              </svg>
-              <span style={{ fontSize: 9, letterSpacing: ".08em" }}>추천</span>
-            </a>
-          </div>
+        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 3 }}>
+          <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
+          <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
         </div>
         <p style={{ fontSize: 12, color: "#bbb", margin: 0 }}>작품을 올리면 감성 분석 + 시장 데이터를 함께 보여드립니다</p>
       </div>
 
       {screen === "loading" ? <LoadingSpinner /> : (
         <>
-          {/* 탭 */}
+          {/* Input type tabs */}
           <div style={{ display: "flex", borderBottom: "0.5px solid #e8e3db", marginBottom: 20 }}>
             {tabBtn("image", "🖼️", "이미지 업로드")}
             {tabBtn("camera", "📷", "카메라")}
             {tabBtn("text", "🔍", "텍스트 검색")}
           </div>
 
-          {/* 이미지 업로드 */}
           {activeInput === "image" && (
             <>
               <div
@@ -210,7 +190,6 @@ export default function AnalyzePage() {
             </>
           )}
 
-          {/* 카메라 */}
           {activeInput === "camera" && (
             <>
               <div
@@ -226,7 +205,6 @@ export default function AnalyzePage() {
             </>
           )}
 
-          {/* 텍스트 검색 */}
           {activeInput === "text" && (
             <div style={{ marginBottom: 16 }}>
               <p style={{ fontSize: 12, color: "#aaa", marginBottom: 12 }}>작품명, 작가명, 또는 작품 설명을 입력하세요</p>
@@ -256,19 +234,56 @@ export default function AnalyzePage() {
           )}
         </>
       )}
+
+      {/* Bottom nav — only on upload screen (not loading, not result) */}
+      {screen === "upload" && <BottomNav currentTab="scan" />}
     </div>
   );
+}
 
-  // result screen → QuickReport
+/* ── Shell content (reads tab from context) ───────────────────── */
+
+function AppShellContent() {
+  const { activeTab } = useTabNav();
+  const [visited, setVisited] = useState<Set<AppTab>>(new Set(["scan"]));
+
+  useEffect(() => {
+    setVisited(prev => new Set([...prev, activeTab]));
+  }, [activeTab]);
+
   return (
-    <QuickReport
-      analysis={analysis ?? {}}
-      imagePreview={imagePreview}
-      sourceType={activeInput === "camera" ? "camera" : activeInput === "text" ? "text" : "image"}
-      onReset={reset}
-      onFullReport={generateIntelligenceReport}
-      reportLoading={reportLoading && reportType === "intelligence"}
-      reportData={reportType === "intelligence" && !reportLoading ? (reportData as MarketIntelligenceData | null) : null}
-    />
+    <>
+      {/* Scan tab — always mounted, shown/hidden */}
+      <div style={{ display: activeTab === "scan" ? "block" : "none" }}>
+        <ScanScreen />
+      </div>
+
+      {/* Other tabs — lazy-mounted on first visit, then kept alive */}
+      {visited.has("collection") && (
+        <div style={{ display: activeTab === "collection" ? "block" : "none" }}>
+          <CollectionPageContent />
+        </div>
+      )}
+      {visited.has("taste") && (
+        <div style={{ display: activeTab === "taste" ? "block" : "none" }}>
+          <TastePageContent />
+        </div>
+      )}
+      {visited.has("recommendations") && (
+        <div style={{ display: activeTab === "recommendations" ? "block" : "none" }}>
+          <RecommendationsPageContent />
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ── App shell entry point ────────────────────────────────────── */
+
+export default function AppShell() {
+  return (
+    <TabProvider>
+      <AppShellContent />
+    </TabProvider>
   );
 }

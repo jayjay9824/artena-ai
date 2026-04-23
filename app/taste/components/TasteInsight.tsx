@@ -1,12 +1,14 @@
 "use client";
 import React from "react";
 import { TasteProfile } from "../types/taste";
+import { useTabNav } from "../../context/TabContext";
 
 interface TasteInsightProps {
   profile: TasteProfile;
 }
 
 export function TasteInsight({ profile }: TasteInsightProps) {
+  const { goTo } = useTabNav();
   return (
     <div style={{ padding: "30px 22px 36px" }}>
       <p style={{
@@ -39,32 +41,32 @@ export function TasteInsight({ profile }: TasteInsightProps) {
 
       {/* CTAs */}
       <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 32 }}>
-        <a
-          href="/recommendations"
+        <button
+          onClick={() => goTo("recommendations")}
           style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
             padding: "13px 0", background: "#0F0F0F", color: "#FFFFFF",
             fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11,
-            letterSpacing: ".07em", textDecoration: "none",
+            letterSpacing: ".07em", border: "none", cursor: "pointer", width: "100%",
             transition: "opacity .15s",
           }}
         >
           <span style={{ fontSize: 9, color: "#7C6FF7" }}>◆</span>
           Explore Recommendations
           <span style={{ fontSize: 10, color: "#666" }}>→</span>
-        </a>
-        <a
-          href="/collection"
+        </button>
+        <button
+          onClick={() => goTo("collection")}
           style={{
             display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
             padding: "12px 0", background: "transparent",
             border: "0.5px solid #E0E0E0", color: "#888",
             fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11,
-            letterSpacing: ".06em", textDecoration: "none",
+            letterSpacing: ".06em", cursor: "pointer", width: "100%",
           }}
         >
           View Collection
-        </a>
+        </button>
       </div>
     </div>
   );
