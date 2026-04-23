@@ -2,6 +2,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Recommendation, ActiveFilter, FilterKey } from "../types/recommendation";
 import { useCollection, makeItemId } from "../../collection/hooks/useCollection";
+import { unavailableArtistPhoto } from "../../types/artistPhoto";
 
 const INITIAL_RECS: Recommendation[] = [
   {
@@ -17,6 +18,8 @@ const INITIAL_RECS: Recommendation[] = [
     accentColor: "#C0A87A",
     liked: false,
     saved: false,
+    artistPhoto: unavailableArtistPhoto("Agnes Martin"),
+    artworkImageQuery: "Agnes Martin Untitled painting minimalism canvas",
     analysis: {
       title: "Untitled #12",
       artist: "Agnes Martin",
@@ -55,6 +58,8 @@ const INITIAL_RECS: Recommendation[] = [
     accentColor: "#8090A8",
     liked: false,
     saved: false,
+    artistPhoto: unavailableArtistPhoto("Lee Ufan"),
+    artworkImageQuery: "Lee Ufan Relatum sculpture stone steel",
     analysis: {
       title: "Relatum",
       artist: "Lee Ufan",
@@ -89,6 +94,8 @@ const INITIAL_RECS: Recommendation[] = [
     accentColor: "#A07858",
     liked: false,
     saved: false,
+    artistPhoto: unavailableArtistPhoto("Gerhard Richter"),
+    artworkImageQuery: "Gerhard Richter abstract painting oil canvas",
     analysis: {
       title: "Abstract Painting 726",
       artist: "Gerhard Richter",
@@ -122,6 +129,8 @@ const INITIAL_RECS: Recommendation[] = [
     accentColor: "#C0A030",
     liked: false,
     saved: false,
+    artistPhoto: unavailableArtistPhoto("Roni Horn"),
+    artworkImageQuery: "Roni Horn Gold Field installation art",
     analysis: {
       title: "Gold Field",
       artist: "Roni Horn",
@@ -154,6 +163,8 @@ const INITIAL_RECS: Recommendation[] = [
     accentColor: "#7A8870",
     liked: false,
     saved: false,
+    artistPhoto: unavailableArtistPhoto("Wolfgang Tillmans"),
+    artworkImageQuery: "Wolfgang Tillmans photography contemporary",
     analysis: {
       title: "Lutz & Alex Sitting in the Trees",
       artist: "Wolfgang Tillmans",
@@ -186,6 +197,8 @@ const INITIAL_RECS: Recommendation[] = [
     accentColor: "#C87850",
     liked: false,
     saved: false,
+    artistPhoto: unavailableArtistPhoto("Félix González-Torres"),
+    artworkImageQuery: "Felix Gonzalez-Torres candy pile installation conceptual art",
     analysis: {
       title: '"Untitled" (Portrait of Ross in L.A.)',
       artist: "Félix González-Torres",
@@ -219,6 +232,8 @@ const INITIAL_RECS: Recommendation[] = [
     accentColor: "#9080B8",
     liked: false,
     saved: false,
+    artistPhoto: unavailableArtistPhoto("Koo Jeong A"),
+    artworkImageQuery: "Koo Jeong A installation art conceptual",
     analysis: {
       title: "Constellation Congress",
       artist: "Koo Jeong A",
@@ -247,12 +262,12 @@ export function useRecommendations() {
   const fetchedRef = useRef<Set<string>>(new Set());
   const { upsert, patch, items } = useCollection();
 
-  // Fetch Wikipedia images once per artist
+  // Fetch artwork images — uses artwork-specific query to avoid artist portraits
   useEffect(() => {
     INITIAL_RECS.forEach(rec => {
       if (fetchedRef.current.has(rec.id)) return;
       fetchedRef.current.add(rec.id);
-      fetch(`/api/wiki-image?q=${encodeURIComponent(rec.artist)}`)
+      fetch(`/api/wiki-image?q=${encodeURIComponent(rec.artworkImageQuery)}`)
         .then(r => r.json())
         .then(json => setImages(prev => ({ ...prev, [rec.id]: json.url ?? null })))
         .catch(() => setImages(prev => ({ ...prev, [rec.id]: null })));

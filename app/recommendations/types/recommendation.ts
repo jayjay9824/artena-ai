@@ -1,4 +1,7 @@
 import type { CollectionAnalysis } from "../../collection/hooks/useCollection";
+import type { ArtistPhotoData } from "../../types/artistPhoto";
+
+export type { ArtistPhotoData };
 
 export type ReasonCategory = "style" | "concept" | "emotion" | "extension" | "market";
 export type MarketTier = "Emerging" | "Established" | "Blue-chip";
@@ -23,6 +26,8 @@ export interface Recommendation {
   analysis: CollectionAnalysis;
   liked: boolean;
   saved: boolean;
+  artistPhoto: ArtistPhotoData;
+  artworkImageQuery: string;
 }
 
 export const FILTER_OPTIONS: Record<string, string[]> = {

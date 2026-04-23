@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState } from "react";
+import { ArtistPhotoAvatar } from "../../components/ArtistPhotoAvatar";
 
 export interface MarketIntelligenceData {
   artworkOverview: {
@@ -316,24 +317,17 @@ export function MarketIntelligenceReport({
 }) {
   const section: React.CSSProperties = { marginBottom: 32 };
 
-  const [artistImg, setArtistImg] = useState<string | null>(null);
   const [workImg, setWorkImg] = useState<string | null>(null);
-  const [artistLoading, setArtistLoading] = useState(true);
   const [workLoading, setWorkLoading] = useState(true);
 
   useEffect(() => {
-    setArtistLoading(true);
-    fetchWikiImage(data.artworkOverview.artist).then((url) => {
-      setArtistImg(url);
-      setArtistLoading(false);
-    });
     const repWork = data.representativeWork || data.artworkOverview.title;
     setWorkLoading(true);
     fetchWikiImage(repWork).then((url) => {
       setWorkImg(url);
       setWorkLoading(false);
     });
-  }, [data.artworkOverview.artist, data.artworkOverview.title, data.representativeWork]);
+  }, [data.artworkOverview.title, data.representativeWork]);
 
   return (
     <>
@@ -365,15 +359,30 @@ export function MarketIntelligenceReport({
 
         {/* Image Section */}
         <div style={{ marginBottom: 36 }}>
-          {/* Row 1: Artist + Representative Work */}
+          {/* Row 1: Artist (verified-only avatar) + Representative Work */}
           <div className="mir-two-col" style={{ marginBottom: 20 }}>
-            <ImgCard
-              src={artistImg}
-              label="Artist"
-              caption={data.artworkOverview.artist}
-              sub={data.artistPositioning.base || undefined}
-              loading={artistLoading}
-            />
+            {/* Artist — no portrait unless explicitly verified */}
+            <div style={{ display: "flex", flexDirection: "column" as const, gap: 10, flex: 1, minWidth: 0 }}>
+              <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".18em", textTransform: "uppercase" as const }}>Artist</span>
+              <ArtistPhotoAvatar
+                data={{
+                  artistName: data.artworkOverview.artist,
+                  imageUrl: null,
+                  verificationStatus: "unavailable",
+                  source: "",
+                  sourceType: "unknown",
+                }}
+                height={160}
+              />
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "#111", margin: "0 0 2px", lineHeight: 1.4, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
+                  {data.artworkOverview.artist}
+                </p>
+                {data.artistPositioning.base && (
+                  <p style={{ fontSize: 10, color: "#AAA", margin: 0 }}>{data.artistPositioning.base}</p>
+                )}
+              </div>
+            </div>
             <ImgCard
               src={workImg}
               label="Representative Work"
