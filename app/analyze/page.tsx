@@ -51,9 +51,29 @@ function ScanScreen() {
   const [reportType, setReportType] = useState<"intelligence" | null>(null);
   const [reportData, setReportData] = useState<MarketIntelligenceData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
+  const [pasteHint, setPasteHint] = useState(false);
 
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
+
+  // Clipboard paste listener — active only on image tab while on upload screen
+  useEffect(() => {
+    if (screen !== "upload" || activeInput !== "image") return;
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (const item of Array.from(items)) {
+        if (item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) { analyzeImage(file); return; }
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+    return () => window.removeEventListener("paste", handlePaste);
+  // analyzeImage is stable; eslint would flag it but it's safe here
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen, activeInput]);
 
   const analyzeImage = async (file: File) => {
     const reader = new FileReader();
@@ -178,13 +198,29 @@ function ScanScreen() {
               <div
                 onClick={() => fileInputRef.current?.click()}
                 onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) analyzeImage(f); }}
-                onDragOver={(e) => e.preventDefault()}
-                style={{ border: "2px dashed #e0dbd4", borderRadius: 10, padding: "44px 24px", textAlign: "center", cursor: "pointer", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", minHeight: 200 }}
+                onDragOver={(e) => { e.preventDefault(); setPasteHint(false); }}
+                onFocus={() => setPasteHint(true)}
+                onBlur={() => setPasteHint(false)}
+                tabIndex={0}
+                style={{
+                  border: `2px dashed ${pasteHint ? "#1a1a18" : "#e0dbd4"}`,
+                  borderRadius: 10, padding: "44px 24px", textAlign: "center", cursor: "pointer",
+                  marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center",
+                  flexDirection: "column", minHeight: 200, outline: "none",
+                  transition: "border-color .15s",
+                }}
               >
                 <div style={{ fontSize: 40, marginBottom: 14 }}>🖼️</div>
                 <p style={{ fontSize: 14, color: "#777", marginBottom: 4 }}>작품 이미지를 업로드하세요</p>
                 <p style={{ fontSize: 11, color: "#ccc", marginBottom: 18 }}>JPG, PNG, WEBP · 최대 20MB</p>
-                <span style={{ fontSize: 11, color: "#888", background: "#f0ece8", padding: "7px 18px", borderRadius: 20, border: "0.5px solid #e0dbd4" }}>클릭하거나 드래그하세요</span>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
+                  <span style={{ fontSize: 11, color: "#888", background: "#f0ece8", padding: "7px 18px", borderRadius: 20, border: "0.5px solid #e0dbd4" }}>
+                    클릭하거나 드래그
+                  </span>
+                  <span style={{ fontSize: 11, color: "#888", background: "#f0ece8", padding: "7px 18px", borderRadius: 20, border: "0.5px solid #e0dbd4" }}>
+                    Ctrl+V 붙여넣기
+                  </span>
+                </div>
               </div>
               <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) analyzeImage(e.target.files[0]); }} />
             </>
