@@ -466,6 +466,12 @@ export default function CollectionPage() {
                 </svg>
                 <span style={{ fontSize: 9, letterSpacing: ".04em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontWeight: 600 }}>Collection</span>
               </a>
+              <a href="/recommendations" style={{ display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3, textDecoration: "none", color: "#BBBBBB" }}>
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                  <path d="M10 2.5L12.2 8H18L13.4 11.5L15.2 17L10 13.8L4.8 17L6.6 11.5L2 8H7.8L10 2.5Z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" fill="currentColor" fillOpacity="0.12" />
+                </svg>
+                <span style={{ fontSize: 9, letterSpacing: ".04em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>추천</span>
+              </a>
             </div>
             <a
               href="/analyze"

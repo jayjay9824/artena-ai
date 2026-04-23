@@ -155,10 +155,23 @@ export default function AnalyzePage() {
             <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
             <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
           </div>
-          <a href="/collection" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
-            <span style={{ fontSize: 18, lineHeight: 1 }}>◆</span>
-            <span style={{ fontSize: 9, letterSpacing: ".08em" }}>컬렉션</span>
-          </a>
+          <div style={{ display: "flex", gap: 16, alignItems: "center" }}>
+            <a href="/collection" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <rect x="2" y="2" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="10" y="2" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="2" y="10" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
+                <rect x="10" y="10" width="6" height="6" rx="1" stroke="currentColor" strokeWidth="1.2" />
+              </svg>
+              <span style={{ fontSize: 9, letterSpacing: ".08em" }}>컬렉션</span>
+            </a>
+            <a href="/recommendations" style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, textDecoration: "none", color: "#888" }}>
+              <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+                <path d="M9 2L11 7H17L12.5 10L14.2 15.5L9 12.5L3.8 15.5L5.5 10L1 7H7L9 2Z" stroke="currentColor" strokeWidth="1.2" strokeLinejoin="round" />
+              </svg>
+              <span style={{ fontSize: 9, letterSpacing: ".08em" }}>추천</span>
+            </a>
+          </div>
         </div>
         <p style={{ fontSize: 12, color: "#bbb", margin: 0 }}>작품을 올리면 감성 분석 + 시장 데이터를 함께 보여드립니다</p>
       </div>
