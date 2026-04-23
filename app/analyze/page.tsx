@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { MarketReport, MarketReportData } from "./components/MarketReport";
 import { ArtistReport, ArtistReportData } from "./components/ArtistReport";
+import { MarketIntelligenceReport, MarketIntelligenceData } from "./components/MarketIntelligenceReport";
 
 const EMOTION_KEYS: [string, string, string][] = [
   ["calm", "차분함", "#4A7A5A"],
@@ -56,8 +57,8 @@ export default function AnalyzePage() {
   const [textQuery, setTextQuery] = useState("");
   const [activeInput, setActiveInput] = useState<"image" | "camera" | "text">("image");
   const [mktTab, setMktTab] = useState("works");
-  const [reportType, setReportType] = useState<"market" | "artist" | null>(null);
-  const [reportData, setReportData] = useState<MarketReportData | ArtistReportData | null>(null);
+  const [reportType, setReportType] = useState<"market" | "artist" | "intelligence" | null>(null);
+  const [reportData, setReportData] = useState<MarketReportData | ArtistReportData | MarketIntelligenceData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
 
@@ -129,6 +130,28 @@ export default function AnalyzePage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type, analysis }),
+      });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      setReportData(json.data);
+      setTimeout(() => reportRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 100);
+    } catch {
+      setReportType(null);
+    } finally {
+      setReportLoading(false);
+    }
+  };
+
+  const generateIntelligenceReport = async () => {
+    if (!analysis) return;
+    setReportType("intelligence");
+    setReportData(null);
+    setReportLoading(true);
+    try {
+      const res = await fetch("/api/market-intelligence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ analysis }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -414,29 +437,44 @@ export default function AnalyzePage() {
       {/* Generate Report Buttons */}
       <div style={{ marginBottom: 18 }}>
         <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".2em", textTransform: "uppercase", marginBottom: 12 }}>ARTENA Intelligence Layer</p>
+        {/* Full-width primary button */}
+        <button
+          onClick={generateIntelligenceReport}
+          disabled={reportLoading}
+          style={{
+            width: "100%", padding: "15px 10px", marginBottom: 8,
+            background: reportType === "intelligence" && !reportLoading ? "#7C6FF7" : "#000",
+            color: "#FFF", border: "none",
+            fontFamily: "'KakaoBigSans', system-ui, sans-serif", fontSize: 12, letterSpacing: ".08em",
+            cursor: reportLoading ? "default" : "pointer",
+            opacity: reportLoading && reportType !== "intelligence" ? 0.5 : 1, transition: "all .2s"
+          }}
+        >
+          {reportLoading && reportType === "intelligence" ? "분석 중..." : "Market Intelligence Report (Full)"}
+        </button>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
           <button
             onClick={() => generateReport("market")}
             disabled={reportLoading}
-            style={{ padding: "13px 10px", background: reportType === "market" && !reportLoading ? "#000" : "#FFFFFF", color: reportType === "market" && !reportLoading ? "#fff" : "#000", border: "1px solid #D8D8D8", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "market" ? 0.4 : 1, transition: "all .2s" }}
+            style={{ padding: "12px 10px", background: reportType === "market" && !reportLoading ? "#1a1a18" : "#FFFFFF", color: reportType === "market" && !reportLoading ? "#fff" : "#555", border: "1px solid #D8D8D8", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 10, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "market" ? 0.4 : 1, transition: "all .2s" }}
           >
-            {reportLoading && reportType === "market" ? "Generating..." : "Market Intelligence Report"}
+            {reportLoading && reportType === "market" ? "생성 중..." : "Market Report"}
           </button>
           <button
             onClick={() => generateReport("artist")}
             disabled={reportLoading}
-            style={{ padding: "13px 10px", background: reportType === "artist" && !reportLoading ? "#000" : "#FFFFFF", color: reportType === "artist" && !reportLoading ? "#fff" : "#000", border: "1px solid #D8D8D8", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "artist" ? 0.4 : 1, transition: "all .2s" }}
+            style={{ padding: "12px 10px", background: reportType === "artist" && !reportLoading ? "#1a1a18" : "#FFFFFF", color: reportType === "artist" && !reportLoading ? "#fff" : "#555", border: "1px solid #D8D8D8", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 10, letterSpacing: ".04em", cursor: reportLoading ? "default" : "pointer", opacity: reportLoading && reportType !== "artist" ? 0.4 : 1, transition: "all .2s" }}
           >
-            {reportLoading && reportType === "artist" ? "Generating..." : "Artist Intelligence Report"}
+            {reportLoading && reportType === "artist" ? "생성 중..." : "Artist Report"}
           </button>
         </div>
         {/* Price Estimator CTA */}
         <a
           href={`/valuation?artist=${encodeURIComponent(analysis?.artist || "")}`}
           style={{
-            display: "block", marginTop: 8, padding: "13px 10px", textAlign: "center",
+            display: "block", marginTop: 8, padding: "12px 10px", textAlign: "center",
             background: "#F3F2FF", border: "1px solid #D8D4FF", color: "#7C6FF7",
-            fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 11,
+            fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 10,
             letterSpacing: ".04em", textDecoration: "none", fontWeight: 600,
           }}
         >
@@ -450,9 +488,18 @@ export default function AnalyzePage() {
           <div style={{ width: 32, height: 32, border: "2px solid #EBEBEB", borderTop: "2px solid #7C6FF7", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
           <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           <div style={{ textAlign: "center" }}>
-            <p style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>Generating Intelligence Report</p>
-            <p style={{ fontSize: 11, color: "#BBB" }}>Analyzing with institutional-grade AI...</p>
+            <p style={{ fontSize: 12, color: "#555", marginBottom: 4 }}>
+              {reportType === "intelligence" ? "Market Intelligence Report 생성 중" : "Generating Intelligence Report"}
+            </p>
+            <p style={{ fontSize: 11, color: "#BBB" }}>
+              {reportType === "intelligence" ? "11개 섹션 분석 중 · 약 20-30초 소요됩니다..." : "Analyzing with institutional-grade AI..."}
+            </p>
           </div>
+        </div>
+      )}
+      {!reportLoading && reportData && reportType === "intelligence" && (
+        <div ref={reportRef} style={{ marginBottom: 18 }}>
+          <MarketIntelligenceReport data={reportData as MarketIntelligenceData} />
         </div>
       )}
       {!reportLoading && reportData && reportType === "market" && (
