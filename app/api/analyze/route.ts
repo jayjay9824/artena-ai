@@ -62,7 +62,6 @@ export async function POST(req: NextRequest) {
       const message = await client.messages.create({
         model: "claude-opus-4-7",
         max_tokens: 2000,
-        thinking: { type: "adaptive" },
         messages: [{
           role: "user",
           content: TEXT_PROMPT(query),
@@ -87,7 +86,6 @@ export async function POST(req: NextRequest) {
     const message = await client.messages.create({
       model: "claude-opus-4-7",
       max_tokens: 2000,
-      thinking: { type: "adaptive" },
       messages: [{
         role: "user",
         content: [
