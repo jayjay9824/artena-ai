@@ -7,7 +7,10 @@ export interface CollectionMuseum     { inst: string; city: string; period: stri
 export interface CollectionCritic     { critic: string; source: string; year: string; quote: string; }
 export interface CollectionExhibition { title: string; venue: string; city: string; year: string; type: string; }
 
+export type AnalysisCategory = "painting" | "sculpture" | "architecture" | "artifact" | "cultural_site";
+
 export interface CollectionAnalysis {
+  category?: AnalysisCategory;
   title?: string;
   artist?: string;
   year?: string;

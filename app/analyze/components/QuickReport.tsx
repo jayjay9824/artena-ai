@@ -58,7 +58,32 @@ export const MOCK_ANALYSIS: QRAnalysis = {
 
 /* ── Utility functions ───────────────────────────────────────── */
 
+// ── Category helpers ──────────────────────────────────────────────
+
+function isArchitecture(a: QRAnalysis) {
+  return a.category === "architecture";
+}
+
+function isArtifact(a: QRAnalysis) {
+  return a.category === "artifact" || a.category === "cultural_site";
+}
+
+function artistLabel(a: QRAnalysis): string {
+  if (isArchitecture(a)) return "건축가";
+  if (isArtifact(a)) return "제작 주체";
+  return "작가";
+}
+
+function artistFallback(a: QRAnalysis): string {
+  if (isArchitecture(a)) return "건축가 미상";
+  if (isArtifact(a)) return "제작자 미상";
+  return "Unknown Artist";
+}
+
+// ── Derived metrics ───────────────────────────────────────────────
+
 function deriveMarketPosition(a: QRAnalysis): "Emerging" | "Established" | "Blue-chip" {
+  if (isArchitecture(a) || isArtifact(a)) return "Established";
   const note = (a.marketNote ?? "").toLowerCase();
   const auCount = a.auctions?.length ?? 0;
   const colCount = a.collections?.length ?? 0;
@@ -86,6 +111,7 @@ function parseUSD(s: string): number | null {
 }
 
 function derivePriceRange(a: QRAnalysis): string {
+  if (isArchitecture(a)) return "해당 없음";
   const prices = (a.auctions ?? [])
     .map(au => parseUSD(au.result))
     .filter((p): p is number => p !== null)
@@ -100,13 +126,29 @@ function derivePriceRange(a: QRAnalysis): string {
 
 function deriveInsightBullets(a: QRAnalysis): string[] {
   const bullets: string[] = [];
-  if (a.style) bullets.push(`${a.style} 계열 — 기관 및 갤러리 중심으로 활동`);
   const kw = (a.keywords ?? []).slice(0, 3);
-  if (kw.length > 0) bullets.push(`핵심 개념: ${kw.join(" · ")}`);
-  const dominant = Object.entries(a.emotions ?? {}).sort((a, b) => b[1] - a[1])[0];
-  if (dominant) {
-    const lbl: Record<string, string> = { calm: "차분함", heavy: "중량감", warm: "온기", inward: "내향성", movement: "동세" };
-    bullets.push(`지배적 감성: ${lbl[dominant[0]] ?? dominant[0]} (${dominant[1]}/100)`);
+
+  if (isArchitecture(a)) {
+    if (a.style) bullets.push(`${a.style} — 건축 양식`);
+    if (kw.length > 0) bullets.push(`특징: ${kw.join(" · ")}`);
+    const dominant = Object.entries(a.emotions ?? {}).sort((x, y) => y[1] - x[1])[0];
+    if (dominant) {
+      const lbl: Record<string, string> = { calm: "정적·절제", heavy: "중후함", warm: "온기", inward: "내향적", movement: "역동성" };
+      bullets.push(`공간 감성: ${lbl[dominant[0]] ?? dominant[0]} (${dominant[1]}/100)`);
+    }
+  } else if (isArtifact(a)) {
+    if (a.style) bullets.push(`${a.style}`);
+    if (kw.length > 0) bullets.push(`핵심 특성: ${kw.join(" · ")}`);
+    const col = a.collections?.[0];
+    if (col) bullets.push(`소장: ${col.inst}, ${col.city}`);
+  } else {
+    if (a.style) bullets.push(`${a.style} 계열 — 기관 및 갤러리 중심으로 활동`);
+    if (kw.length > 0) bullets.push(`핵심 개념: ${kw.join(" · ")}`);
+    const dominant = Object.entries(a.emotions ?? {}).sort((x, y) => y[1] - x[1])[0];
+    if (dominant) {
+      const lbl: Record<string, string> = { calm: "차분함", heavy: "중량감", warm: "온기", inward: "내향성", movement: "동세" };
+      bullets.push(`지배적 감성: ${lbl[dominant[0]] ?? dominant[0]} (${dominant[1]}/100)`);
+    }
   }
   return bullets.slice(0, 3);
 }
@@ -297,7 +339,7 @@ export function QuickReport({
               ARTENA AI
             </p>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: "#FFF", margin: "0 0 5px", lineHeight: 1.2, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
-              {a.artist || "Unknown Artist"}
+              {a.artist || artistFallback(a)}
             </h1>
             <p style={{ fontSize: 14, color: "rgba(255,255,255,0.72)", margin: "0 0 8px", fontStyle: "italic" }}>
               {a.title || "Untitled"}
@@ -343,18 +385,20 @@ export function QuickReport({
 
           {/* ── 3. Market Intelligence ──────────────────────────── */}
           <div style={{ paddingTop: 28, paddingBottom: 28, borderBottom: "0.5px solid #F0F0F0" }}>
-            <SectionLabel text="시장 인텔리전스" />
+            <SectionLabel text={isArchitecture(a) || isArtifact(a) ? "문화유산 인텔리전스" : "시장 인텔리전스"} />
 
             {/* Position + Confidence */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 }}>
               <div>
-                <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".16em", margin: "0 0 6px" }}>MARKET POSITION</p>
+                <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".16em", margin: "0 0 6px" }}>
+                  {isArchitecture(a) ? "유산 가치" : isArtifact(a) ? "문화재 등급" : "MARKET POSITION"}
+                </p>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 18, fontWeight: 700, color: posColor, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
-                    {position}
+                    {isArchitecture(a) ? "공적 자산" : isArtifact(a) ? "문화유산" : position}
                   </span>
                   <span style={{ fontSize: 10, color: posColor, background: posColor + "18", padding: "2px 8px", letterSpacing: ".06em" }}>
-                    {position === "Blue-chip" ? "●" : position === "Emerging" ? "◎" : "◆"}
+                    {isArchitecture(a) || isArtifact(a) ? "◆" : position === "Blue-chip" ? "●" : position === "Emerging" ? "◎" : "◆"}
                   </span>
                 </div>
               </div>
@@ -369,10 +413,12 @@ export function QuickReport({
               </div>
             </div>
 
-            {/* Price range */}
+            {/* Price range / Heritage value */}
             <div style={{ padding: "14px 16px", background: "#F8F8F8", marginBottom: 24 }}>
-              <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".18em", margin: "0 0 6px" }}>ESTIMATED RANGE</p>
-              <p style={{ fontSize: 22, fontWeight: 800, color: "#111", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif", letterSpacing: "-.02em" }}>
+              <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".18em", margin: "0 0 6px" }}>
+                {isArchitecture(a) ? "시장 거래" : isArtifact(a) ? "경매 기록" : "ESTIMATED RANGE"}
+              </p>
+              <p style={{ fontSize: isArchitecture(a) ? 14 : 22, fontWeight: 800, color: isArchitecture(a) ? "#888" : "#111", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif", letterSpacing: "-.02em" }}>
                 {priceRange}
               </p>
             </div>
