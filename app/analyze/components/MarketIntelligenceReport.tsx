@@ -66,16 +66,13 @@ export interface MarketIntelligenceData {
   representativeWork?: string;
 }
 
-/* ---- Wikipedia image fetch ---- */
-async function fetchWikiImage(title: string): Promise<string | null> {
+/* ---- Image fetch via server API ---- */
+async function fetchWikiImage(query: string): Promise<string | null> {
   try {
-    const res = await fetch(
-      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
-      { headers: { Accept: "application/json" } }
-    );
+    const res = await fetch(`/api/wiki-image?q=${encodeURIComponent(query)}`);
     if (!res.ok) return null;
     const d = await res.json();
-    return (d.thumbnail?.source as string) || null;
+    return (d.url as string) || null;
   } catch {
     return null;
   }
@@ -83,20 +80,21 @@ async function fetchWikiImage(title: string): Promise<string | null> {
 
 /* ---- Image card ---- */
 function ImgCard({
-  src, label, caption, sub, aspect = "square",
+  src, label, caption, sub, loading = false,
 }: {
-  src: string | null; label: string; caption: string; sub?: string; aspect?: "square" | "wide";
+  src: string | null; label: string; caption: string; sub?: string; loading?: boolean;
 }) {
-  const h = aspect === "wide" ? 220 : 160;
   return (
     <div style={{ display: "flex", flexDirection: "column" as const, gap: 10, flex: 1, minWidth: 0 }}>
       <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".18em", textTransform: "uppercase" as const }}>{label}</span>
-      <div style={{ width: "100%", height: h, background: "#F0F0F0", overflow: "hidden", position: "relative" as const, flexShrink: 0 }}>
-        {src ? (
-          <img src={src} alt={caption} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+      <div style={{ width: "100%", height: 160, background: "#F0F0F0", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
+        {loading ? (
+          <div style={{ width: 20, height: 20, border: "2px solid #E0E0E0", borderTop: "2px solid #7C6FF7", borderRadius: "50%", animation: "mir-spin 0.8s linear infinite" }} />
+        ) : src ? (
+          <img src={src} alt={caption} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         ) : (
-          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" as const, gap: 6 }}>
-            <span style={{ fontSize: 22, opacity: 0.3 }}>🎨</span>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" as const, gap: 6 }}>
+            <span style={{ fontSize: 22, opacity: 0.25 }}>🎨</span>
             <span style={{ fontSize: 9, color: "#CCC" }}>이미지 없음</span>
           </div>
         )}
@@ -219,6 +217,7 @@ function RiskLevel({ level }: { level: string }) {
 
 /* ---- Responsive styles ---- */
 const MIR_STYLES = `
+  @keyframes mir-spin { to { transform: rotate(360deg); } }
   .mir-wrap {
     background: #FFFFFF;
     border: 1px solid #E0E0E0;
@@ -319,11 +318,21 @@ export function MarketIntelligenceReport({
 
   const [artistImg, setArtistImg] = useState<string | null>(null);
   const [workImg, setWorkImg] = useState<string | null>(null);
+  const [artistLoading, setArtistLoading] = useState(true);
+  const [workLoading, setWorkLoading] = useState(true);
 
   useEffect(() => {
-    fetchWikiImage(data.artworkOverview.artist).then(setArtistImg);
+    setArtistLoading(true);
+    fetchWikiImage(data.artworkOverview.artist).then((url) => {
+      setArtistImg(url);
+      setArtistLoading(false);
+    });
     const repWork = data.representativeWork || data.artworkOverview.title;
-    if (repWork) fetchWikiImage(repWork).then(setWorkImg);
+    setWorkLoading(true);
+    fetchWikiImage(repWork).then((url) => {
+      setWorkImg(url);
+      setWorkLoading(false);
+    });
   }, [data.artworkOverview.artist, data.artworkOverview.title, data.representativeWork]);
 
   return (
@@ -363,11 +372,13 @@ export function MarketIntelligenceReport({
               label="Artist"
               caption={data.artworkOverview.artist}
               sub={data.artistPositioning.base || undefined}
+              loading={artistLoading}
             />
             <ImgCard
               src={workImg}
               label="Representative Work"
               caption={data.representativeWork || data.artworkOverview.title}
+              loading={workLoading}
             />
           </div>
           {/* Row 2: Uploaded image */}
