@@ -75,15 +75,16 @@ function RecommendationsPage() {
 
   // Show QuickReport when artwork selected
   if (selectedRec) {
+    const closeAll = () => { setSelectedRec(null); setReportData(null); setReportLoading(false); };
     return (
       <>
         <style dangerouslySetInnerHTML={{ __html: PAGE_STYLES }} />
-        <BackBtn onClick={() => { setSelectedRec(null); setReportData(null); setReportLoading(false); }} />
+        <BackBtn onClick={closeAll} />
         <QuickReport
           analysis={selectedRec.analysis}
           imagePreview={images[selectedRec.id] ?? null}
           sourceType="text"
-          onReset={() => { setSelectedRec(null); setReportData(null); setReportLoading(false); }}
+          onReset={closeAll}
           onFullReport={handleFullReport}
           reportLoading={reportLoading}
           reportData={reportData}

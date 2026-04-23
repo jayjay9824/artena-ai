@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useCallback, useEffect } from "react";
 import { MarketIntelligenceReport, MarketIntelligenceData } from "./MarketIntelligenceReport";
+import { ArtAssistantScreen } from "./assistant/ArtAssistantScreen";
 import {
   useCollection, makeItemId,
   CollectionAnalysis,
@@ -240,6 +241,7 @@ export function QuickReport({
   reportData,
 }: QuickReportProps) {
   const [actions, setActions] = useState({ liked: false, saved: false, collected: false });
+  const [showAssistant, setShowAssistant] = useState(false);
   const { items, upsert, patch } = useCollection();
   const itemId = makeItemId(a.artist, a.title);
 
@@ -546,10 +548,10 @@ export function QuickReport({
             />
           </div>
 
-          {/* Secondary: ask */}
+          {/* Secondary: ask ARTENA assistant */}
           <div style={{ padding: "6px 20px 20px" }}>
             <button
-              onClick={onFullReport}
+              onClick={() => setShowAssistant(true)}
               className="qr-ask-btn"
               style={{
                 width: "100%", padding: "12px 0", background: "#0F0F0F",
@@ -567,6 +569,16 @@ export function QuickReport({
         </div>
 
       </div>
+
+      {/* AI Assistant — full-screen overlay, mounted inside QuickReport */}
+      {showAssistant && (
+        <ArtAssistantScreen
+          analysis={a}
+          imagePreview={imagePreview}
+          reportData={reportData}
+          onClose={() => setShowAssistant(false)}
+        />
+      )}
     </>
   );
 }

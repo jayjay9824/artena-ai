@@ -338,16 +338,13 @@ function CollectionPage() {
 
   // Show QuickReport for selected artwork
   if (selectedItem) {
+    const closeAll = () => { setSelectedItem(null); setReportData(null); setReportLoading(false); };
     return (
       <QuickReport
         analysis={selectedItem.analysis}
         imagePreview={selectedItem.imagePreview ?? null}
         sourceType="text"
-        onReset={() => {
-          setSelectedItem(null);
-          setReportData(null);
-          setReportLoading(false);
-        }}
+        onReset={closeAll}
         onFullReport={handleFullReport}
         reportLoading={reportLoading}
         reportData={reportData}
