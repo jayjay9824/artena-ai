@@ -93,7 +93,8 @@ ${JSON.stringify(a, null, 2)}
     "riskLevel": "Low 또는 Mid 또는 High",
     "strategicNote": "전략적 해석 — 투자 권유 아닌 참고 관점으로"
   },
-  "finalSummary": "작품/작가 포지션, 공개 시장 데이터 수준, 가격 판단 가능 수준, ARTENA 핵심 결론을 포함한 한 단락 요약"
+  "finalSummary": "작품/작가 포지션, 공개 시장 데이터 수준, 가격 판단 가능 수준, ARTENA 핵심 결론을 포함한 한 단락 요약",
+  "representativeWork": "작가의 가장 유명한 단일 작품명 (영문 표기 우선 — Wikipedia 검색에 사용됨. 예: 'Guernica', 'Water Lilies', 'Who the Bær')"
 }
 
 규칙:
@@ -113,7 +114,6 @@ export async function POST(req: NextRequest) {
     const message = await client.messages.create({
       model: "claude-opus-4-7",
       max_tokens: 4000,
-      thinking: { type: "adaptive" },
       system: SYSTEM_PROMPT,
       messages: [{ role: "user", content: buildPrompt(analysis) }],
     });

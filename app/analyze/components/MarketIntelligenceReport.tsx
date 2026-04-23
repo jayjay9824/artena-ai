@@ -1,5 +1,5 @@
 "use client";
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 export interface MarketIntelligenceData {
   artworkOverview: {
@@ -63,6 +63,50 @@ export interface MarketIntelligenceData {
     strategicNote: string;
   };
   finalSummary: string;
+  representativeWork?: string;
+}
+
+/* ---- Wikipedia image fetch ---- */
+async function fetchWikiImage(title: string): Promise<string | null> {
+  try {
+    const res = await fetch(
+      `https://en.wikipedia.org/api/rest_v1/page/summary/${encodeURIComponent(title)}`,
+      { headers: { Accept: "application/json" } }
+    );
+    if (!res.ok) return null;
+    const d = await res.json();
+    return (d.thumbnail?.source as string) || null;
+  } catch {
+    return null;
+  }
+}
+
+/* ---- Image card ---- */
+function ImgCard({
+  src, label, caption, sub, aspect = "square",
+}: {
+  src: string | null; label: string; caption: string; sub?: string; aspect?: "square" | "wide";
+}) {
+  const h = aspect === "wide" ? 220 : 160;
+  return (
+    <div style={{ display: "flex", flexDirection: "column" as const, gap: 10, flex: 1, minWidth: 0 }}>
+      <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".18em", textTransform: "uppercase" as const }}>{label}</span>
+      <div style={{ width: "100%", height: h, background: "#F0F0F0", overflow: "hidden", position: "relative" as const, flexShrink: 0 }}>
+        {src ? (
+          <img src={src} alt={caption} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+        ) : (
+          <div style={{ width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column" as const, gap: 6 }}>
+            <span style={{ fontSize: 22, opacity: 0.3 }}>🎨</span>
+            <span style={{ fontSize: 9, color: "#CCC" }}>이미지 없음</span>
+          </div>
+        )}
+      </div>
+      <div>
+        <p style={{ fontSize: 12, fontWeight: 600, color: "#111", margin: "0 0 2px", lineHeight: 1.4, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>{caption}</p>
+        {sub && <p style={{ fontSize: 10, color: "#AAA", margin: 0 }}>{sub}</p>}
+      </div>
+    </div>
+  );
 }
 
 /* ---- Sub-components ---- */
@@ -264,8 +308,23 @@ const MIR_STYLES = `
 
 /* ---- Main Component ---- */
 
-export function MarketIntelligenceReport({ data }: { data: MarketIntelligenceData }) {
+export function MarketIntelligenceReport({
+  data,
+  imagePreview,
+}: {
+  data: MarketIntelligenceData;
+  imagePreview?: string | null;
+}) {
   const section: React.CSSProperties = { marginBottom: 32 };
+
+  const [artistImg, setArtistImg] = useState<string | null>(null);
+  const [workImg, setWorkImg] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetchWikiImage(data.artworkOverview.artist).then(setArtistImg);
+    const repWork = data.representativeWork || data.artworkOverview.title;
+    if (repWork) fetchWikiImage(repWork).then(setWorkImg);
+  }, [data.artworkOverview.artist, data.artworkOverview.title, data.representativeWork]);
 
   return (
     <>
@@ -293,6 +352,45 @@ export function MarketIntelligenceReport({ data }: { data: MarketIntelligenceDat
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Image Section */}
+        <div style={{ marginBottom: 36 }}>
+          {/* Row 1: Artist + Representative Work */}
+          <div className="mir-two-col" style={{ marginBottom: 20 }}>
+            <ImgCard
+              src={artistImg}
+              label="Artist"
+              caption={data.artworkOverview.artist}
+              sub={data.artistPositioning.base || undefined}
+            />
+            <ImgCard
+              src={workImg}
+              label="Representative Work"
+              caption={data.representativeWork || data.artworkOverview.title}
+            />
+          </div>
+          {/* Row 2: Uploaded image */}
+          {imagePreview && (
+            <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
+              <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".18em", textTransform: "uppercase" as const }}>Analyzed Work</span>
+              <div style={{ width: "100%", maxHeight: 280, overflow: "hidden" }}>
+                <img
+                  src={imagePreview}
+                  alt={data.artworkOverview.title}
+                  style={{ width: "100%", maxHeight: 280, objectFit: "contain", background: "#F8F8F8", display: "block" }}
+                />
+              </div>
+              <div>
+                <p style={{ fontSize: 12, fontWeight: 600, color: "#111", margin: "0 0 2px", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
+                  {data.artworkOverview.title}
+                </p>
+                <p style={{ fontSize: 10, color: "#AAA", margin: 0 }}>
+                  {[data.artworkOverview.year, data.artworkOverview.medium].filter(Boolean).join(" · ")}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 01. 작품 개요 */}

@@ -488,7 +488,7 @@ export default function AnalyzePage() {
       )}
       {!reportLoading && reportData && reportType === "intelligence" && (
         <div ref={reportRef} style={{ marginBottom: 18 }}>
-          <MarketIntelligenceReport data={reportData as MarketIntelligenceData} />
+          <MarketIntelligenceReport data={reportData as MarketIntelligenceData} imagePreview={imagePreview} />
         </div>
       )}
       {!reportLoading && reportData && reportType === "market" && (
