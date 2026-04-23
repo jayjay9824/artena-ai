@@ -167,6 +167,7 @@ export default function AnalyzePage() {
   const S: React.CSSProperties = {
     fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18",
     padding: "20px 22px", maxWidth: 640, margin: "0 auto", background: "#F8F7F4", minHeight: "100vh",
+    boxSizing: "border-box", overflowX: "hidden",
   };
 
   const tabBtn = (id: "image" | "camera" | "text", icon: string, label: string) => (
