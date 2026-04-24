@@ -3,6 +3,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { MarketIntelligenceData } from "./components/MarketIntelligenceReport";
 import { QuickReport } from "./components/QuickReport";
 import { IntroSplash } from "./components/IntroSplash";
+import { SmartScanner } from "./components/SmartScanner";
 import { TabProvider, useTabNav, AppTab } from "../context/TabContext";
 import { BottomNav } from "../components/BottomNav";
 import { CollectionPageContent } from "../collection/page";
@@ -58,11 +59,18 @@ function ScanScreen() {
   const [reportData, setReportData] = useState<MarketIntelligenceData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [pasteHint, setPasteHint] = useState(false);
+  const [showScanner, setShowScanner] = useState(false);
 
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
   const handleIntroComplete = useCallback(() => setShowIntro(false), []);
+
+  // Open scanner when camera tab is selected
+  const handleCameraTabClick = useCallback(() => {
+    setActiveInput("camera");
+    setShowScanner(true);
+  }, []);
 
   // Clipboard paste listener — active only on image tab while on upload screen
   useEffect(() => {
@@ -117,6 +125,33 @@ function ScanScreen() {
       img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
       img.src = url;
     });
+  };
+
+  // Called by SmartScanner after frame capture — skips preview screen
+  const analyzeWithFile = async (file: File, dataUrl: string) => {
+    setShowScanner(false);
+    setImagePreview(dataUrl);
+    setPendingFile(file);
+    setError(null);
+    setScreen("loading");
+    try {
+      const blob = await compressIfNeeded(file);
+      const formData = new FormData();
+      formData.append("image", blob, "scan.jpg");
+      const res = await fetch("/api/analyze", { method: "POST", body: formData });
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        if (res.status === 413) throw new Error("이미지가 너무 큽니다. 더 작은 이미지를 사용해주세요.");
+        throw new Error(`서버 오류 (${res.status})`);
+      }
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error || "분석 실패");
+      setAnalysis(json.data);
+      setScreen("result");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "알 수 없는 오류");
+      setScreen("upload");
+    }
   };
 
   const analyzeImage = async () => {
@@ -199,6 +234,25 @@ function ScanScreen() {
       setReportLoading(false);
     }
   };
+
+  // Full-screen smart scanner overlay — placed here so analyzeWithFile is in scope
+  if (showScanner) {
+    return (
+      <SmartScanner
+        onClose={() => setShowScanner(false)}
+        onCapture={analyzeWithFile}
+        onUpload={() => {
+          setShowScanner(false);
+          setActiveInput("image");
+          setTimeout(() => fileInputRef.current?.click(), 120);
+        }}
+        onManualSearch={() => {
+          setShowScanner(false);
+          setActiveInput("text");
+        }}
+      />
+    );
+  }
 
   // Preview screen — show uploaded image + confirm button
   if (screen === "preview") {
@@ -289,10 +343,10 @@ function ScanScreen() {
   }
 
   // Upload / Loading
-  const tabBtn = (id: "image" | "camera" | "text", icon: string, label: string) => (
+  const tabBtn = (id: "image" | "camera" | "text", icon: string, label: string, onClick?: () => void) => (
     <button
       key={id}
-      onClick={() => setActiveInput(id)}
+      onClick={onClick ?? (() => setActiveInput(id))}
       style={{
         flex: 1, padding: "10px 0", border: "none", background: "transparent",
         fontFamily: "'KakaoSmallSans', system-ui, sans-serif", cursor: "pointer",
@@ -327,7 +381,7 @@ function ScanScreen() {
           {/* Input type tabs */}
           <div style={{ display: "flex", borderBottom: "0.5px solid #e8e3db", marginBottom: 20 }}>
             {tabBtn("image", "🖼️", "이미지 업로드")}
-            {tabBtn("camera", "📷", "카메라")}
+            {tabBtn("camera", "📷", "카메라", handleCameraTabClick)}
             {tabBtn("text", "🔍", "텍스트 검색")}
           </div>
 
@@ -364,19 +418,19 @@ function ScanScreen() {
             </>
           )}
 
+          {/* Camera tab: scanner opens as full-screen overlay (handled above) */}
           {activeInput === "camera" && (
-            <>
-              <div
-                onClick={() => cameraInputRef.current?.click()}
-                style={{ border: "2px dashed #e0dbd4", borderRadius: 10, padding: "44px 24px", textAlign: "center", cursor: "pointer", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", minHeight: 200 }}
-              >
-                <div style={{ fontSize: 40, marginBottom: 14 }}>📷</div>
-                <p style={{ fontSize: 14, color: "#777", marginBottom: 4 }}>카메라로 작품을 촬영하세요</p>
-                <p style={{ fontSize: 11, color: "#ccc", marginBottom: 18 }}>갤러리, 아트페어, 경매장에서 바로 촬영</p>
-                <span style={{ fontSize: 11, color: "#888", background: "#f0ece8", padding: "7px 18px", borderRadius: 20, border: "0.5px solid #e0dbd4" }}>카메라 열기</span>
-              </div>
-              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) loadPreview(e.target.files[0]); }} />
-            </>
+            <div
+              onClick={handleCameraTabClick}
+              style={{ border: "2px dashed #e0dbd4", borderRadius: 10, padding: "44px 24px", textAlign: "center", cursor: "pointer", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", minHeight: 200 }}
+            >
+              <div style={{ fontSize: 36, marginBottom: 14, opacity: 0.5 }}>◎</div>
+              <p style={{ fontSize: 14, color: "#777", marginBottom: 4 }}>ARTENA AI 스캐너</p>
+              <p style={{ fontSize: 11, color: "#ccc", marginBottom: 18 }}>작품 · 라벨 · QR 코드 실시간 인식</p>
+              <span style={{ fontSize: 11, color: "#555", background: "#f0ece8", padding: "8px 20px", borderRadius: 20, border: "0.5px solid #e0dbd4", letterSpacing: ".05em" }}>
+                스캐너 열기
+              </span>
+            </div>
           )}
 
           {activeInput === "text" && (
