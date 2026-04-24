@@ -63,7 +63,7 @@ function PriceLine({ price, style: s }: { price: GalleryListing["price"]; style?
 /* ── Image placeholder ──────────────────────────────────────────── */
 function ArtImg({ url, title, artist, style: s }: { url: string | null; title: string; artist: string; style?: React.CSSProperties }) {
   const initials = artist.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
-  if (url) return <img src={url} alt={title} style={{ objectFit: "cover", display: "block", ...s }} />;
+  if (url) return <img src={url} alt={title} style={{ objectFit: "contain", background: "#F4F4F2", display: "block", ...s }} />;
   return (
     <div style={{ background: "#F4F4F2", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, ...s }}>
       <span style={{ fontSize: 28, fontWeight: 200, color: "#D0D0CC", fontFamily: FONT_HEAD }}>{initials}</span>
@@ -385,7 +385,7 @@ function ListingCard({ listing, userTier, onOpen, onGallery, onHold }: {
       {/* Image — large, 4:5 */}
       <div style={{ position: "relative" }}>
         {listing.image_url ? (
-          <img src={listing.image_url} alt={listing.title} style={{ width: "100%", aspectRatio: "4/5", objectFit: "cover", display: "block" }} />
+          <img src={listing.image_url} alt={listing.title} style={{ width: "100%", aspectRatio: "4/5", objectFit: "contain", background: "#F4F4F2", display: "block" }} />
         ) : (
           <div style={{ width: "100%", aspectRatio: "4/5", background: "#F4F4F2", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 10 }}>
             <span style={{ fontSize: 44, fontWeight: 200, color: "#D4D4D0", fontFamily: FONT_HEAD }}>{initials}</span>
