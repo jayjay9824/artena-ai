@@ -31,6 +31,20 @@ export interface QuickReportProps {
   reportData: MarketIntelligenceData | null;
 }
 
+/* ── Analytics ───────────────────────────────────────────────── */
+
+type TrackableEvent =
+  | "artwork_liked" | "artwork_unliked"
+  | "artwork_saved" | "artwork_unsaved"
+  | "artwork_added_to_collection"
+  | "view_collection_clicked"
+  | "ask_artena_clicked";
+
+function trackEvent(event: TrackableEvent, artworkId: string) {
+  // Future: connect to analytics service (Mixpanel, Amplitude, etc.)
+  console.log("[ARTENA]", { event, artworkId, timestamp: new Date().toISOString() });
+}
+
 /* ── Mock data ───────────────────────────────────────────────── */
 
 export const MOCK_ANALYSIS: QRAnalysis = {
@@ -62,15 +76,8 @@ export const MOCK_ANALYSIS: QRAnalysis = {
 
 /* ── Utility functions ───────────────────────────────────────── */
 
-// ── Category helpers ──────────────────────────────────────────────
-
-function isArchitecture(a: QRAnalysis) {
-  return a.category === "architecture";
-}
-
-function isArtifact(a: QRAnalysis) {
-  return a.category === "artifact" || a.category === "cultural_site";
-}
+function isArchitecture(a: QRAnalysis) { return a.category === "architecture"; }
+function isArtifact(a: QRAnalysis)     { return a.category === "artifact" || a.category === "cultural_site"; }
 
 function artistLabel(a: QRAnalysis): string {
   if (isArchitecture(a)) return "건축가";
@@ -83,8 +90,6 @@ function artistFallback(a: QRAnalysis): string {
   if (isArtifact(a)) return "제작자 미상";
   return "Unknown Artist";
 }
-
-// ── Derived metrics ───────────────────────────────────────────────
 
 function deriveMarketPosition(a: QRAnalysis): "Emerging" | "Established" | "Blue-chip" {
   if (isArchitecture(a) || isArtifact(a)) return "Established";
@@ -123,15 +128,12 @@ function derivePriceRange(a: QRAnalysis): string {
   if (prices.length === 0) return "공개 데이터 없음";
   const fmt = (n: number) =>
     n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : `$${Math.round(n / 1000)}K`;
-  return prices.length === 1
-    ? fmt(prices[0])
-    : `${fmt(prices[0])} – ${fmt(prices[prices.length - 1])}`;
+  return prices.length === 1 ? fmt(prices[0]) : `${fmt(prices[0])} – ${fmt(prices[prices.length - 1])}`;
 }
 
 function deriveInsightBullets(a: QRAnalysis): string[] {
   const bullets: string[] = [];
   const kw = (a.keywords ?? []).slice(0, 3);
-
   if (isArchitecture(a)) {
     if (a.style) bullets.push(`${a.style} — 건축 양식`);
     if (kw.length > 0) bullets.push(`특징: ${kw.join(" · ")}`);
@@ -157,6 +159,46 @@ function deriveInsightBullets(a: QRAnalysis): string[] {
   return bullets.slice(0, 3);
 }
 
+/* ── SVG icons ───────────────────────────────────────────────── */
+
+function IcoHeart({ filled, size = 20, color }: { filled: boolean; size?: number; color?: string }) {
+  const c = color ?? (filled ? "#D94040" : "rgba(255,255,255,0.82)");
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill={filled ? c : "none"} stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M10 17C10 17 2.5 12 2.5 6.5A4 4 0 0 1 10 5.2 4 4 0 0 1 17.5 6.5C17.5 12 10 17 10 17Z" />
+    </svg>
+  );
+}
+
+function IcoBookmark({ filled, size = 18, color }: { filled: boolean; size?: number; color?: string }) {
+  const c = color ?? (filled ? "#fff" : "#111");
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill={filled ? c : "none"} stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M5 2h10a1 1 0 0 1 1 1v15l-6-3.5L4 18V3a1 1 0 0 1 1-1z" />
+    </svg>
+  );
+}
+
+function IcoFolder({ filled, size = 18, color }: { filled: boolean; size?: number; color?: string }) {
+  const c = color ?? (filled ? "#fff" : "#111");
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill={filled ? c : "none"} stroke={c} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 6h6l2 2h8v9H2V6Z" />
+    </svg>
+  );
+}
+
+function IcoGrid({ size = 14, color = "currentColor" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" stroke={color} strokeWidth="1.3">
+      <rect x="1" y="1" width="5" height="5" rx="1" />
+      <rect x="8" y="1" width="5" height="5" rx="1" />
+      <rect x="1" y="8" width="5" height="5" rx="1" />
+      <rect x="8" y="8" width="5" height="5" rx="1" />
+    </svg>
+  );
+}
+
 /* ── Sub-components ──────────────────────────────────────────── */
 
 function SectionLabel({ text }: { text: string }) {
@@ -176,61 +218,67 @@ function ScoreBar({ label, value, delay = 0 }: { label: string; value: number; d
         <span style={{ fontSize: 11, fontWeight: 600, color, flexShrink: 0, marginLeft: 8, fontVariantNumeric: "tabular-nums" }}>{value}</span>
       </div>
       <div style={{ height: 3, background: "#F2F2F2" }}>
-        <div
-          style={{
-            width: `${value}%`, height: "100%", background: color,
-            transition: `width 0.85s cubic-bezier(0.4,0,0.2,1) ${delay}ms`,
-          }}
-        />
+        <div style={{ width: `${value}%`, height: "100%", background: color, transition: `width 0.85s cubic-bezier(0.4,0,0.2,1) ${delay}ms` }} />
       </div>
     </div>
   );
 }
 
-function ActionBtn({
-  icon, label, active, activeColor, onClick, primary = false,
+/* ── Toast ───────────────────────────────────────────────────── */
+
+interface ToastState {
+  message: string;
+  actionLabel?: string;
+  onAction?: () => void;
+}
+
+function ActionToast({
+  toast, onDismiss,
 }: {
-  icon: React.ReactNode; label: string; active: boolean;
-  activeColor: string; onClick: () => void; primary?: boolean;
+  toast: ToastState;
+  onDismiss: () => void;
 }) {
   return (
-    <button
-      onClick={onClick}
-      style={{
-        background: "none", border: "none", cursor: "pointer",
-        display: "flex", flexDirection: "column" as const,
-        alignItems: "center", gap: 5, padding: "6px 4px",
-        transition: "opacity .15s",
-      }}
-    >
-      <span style={{
-        fontSize: primary ? 22 : 20,
-        color: active ? activeColor : "#C8C8C8",
-        transition: "color .15s, transform .2s",
-        display: "block",
-        transform: active ? "scale(1.18)" : "scale(1)",
-        lineHeight: 1,
-      }}>
-        {icon}
+    <div style={{
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      padding: "12px 16px",
+      background: "#111",
+      borderBottom: "0.5px solid #222",
+      animation: "toastSlideDown 0.28s ease",
+    }}>
+      <span style={{ fontSize: 13, color: "#fff", letterSpacing: ".01em" }}>
+        {toast.message}
       </span>
-      <span style={{
-        fontSize: 10, letterSpacing: ".02em",
-        color: active ? activeColor : "#B0B0B0",
-        fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-        fontWeight: primary ? 600 : 400,
-      }}>
-        {label}
-      </span>
-    </button>
+      {toast.actionLabel && toast.onAction && (
+        <button
+          onClick={() => { toast.onAction!(); onDismiss(); }}
+          style={{
+            background: "none", border: "none", cursor: "pointer",
+            display: "flex", alignItems: "center", gap: 5,
+            padding: "4px 0 4px 16px",
+            flexShrink: 0,
+          }}
+        >
+          <IcoGrid color="#7C6FF7" />
+          <span style={{ fontSize: 12, color: "#7C6FF7", fontWeight: 600, fontFamily: "'KakaoSmallSans', system-ui, sans-serif", letterSpacing: ".02em" }}>
+            {toast.actionLabel}
+          </span>
+        </button>
+      )}
+    </div>
   );
 }
 
 /* ── CSS ─────────────────────────────────────────────────────── */
 
 const QR_STYLES = `
-  @keyframes qr-spin { to { transform: rotate(360deg); } }
-  .qr-full-btn:hover { background: #F5F5F5 !important; }
-  .qr-ask-btn:hover  { background: #1a1a1a !important; opacity: .88; }
+  @keyframes qr-spin        { to { transform: rotate(360deg); } }
+  @keyframes heartPop       { 0% { transform: scale(1); } 40% { transform: scale(1.32); } 70% { transform: scale(0.92); } 100% { transform: scale(1); } }
+  @keyframes toastSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  .qr-full-btn:hover        { background: #F5F5F5 !important; }
+  .qr-ask-btn:hover         { opacity: .84 !important; }
+  .qr-save-btn:active       { opacity: .78; }
+  .qr-collect-btn:active    { opacity: .78; }
 `;
 
 /* ── Main component ──────────────────────────────────────────── */
@@ -244,69 +292,100 @@ export function QuickReport({
   reportData,
 }: QuickReportProps) {
   const [actions, setActions] = useState({ liked: false, saved: false, collected: false });
+  const [heartAnim, setHeartAnim]     = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
   const [showCollectionPicker, setShowCollectionPicker] = useState(false);
-  const { items, upsert, patch } = useCollection();
-  const itemId = makeItemId(a.artist, a.title);
+  const [toast, setToast]             = useState<ToastState | null>(null);
+
+  const { items, upsert, patch }           = useCollection();
+  const itemId                              = makeItemId(a.artist, a.title);
   const { isLiked, isSaved, like, unlike, save, unsave, addRecentlyViewed } = useMyActivity();
-  const { goTo } = useTabNav();
+  const { goTo }                            = useTabNav();
 
   const artwork: SavedArtwork = {
     artwork_id: itemId,
-    image_url: imagePreview ?? null,
+    image_url:   imagePreview ?? null,
     artist_name: a.artist ?? "Unknown",
-    title: a.title ?? "Untitled",
-    year: a.year ?? "",
+    title:       a.title  ?? "Untitled",
+    year:        a.year   ?? "",
     gallery_name: "",
     source: "analysis",
     status: "not_listed",
   };
 
-  // Auto-add to recently viewed when result loads
+  // Auto-add to recently viewed on mount
   useEffect(() => {
     if (a.artist || a.title) addRecentlyViewed(artwork);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId]);
 
-  // Sync initial state from collection on mount / when itemId changes
+  // Sync state from collection on mount / itemId change
   useEffect(() => {
     const existing = items.find(i => i.id === itemId);
-    if (existing) {
-      setActions({ liked: existing.liked, saved: existing.saved, collected: existing.collected });
-    }
+    if (existing) setActions({ liked: existing.liked, saved: existing.saved, collected: existing.collected });
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [itemId]);
 
-  const toggle = useCallback((key: "liked" | "saved" | "collected") => {
+  // Toast helpers
+  const showToast = useCallback((msg: string, actionLabel?: string, onAction?: () => void) => {
+    setToast({ message: msg, actionLabel, onAction });
+    setTimeout(() => setToast(null), 3400);
+  }, []);
+
+  const dismissToast = useCallback(() => setToast(null), []);
+
+  // Like — instant hero reaction, no toast
+  const toggleLike = useCallback(() => {
     setActions(prev => {
-      const next = { ...prev, [key]: !prev[key] };
+      const next = !prev.liked;
       const isNew = !items.find(i => i.id === itemId);
-      if (isNew) {
-        upsert({
-          id: itemId,
-          savedAt: new Date().toISOString(),
-          liked: next.liked,
-          saved: next.saved,
-          collected: next.collected,
-          analysis: a,
-          imagePreview: imagePreview ?? null,
-        });
+      if (isNew) upsert({ id: itemId, savedAt: new Date().toISOString(), liked: next, saved: prev.saved, collected: prev.collected, analysis: a, imagePreview: imagePreview ?? null });
+      else        patch(itemId, { liked: next });
+      if (next) { like(artwork, undefined); trackEvent("artwork_liked", itemId); }
+      else      { unlike(artwork.artwork_id); trackEvent("artwork_unliked", itemId); }
+      return { ...prev, liked: next };
+    });
+    setHeartAnim(true);
+    setTimeout(() => setHeartAnim(false), 400);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId, items, a, imagePreview]);
+
+  // Save — shows "컬렉션 보기" toast
+  const toggleSave = useCallback(() => {
+    setActions(prev => {
+      const next = !prev.saved;
+      const isNew = !items.find(i => i.id === itemId);
+      if (isNew) upsert({ id: itemId, savedAt: new Date().toISOString(), liked: prev.liked, saved: next, collected: prev.collected, analysis: a, imagePreview: imagePreview ?? null });
+      else        patch(itemId, { saved: next });
+      if (next) {
+        save(artwork, undefined);
+        trackEvent("artwork_saved", itemId);
+        showToast("저장되었습니다", "컬렉션 보기", () => { trackEvent("view_collection_clicked", itemId); goTo("collection"); });
       } else {
-        patch(itemId, { [key]: next[key] });
+        unsave(artwork.artwork_id);
+        trackEvent("artwork_unsaved", itemId);
       }
-      // Sync with MyActivity context
-      if (key === "liked") {
-        if (next.liked) like(artwork, () => goTo("my"));
-        else unlike(artwork.artwork_id);
-      }
-      if (key === "saved") {
-        if (next.saved) save(artwork, () => goTo("my"));
-        else unsave(artwork.artwork_id);
-      }
-      return next;
+      return { ...prev, saved: next };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemId, items, a, imagePreview, upsert, patch, like, unlike, save, unsave, goTo]);
+  }, [itemId, items, a, imagePreview, showToast, goTo]);
+
+  // Collection — opens picker
+  const openCollectionPicker = useCallback(() => {
+    setShowCollectionPicker(true);
+    const isNew = !items.find(i => i.id === itemId);
+    if (isNew) upsert({ id: itemId, savedAt: new Date().toISOString(), liked: actions.liked, saved: actions.saved, collected: true, analysis: a, imagePreview: imagePreview ?? null });
+    else patch(itemId, { collected: true });
+    setActions(prev => ({ ...prev, collected: true }));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId, items, a, imagePreview, actions]);
+
+  const onCollectionDone = useCallback(() => {
+    setShowCollectionPicker(false);
+    trackEvent("artwork_added_to_collection", itemId);
+    showToast("컬렉션에 추가되었습니다", "컬렉션 보기", () => { trackEvent("view_collection_clicked", itemId); goTo("collection"); });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId, showToast, goTo]);
 
   const position   = deriveMarketPosition(a);
   const confidence = deriveConfidence(a);
@@ -315,8 +394,7 @@ export function QuickReport({
   const dataDepth  = Math.min(confidence + 5, 94);
   const comparable = Math.max(confidence - 8, 22);
   const stability  = Math.round(confidence * 0.87);
-
-  const posColor = position === "Blue-chip" ? "#1856FF" : position === "Emerging" ? "#B07030" : "#111";
+  const posColor   = position === "Blue-chip" ? "#1856FF" : position === "Emerging" ? "#B07030" : "#111";
 
   return (
     <>
@@ -324,18 +402,14 @@ export function QuickReport({
       <div style={{
         maxWidth: 640, margin: "0 auto", background: "#FFFFFF",
         minHeight: "100vh", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-        position: "relative" as const, paddingBottom: 180,
+        position: "relative" as const, paddingBottom: 200,
         boxSizing: "border-box" as const, overflowX: "hidden",
       }}>
 
-        {/* ── 1. Artwork Hero ────────────────────────────────── */}
+        {/* ── 1. Artwork Hero ────────────────────────────────────── */}
         <div style={{ position: "relative" as const, width: "100%", minHeight: 280, background: "#111", overflow: "hidden" }}>
           {imagePreview ? (
-            <img
-              src={imagePreview}
-              alt={a.title}
-              style={{ width: "100%", display: "block" }}
-            />
+            <img src={imagePreview} alt={a.title} style={{ width: "100%", display: "block" }} />
           ) : (
             <div style={{ width: "100%", height: 360, background: "linear-gradient(155deg, #161616 0%, #2a2a2a 55%, #161616 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 72, opacity: 0.08, userSelect: "none" }}>◆</span>
@@ -347,7 +421,7 @@ export function QuickReport({
 
           {/* Top nav */}
           <div style={{ position: "absolute" as const, top: 0, left: 0, right: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "52px 18px 0" }}>
-            {/* Back button — pill with label */}
+            {/* Back button */}
             <button
               onClick={onReset}
               style={{
@@ -362,26 +436,44 @@ export function QuickReport({
               <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
                 <path d="M9 2L4 7L9 12" stroke="#111" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <span style={{ fontSize: 13, fontWeight: 600, color: "#111", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", letterSpacing: "-.01em" }}>
-                뒤로
-              </span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: "#111", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", letterSpacing: "-.01em" }}>뒤로</span>
             </button>
 
-            {/* Share button */}
-            <button
-              style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(255,255,255,0.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.18)" }}
-              onClick={() => {
-                if (navigator.share) navigator.share({ title: a.artist ?? "", text: a.title ?? "" });
-              }}
-            >
-              <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
-                <path d="M10 2L13.5 5.5L10 9" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M13.5 5.5H5.5C4.1 5.5 3 6.6 3 8V13" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </button>
+            {/* Right actions: Like + Share */}
+            <div style={{ display: "flex", gap: 8 }}>
+              {/* Heart / Like button — primary right action */}
+              <button
+                onClick={toggleLike}
+                style={{
+                  width: 40, height: 40,
+                  borderRadius: "50%",
+                  background: actions.liked ? "rgba(217,64,64,0.18)" : "rgba(255,255,255,0.92)",
+                  backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
+                  border: actions.liked ? "1px solid rgba(217,64,64,0.35)" : "none",
+                  cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  boxShadow: "0 2px 12px rgba(0,0,0,0.18)",
+                  animation: heartAnim ? "heartPop 0.4s ease" : "none",
+                  transition: "background 0.2s, border 0.2s",
+                }}
+              >
+                <IcoHeart filled={actions.liked} size={18} color={actions.liked ? "#D94040" : "#111"} />
+              </button>
+
+              {/* Share button */}
+              <button
+                style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,0.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.18)" }}
+                onClick={() => { if (navigator.share) navigator.share({ title: a.artist ?? "", text: a.title ?? "" }); }}
+              >
+                <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
+                  <path d="M10 2L13.5 5.5L10 9" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M13.5 5.5H5.5C4.1 5.5 3 6.6 3 8V13" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
           </div>
 
-          {/* Artwork info */}
+          {/* Artwork info — bottom of hero */}
           <div style={{ position: "absolute" as const, bottom: 0, left: 0, right: 0, padding: "0 22px 28px" }}>
             <p style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: ".22em", textTransform: "uppercase" as const, margin: "0 0 10px" }}>
               ARTENA AI
@@ -398,10 +490,10 @@ export function QuickReport({
           </div>
         </div>
 
-        {/* ── Content ─────────────────────────────────────────── */}
+        {/* ── Content ─────────────────────────────────────────────── */}
         <div style={{ padding: "0 22px" }}>
 
-          {/* ── 2. ARTENA Insight ──────────────────────────────── */}
+          {/* ── 2. ARTENA Insight ────────────────────────────────── */}
           <div style={{ paddingTop: 32, paddingBottom: 28, borderBottom: "0.5px solid #F0F0F0" }}>
             <SectionLabel text="아르테나 인사이트" />
 
@@ -431,11 +523,10 @@ export function QuickReport({
             )}
           </div>
 
-          {/* ── 3. Market Intelligence ──────────────────────────── */}
+          {/* ── 3. Market Intelligence ───────────────────────────── */}
           <div style={{ paddingTop: 28, paddingBottom: 28, borderBottom: "0.5px solid #F0F0F0" }}>
             <SectionLabel text={isArchitecture(a) || isArtifact(a) ? "문화유산 인텔리전스" : "시장 인텔리전스"} />
 
-            {/* Position + Confidence */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: 20 }}>
               <div>
                 <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".16em", margin: "0 0 6px" }}>
@@ -453,15 +544,12 @@ export function QuickReport({
               <div style={{ textAlign: "right" as const }}>
                 <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".16em", margin: "0 0 4px" }}>CONFIDENCE</p>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 2, justifyContent: "flex-end" }}>
-                  <span style={{ fontSize: 32, fontWeight: 800, color: "#111", fontFamily: "'KakaoBigSans', system-ui, sans-serif", lineHeight: 1 }}>
-                    {confidence}
-                  </span>
+                  <span style={{ fontSize: 32, fontWeight: 800, color: "#111", fontFamily: "'KakaoBigSans', system-ui, sans-serif", lineHeight: 1 }}>{confidence}</span>
                   <span style={{ fontSize: 13, color: "#CCC", marginBottom: 2 }}>/100</span>
                 </div>
               </div>
             </div>
 
-            {/* Price range / Heritage value */}
             <div style={{ padding: "14px 16px", background: "#F8F8F8", marginBottom: 24 }}>
               <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".18em", margin: "0 0 6px" }}>
                 {isArchitecture(a) ? "시장 거래" : isArtifact(a) ? "경매 기록" : "ESTIMATED RANGE"}
@@ -471,14 +559,12 @@ export function QuickReport({
               </p>
             </div>
 
-            {/* Score bars */}
             <div style={{ marginBottom: 22 }}>
               <ScoreBar label="데이터 깊이"     value={dataDepth}  delay={0}   />
               <ScoreBar label="Comparable 매칭" value={comparable} delay={80}  />
               <ScoreBar label="시장 안정성"     value={stability}  delay={160} />
             </div>
 
-            {/* Market context */}
             {a.marketNote && (
               <p style={{ fontSize: 12, color: "#666", lineHeight: 1.78, margin: 0, paddingLeft: 14, borderLeft: "2px solid #1856FF" }}>
                 {a.marketNote.length > 160 ? a.marketNote.slice(0, 160) + "…" : a.marketNote}
@@ -486,7 +572,7 @@ export function QuickReport({
             )}
           </div>
 
-          {/* ── Full Report CTA ──────────────────────────────────── */}
+          {/* ── Full Report CTA ───────────────────────────────────── */}
           <div style={{ paddingTop: 22, paddingBottom: 22, borderBottom: "0.5px solid #F0F0F0" }}>
             <button
               onClick={onFullReport}
@@ -518,7 +604,7 @@ export function QuickReport({
             </button>
           </div>
 
-          {/* ── Report output ─────────────────────────────────────── */}
+          {/* Report output */}
           {reportData && (
             <div style={{ paddingTop: 24 }}>
               <MarketIntelligenceReport data={reportData} imagePreview={imagePreview} />
@@ -545,68 +631,103 @@ export function QuickReport({
           </div>
         </div>
 
-        {/* ── 4. Action Layer (fixed sticky bar) ────────────────── */}
+        {/* ── 4. Action Bar (fixed) ─────────────────────────────────── */}
         <div style={{
           position: "fixed" as const, bottom: 0, left: "50%", transform: "translateX(-50%)",
           width: "100%", maxWidth: 640,
-          background: "rgba(255,255,255,0.96)",
-          backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)",
-          borderTop: "0.5px solid #EBEBEB",
-          boxShadow: "0 -4px 24px rgba(0,0,0,0.07)",
+          background: "rgba(255,255,255,0.97)",
+          backdropFilter: "blur(18px)", WebkitBackdropFilter: "blur(18px)",
+          borderTop: "0.5px solid #E8E8E8",
+          boxShadow: "0 -4px 28px rgba(0,0,0,0.07)",
           zIndex: 100,
         }}>
-          {/* Primary: like / save / collect */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", padding: "10px 24px 4px", gap: 4 }}>
-            <ActionBtn
-              icon={actions.liked ? "♥" : "♡"}
-              label="좋아요"
-              active={actions.liked}
-              activeColor="#E04848"
-              onClick={() => toggle("liked")}
-            />
-            <ActionBtn
-              icon={actions.saved ? "◆" : "◇"}
-              label="저장하기"
-              active={actions.saved}
-              activeColor="#1856FF"
-              onClick={() => toggle("saved")}
-              primary
-            />
-            <ActionBtn
-              icon={actions.collected ? "▲" : "△"}
-              label="컬렉션 추가"
-              active={actions.collected}
-              activeColor="#3DAA78"
-              onClick={() => { toggle("collected"); setShowCollectionPicker(true); }}
-            />
-          </div>
-          {showCollectionPicker && (
-            <CollectionPicker artwork={artwork} onClose={() => setShowCollectionPicker(false)} onDone={() => goTo("my")} />
-          )}
 
-          {/* Secondary: ask ARTENA assistant */}
-          <div style={{ padding: "6px 20px 20px" }}>
+          {/* Toast — slides in above the actions */}
+          {toast && <ActionToast toast={toast} onDismiss={dismissToast} />}
+
+          {/* Primary: Save + Collection */}
+          <div style={{ display: "flex", gap: 9, padding: "14px 18px 10px" }}>
+            {/* Save button */}
             <button
-              onClick={() => setShowAssistant(true)}
+              onClick={toggleSave}
+              className="qr-save-btn"
+              style={{
+                flex: 1,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                padding: "13px 0",
+                background: actions.saved ? "#1856FF" : "#fff",
+                border: `1px solid ${actions.saved ? "#1856FF" : "#D8D8D8"}`,
+                borderRadius: 10,
+                cursor: "pointer",
+                fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+                transition: "background .2s, border .2s",
+              }}
+            >
+              <IcoBookmark filled={actions.saved} size={17} color={actions.saved ? "#fff" : "#111"} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: actions.saved ? "#fff" : "#111", letterSpacing: ".01em" }}>
+                {actions.saved ? "저장됨" : "저장하기"}
+              </span>
+            </button>
+
+            {/* Collection button */}
+            <button
+              onClick={openCollectionPicker}
+              className="qr-collect-btn"
+              style={{
+                flex: 1,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+                padding: "13px 0",
+                background: actions.collected ? "#111" : "#fff",
+                border: `1px solid ${actions.collected ? "#111" : "#D8D8D8"}`,
+                borderRadius: 10,
+                cursor: "pointer",
+                fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+                transition: "background .2s, border .2s",
+              }}
+            >
+              <IcoFolder filled={actions.collected} size={17} color={actions.collected ? "#fff" : "#111"} />
+              <span style={{ fontSize: 13, fontWeight: 600, color: actions.collected ? "#fff" : "#111", letterSpacing: ".01em" }}>
+                컬렉션에 추가
+              </span>
+            </button>
+          </div>
+
+          {/* Secondary: Ask ARTENA */}
+          <div style={{ padding: "2px 18px 24px" }}>
+            <button
+              onClick={() => { setShowAssistant(true); trackEvent("ask_artena_clicked", itemId); }}
               className="qr-ask-btn"
               style={{
-                width: "100%", padding: "12px 0", background: "#0F0F0F",
-                border: "none", color: "#FFF", cursor: "pointer",
+                width: "100%", padding: "13px 0",
+                background: "#0F0F0F", border: "none",
+                borderRadius: 10, cursor: "pointer",
                 fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-                fontSize: 11, letterSpacing: ".07em",
-                display: "flex", alignItems: "center", justifyContent: "center", gap: 9,
+                display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
                 transition: "opacity .15s",
               }}
             >
-              <span style={{ fontSize: 9, color: "#7C6FF7" }}>◆</span>
-              아르테나 AI에게 더 물어보기
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ fontSize: 9, color: "#7C6FF7" }}>◆</span>
+                <span style={{ fontSize: 12, color: "#FFF", letterSpacing: ".07em" }}>아르테나 AI에게 더 물어보기</span>
+              </div>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", letterSpacing: ".03em" }}>
+                이 작품을 더 깊이 이해해보세요
+              </span>
             </button>
           </div>
         </div>
 
+        {/* Collection Picker */}
+        {showCollectionPicker && (
+          <CollectionPicker
+            artwork={artwork}
+            onClose={() => setShowCollectionPicker(false)}
+            onDone={onCollectionDone}
+          />
+        )}
       </div>
 
-      {/* AI Assistant — full-screen overlay, mounted inside QuickReport */}
+      {/* AI Assistant overlay */}
       {showAssistant && (
         <ArtAssistantScreen
           analysis={a}
