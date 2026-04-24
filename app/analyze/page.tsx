@@ -84,21 +84,55 @@ function ScanScreen() {
     setScreen("preview");
   };
 
+  // Resize large images client-side to stay under Vercel's 4.5MB request limit
+  const compressIfNeeded = (file: File): Promise<Blob> => {
+    const LIMIT = 3 * 1024 * 1024; // 3 MB threshold
+    if (file.size <= LIMIT) return Promise.resolve(file);
+    return new Promise((resolve) => {
+      const img = new Image();
+      const url = URL.createObjectURL(file);
+      img.onload = () => {
+        const MAX = 1920;
+        let { width, height } = img;
+        if (width > MAX || height > MAX) {
+          if (width >= height) { height = Math.round((height / width) * MAX); width = MAX; }
+          else { width = Math.round((width / height) * MAX); height = MAX; }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width; canvas.height = height;
+        canvas.getContext("2d")!.drawImage(img, 0, 0, width, height);
+        URL.revokeObjectURL(url);
+        canvas.toBlob((blob) => resolve(blob ?? file), "image/jpeg", 0.85);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(file); };
+      img.src = url;
+    });
+  };
+
   const analyzeImage = async () => {
     if (!pendingFile) return;
     setError(null);
     setScreen("loading");
     try {
+      const blob = await compressIfNeeded(pendingFile);
       const formData = new FormData();
-      formData.append("image", pendingFile);
-      const res  = await fetch("/api/analyze", { method: "POST", body: formData });
+      formData.append("image", blob, "image.jpg");
+      const res = await fetch("/api/analyze", { method: "POST", body: formData });
+
+      // Guard against non-JSON error responses (e.g. 413 from Vercel)
+      const contentType = res.headers.get("content-type") ?? "";
+      if (!contentType.includes("application/json")) {
+        if (res.status === 413) throw new Error("이미지가 너무 큽니다. 더 작은 이미지를 사용해주세요.");
+        throw new Error(`서버 오류 (${res.status})`);
+      }
+
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "분석 실패");
       setAnalysis(json.data);
       setScreen("result");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
-      setScreen("upload");
+      setScreen("preview"); // Stay on preview so user can retry without re-uploading
     }
   };
 
