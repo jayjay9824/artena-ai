@@ -296,21 +296,21 @@ export function QuickReport({
       }}>
 
         {/* ── 1. Artwork Hero ────────────────────────────────── */}
-        <div style={{ position: "relative" as const, width: "100%", height: 390, overflow: "hidden", background: "#111" }}>
+        <div style={{ position: "relative" as const, width: "100%", minHeight: 280, background: "#111", overflow: "hidden" }}>
           {imagePreview ? (
             <img
               src={imagePreview}
               alt={a.title}
-              style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }}
+              style={{ width: "100%", display: "block" }}
             />
           ) : (
-            <div style={{ width: "100%", height: "100%", background: "linear-gradient(155deg, #161616 0%, #2a2a2a 55%, #161616 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <div style={{ width: "100%", height: 360, background: "linear-gradient(155deg, #161616 0%, #2a2a2a 55%, #161616 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
               <span style={{ fontSize: 72, opacity: 0.08, userSelect: "none" }}>◆</span>
             </div>
           )}
 
           {/* Gradient overlay */}
-          <div style={{ position: "absolute" as const, inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.42) 0%, transparent 30%, transparent 48%, rgba(0,0,0,0.86) 100%)" }} />
+          <div style={{ position: "absolute" as const, inset: 0, background: "linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 25%, transparent 55%, rgba(0,0,0,0.88) 100%)" }} />
 
           {/* Top nav */}
           <div style={{ position: "absolute" as const, top: 0, left: 0, right: 0, display: "flex", justifyContent: "space-between", alignItems: "center", padding: "52px 18px 0" }}>
