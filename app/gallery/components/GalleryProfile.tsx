@@ -122,7 +122,7 @@ function CompactCard({ listing, onTap }: { listing: GalleryListing; onTap: () =>
       {/* Thumbnail */}
       <div style={{ flexShrink: 0, width: 80, height: 100, background: "#F4F4F2", display: "flex", alignItems: "center", justifyContent: "center" }}>
         {listing.image_url
-          ? <img src={listing.image_url} alt={listing.title} style={{ width: "100%", height: "100%", objectFit: "contain" }} />
+          ? <img src={listing.image_url} alt={listing.title} style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
           : <span style={{ fontSize: 20, fontWeight: 200, color: "#C8C8C4", fontFamily: FONT_HEAD }}>{initials}</span>
         }
       </div>

@@ -301,7 +301,7 @@ export function QuickReport({
             <img
               src={imagePreview}
               alt={a.title}
-              style={{ width: "100%", height: "100%", objectFit: "cover", transform: "scale(1.05)", transformOrigin: "center", display: "block" }}
+              style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }}
             />
           ) : (
             <div style={{ width: "100%", height: "100%", background: "linear-gradient(155deg, #161616 0%, #2a2a2a 55%, #161616 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>

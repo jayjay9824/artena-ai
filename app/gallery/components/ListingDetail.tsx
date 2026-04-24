@@ -22,7 +22,7 @@ function ArtworkImage({ url, title, artist }: { url: string | null; title: strin
       </div>
     );
   }
-  return <img src={url} alt={title} style={{ width: "100%", aspectRatio: "4/5", objectFit: "contain", background: "#F4F4F2", display: "block" }} />;
+  return <img src={url} alt={title} style={{ width: "100%", aspectRatio: "4/5", objectFit: "cover", objectPosition: "top", display: "block" }} />;
 }
 
 /* ── Verified badge (in gallery block) ─────────────────────────── */
