@@ -45,6 +45,7 @@ function ScanScreen() {
   const [screen, setScreen] = useState("upload");
   const [error, setError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
   const [analysis, setAnalysis] = useState<Analysis | null>(null);
   const [textQuery, setTextQuery] = useState("");
   const [activeInput, setActiveInput] = useState<"image" | "camera" | "text">("image");
@@ -65,25 +66,31 @@ function ScanScreen() {
       for (const item of Array.from(items)) {
         if (item.type.startsWith("image/")) {
           const file = item.getAsFile();
-          if (file) { analyzeImage(file); return; }
+          if (file) { loadPreview(file); return; }
         }
       }
     };
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
-  // analyzeImage is stable; eslint would flag it but it's safe here
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [screen, activeInput]);
 
-  const analyzeImage = async (file: File) => {
+  const loadPreview = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => setImagePreview(e.target?.result as string);
     reader.readAsDataURL(file);
+    setPendingFile(file);
+    setError(null);
+    setScreen("preview");
+  };
+
+  const analyzeImage = async () => {
+    if (!pendingFile) return;
     setError(null);
     setScreen("loading");
     try {
       const formData = new FormData();
-      formData.append("image", file);
+      formData.append("image", pendingFile);
       const res  = await fetch("/api/analyze", { method: "POST", body: formData });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "분석 실패");
@@ -128,7 +135,7 @@ function ScanScreen() {
 
   const reset = () => {
     setScreen("upload"); setAnalysis(null);
-    setImagePreview(null); setError(null); setTextQuery("");
+    setImagePreview(null); setPendingFile(null); setError(null); setTextQuery("");
     setReportType(null); setReportData(null);
   };
 
@@ -148,6 +155,79 @@ function ScanScreen() {
       setReportLoading(false);
     }
   };
+
+  // Preview screen — show uploaded image + confirm button
+  if (screen === "preview") {
+    return (
+      <div style={{
+        fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18",
+        padding: "20px 22px 100px", maxWidth: 640, margin: "0 auto", background: "#F8F7F4",
+        minHeight: "100vh", boxSizing: "border-box" as const, overflowX: "hidden",
+      }}>
+        {/* Header */}
+        <div style={{ marginBottom: 22, paddingBottom: 12, borderBottom: "0.5px solid #e8e3db" }}>
+          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 3 }}>
+            <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
+            <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
+          </div>
+          <p style={{ fontSize: 12, color: "#bbb", margin: 0 }}>업로드된 이미지를 확인하고 분석을 시작하세요</p>
+        </div>
+
+        {/* Image preview */}
+        {imagePreview && (
+          <div style={{
+            width: "100%", borderRadius: 12, overflow: "hidden",
+            marginBottom: 16, background: "#000",
+            boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
+          }}>
+            <img
+              src={imagePreview}
+              alt="업로드된 작품"
+              style={{ width: "100%", maxHeight: 420, objectFit: "contain", display: "block" }}
+            />
+          </div>
+        )}
+
+        {/* Analyze CTA */}
+        <button
+          onClick={analyzeImage}
+          style={{
+            width: "100%", padding: "15px 0",
+            background: "#1a1a18", color: "#fff", border: "none",
+            borderRadius: 10, cursor: "pointer",
+            fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+            fontSize: 14, fontWeight: 600, letterSpacing: ".06em",
+            marginBottom: 12, display: "flex", alignItems: "center",
+            justifyContent: "center", gap: 8, transition: "opacity .15s",
+          }}
+        >
+          <span style={{ fontSize: 10, color: "#7C6FF7" }}>◆</span>
+          ARTENA AI 분석
+        </button>
+
+        {/* Re-select */}
+        <button
+          onClick={() => { setScreen("upload"); setImagePreview(null); setPendingFile(null); setError(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
+          style={{
+            width: "100%", padding: "12px 0",
+            background: "transparent", color: "#aaa", border: "0.5px solid #e0dbd4",
+            borderRadius: 10, cursor: "pointer",
+            fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+            fontSize: 13, letterSpacing: ".04em",
+          }}
+        >
+          다시 선택하기
+        </button>
+
+        {error && (
+          <div style={{ background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
+            <p style={{ fontSize: 12, color: "#DC2626", marginBottom: 4 }}>⚠️ 오류 발생</p>
+            <p style={{ fontSize: 11, color: "#991B1B" }}>{error}</p>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   // QuickReport result — full screen, no bottom nav
   if (screen === "result") {
@@ -211,7 +291,7 @@ function ScanScreen() {
             <>
               <div
                 onClick={() => fileInputRef.current?.click()}
-                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) analyzeImage(f); }}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) loadPreview(f); }}
                 onDragOver={(e) => { e.preventDefault(); setPasteHint(false); }}
                 onFocus={() => setPasteHint(true)}
                 onBlur={() => setPasteHint(false)}
@@ -236,7 +316,7 @@ function ScanScreen() {
                   </span>
                 </div>
               </div>
-              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) analyzeImage(e.target.files[0]); }} />
+              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) loadPreview(e.target.files[0]); }} />
             </>
           )}
 
@@ -251,7 +331,7 @@ function ScanScreen() {
                 <p style={{ fontSize: 11, color: "#ccc", marginBottom: 18 }}>갤러리, 아트페어, 경매장에서 바로 촬영</p>
                 <span style={{ fontSize: 11, color: "#888", background: "#f0ece8", padding: "7px 18px", borderRadius: 20, border: "0.5px solid #e0dbd4" }}>카메라 열기</span>
               </div>
-              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) analyzeImage(e.target.files[0]); }} />
+              <input ref={cameraInputRef} type="file" accept="image/*" capture="environment" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) loadPreview(e.target.files[0]); }} />
             </>
           )}
 
