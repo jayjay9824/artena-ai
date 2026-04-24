@@ -1,7 +1,8 @@
 "use client";
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { MarketIntelligenceData } from "./components/MarketIntelligenceReport";
 import { QuickReport } from "./components/QuickReport";
+import { IntroSplash } from "./components/IntroSplash";
 import { TabProvider, useTabNav, AppTab } from "../context/TabContext";
 import { BottomNav } from "../components/BottomNav";
 import { CollectionPageContent } from "../collection/page";
@@ -42,6 +43,7 @@ function LoadingSpinner() {
 /* ── Scan screen (upload → loading → QuickReport) ─────────────── */
 
 function ScanScreen() {
+  const [showIntro, setShowIntro] = useState(true);
   const [screen, setScreen] = useState("upload");
   const [error, setError] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -57,9 +59,11 @@ function ScanScreen() {
   const fileInputRef  = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
 
+  const handleIntroComplete = useCallback(() => setShowIntro(false), []);
+
   // Clipboard paste listener — active only on image tab while on upload screen
   useEffect(() => {
-    if (screen !== "upload" || activeInput !== "image") return;
+    if (showIntro || screen !== "upload" || activeInput !== "image") return;
     const handlePaste = (e: ClipboardEvent) => {
       const items = e.clipboardData?.items;
       if (!items) return;
@@ -73,7 +77,10 @@ function ScanScreen() {
     window.addEventListener("paste", handlePaste);
     return () => window.removeEventListener("paste", handlePaste);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [screen, activeInput]);
+  }, [showIntro, screen, activeInput]);
+
+  // Show intro splash on first mount — all hooks above run unconditionally
+  if (showIntro) return <IntroSplash onComplete={handleIntroComplete} />;
 
   const loadPreview = (file: File) => {
     const reader = new FileReader();
