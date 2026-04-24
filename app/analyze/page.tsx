@@ -8,6 +8,7 @@ import { BottomNav } from "../components/BottomNav";
 import { CollectionPageContent } from "../collection/page";
 import { TastePageContent } from "../taste/page";
 import { RecommendationsPageContent } from "../recommendations/page";
+import { GalleryPageContent } from "../gallery/page";
 
 /* ── Types (kept local for the scan analysis shape) ───────────── */
 
@@ -443,6 +444,11 @@ function AppShellContent() {
       {visited.has("recommendations") && (
         <div style={{ display: activeTab === "recommendations" ? "block" : "none" }}>
           <RecommendationsPageContent />
+        </div>
+      )}
+      {visited.has("gallery") && (
+        <div style={{ display: activeTab === "gallery" ? "block" : "none" }}>
+          <GalleryPageContent />
         </div>
       )}
     </>

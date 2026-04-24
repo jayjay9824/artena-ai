@@ -1,7 +1,7 @@
 "use client";
 import React, { createContext, useContext, useState } from "react";
 
-export type AppTab = "scan" | "collection" | "taste" | "recommendations";
+export type AppTab = "scan" | "collection" | "taste" | "recommendations" | "gallery";
 
 interface TabCtx {
   activeTab: AppTab;
