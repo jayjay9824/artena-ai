@@ -8,6 +8,7 @@ const ROUTES: Record<AppTab, string> = {
   taste: "/taste",
   recommendations: "/recommendations",
   gallery: "/gallery",
+  my: "/my",
 };
 
 interface BottomNavProps {
@@ -100,6 +101,14 @@ export function BottomNav({ currentTab }: BottomNavProps) {
             stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"
             fill="currentColor" fillOpacity={currentTab === "recommendations" ? 0.25 : 0.08}
           />
+        </svg>
+      </Item>
+
+      <Item tab="my" label="My">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.3"
+            fill={currentTab === "my" ? "currentColor" : "none"} fillOpacity={currentTab === "my" ? 0.2 : 0} />
+          <path d="M4 17c0-3.3 2.7-6 6-6s6 2.7 6 6" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
         </svg>
       </Item>
 

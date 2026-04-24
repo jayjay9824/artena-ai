@@ -5,6 +5,23 @@ import { MOCK_LISTINGS, MOCK_GALLERIES } from "./data/mockListings";
 import { ListingDetail } from "./components/ListingDetail";
 import { GalleryProfile } from "./components/GalleryProfile";
 import { BottomNav } from "../components/BottomNav";
+import { useMyActivity, SavedArtwork } from "../context/MyActivityContext";
+import { useTabNav } from "../context/TabContext";
+import { CollectionPicker } from "../my/CollectionPicker";
+
+function listingToArtwork(l: GalleryListing): SavedArtwork {
+  return {
+    artwork_id: l.artwork_id,
+    image_url: l.image_url,
+    artist_name: l.artist_name,
+    title: l.title,
+    year: l.year,
+    gallery_name: l.gallery.name,
+    source: "gallery",
+    listing_id: l.listing_id,
+    status: l.status,
+  };
+}
 
 const FONT     = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif";
 const FONT_HEAD = "'KakaoBigSans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif";
@@ -315,6 +332,11 @@ function BottomSheet({ listing, userTier, onClose, onViewDetail, onViewGallery, 
 
           <div style={{ height: "0.5px", background: "#F0F0F0", margin: "20px 0" }} />
 
+          {/* Like / Save / Collection */}
+          <ArtworkActions listing={listing} />
+
+          <div style={{ height: "0.5px", background: "#F0F0F0", margin: "16px 0" }} />
+
           {/* Action buttons */}
           {status === "available" && (
             <>
@@ -363,6 +385,65 @@ function BottomSheet({ listing, userTier, onClose, onViewDetail, onViewGallery, 
           )}
         </div>
       </div>
+    </>
+  );
+}
+
+/* ── Like / Save / Collection icon row ─────────────────────────── */
+function ArtworkActions({ listing, stopProp }: { listing: GalleryListing; stopProp?: boolean }) {
+  const { isLiked, isSaved, like, unlike, save, unsave } = useMyActivity();
+  const { goTo } = useTabNav();
+  const [showPicker, setShowPicker] = useState(false);
+  const artwork = listingToArtwork(listing);
+  const liked = isLiked(artwork.artwork_id);
+  const saved = isSaved(artwork.artwork_id);
+
+  const wrap = (fn: () => void) => (e: React.MouseEvent) => {
+    if (stopProp) e.stopPropagation();
+    fn();
+  };
+
+  const btnStyle = (active: boolean): React.CSSProperties => ({
+    background: "none", border: "none", cursor: "pointer", padding: "6px 8px",
+    color: active ? "#E04040" : "#C8C8C8", display: "inline-flex", alignItems: "center", gap: 4,
+    fontSize: 10, fontFamily: FONT, letterSpacing: ".04em",
+    transition: "color .15s",
+  });
+
+  return (
+    <>
+      <div style={{ display: "flex", alignItems: "center", borderTop: "0.5px solid #F4F4F4", marginTop: 14, paddingTop: 10, gap: 2 }} onClick={stopProp ? e => e.stopPropagation() : undefined}>
+        {/* Like */}
+        <button style={btnStyle(liked)} onClick={wrap(() => liked ? unlike(artwork.artwork_id) : like(artwork, () => goTo("my")))}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M8 13.5C8 13.5 2 9.5 2 5.5a3 3 0 0 1 6-1 3 3 0 0 1 6 1c0 4-6 8-6 8Z"
+              fill={liked ? "#E04040" : "none"} stroke={liked ? "#E04040" : "currentColor"} strokeWidth="1.3" strokeLinejoin="round" />
+          </svg>
+          {liked ? "Liked" : "Like"}
+        </button>
+
+        <span style={{ color: "#EBEBEB", fontSize: 12, userSelect: "none" }}>|</span>
+
+        {/* Save */}
+        <button style={{ ...btnStyle(saved), color: saved ? "#5A5AF0" : "#C8C8C8" }} onClick={wrap(() => saved ? unsave(artwork.artwork_id) : save(artwork, () => goTo("my")))}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+            <path d="M4 2h8a1 1 0 0 1 1 1v10.5l-5-3-5 3V3a1 1 0 0 1 1-1Z"
+              fill={saved ? "#5A5AF0" : "none"} stroke={saved ? "#5A5AF0" : "#C8C8C8"} strokeWidth="1.3" strokeLinejoin="round" />
+          </svg>
+          {saved ? "Saved" : "Save"}
+        </button>
+
+        <span style={{ color: "#EBEBEB", fontSize: 12, userSelect: "none" }}>|</span>
+
+        {/* Collection */}
+        <button style={btnStyle(false)} onClick={wrap(() => setShowPicker(true))}>
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+            <path d="M7 2v10M2 7h10" stroke="#C8C8C8" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+          Collection
+        </button>
+      </div>
+      {showPicker && <CollectionPicker artwork={artwork} onClose={() => setShowPicker(false)} onDone={() => goTo("my")} />}
     </>
   );
 }
@@ -445,6 +526,9 @@ function ListingCard({ listing, userTier, onOpen, onGallery, onHold }: {
 
         {/* Quick Actions — no page nav needed */}
         <QuickActions listing={listing} userTier={userTier} onHold={onHold} />
+
+        {/* Like / Save / Collection */}
+        <ArtworkActions listing={listing} stopProp />
       </div>
     </article>
   );

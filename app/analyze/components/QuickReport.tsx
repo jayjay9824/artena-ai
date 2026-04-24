@@ -7,6 +7,9 @@ import {
   CollectionAnalysis,
   CollectionAuction, CollectionWork, CollectionMuseum, CollectionCritic, CollectionExhibition,
 } from "../../collection/hooks/useCollection";
+import { useMyActivity, SavedArtwork } from "../../context/MyActivityContext";
+import { useTabNav } from "../../context/TabContext";
+import { CollectionPicker } from "../../my/CollectionPicker";
 
 /* ── Types ───────────────────────────────────────────────────── */
 
@@ -242,8 +245,28 @@ export function QuickReport({
 }: QuickReportProps) {
   const [actions, setActions] = useState({ liked: false, saved: false, collected: false });
   const [showAssistant, setShowAssistant] = useState(false);
+  const [showCollectionPicker, setShowCollectionPicker] = useState(false);
   const { items, upsert, patch } = useCollection();
   const itemId = makeItemId(a.artist, a.title);
+  const { isLiked, isSaved, like, unlike, save, unsave, addRecentlyViewed } = useMyActivity();
+  const { goTo } = useTabNav();
+
+  const artwork: SavedArtwork = {
+    artwork_id: itemId,
+    image_url: imagePreview ?? null,
+    artist_name: a.artist ?? "Unknown",
+    title: a.title ?? "Untitled",
+    year: a.year ?? "",
+    gallery_name: "",
+    source: "analysis",
+    status: "not_listed",
+  };
+
+  // Auto-add to recently viewed when result loads
+  useEffect(() => {
+    if (a.artist || a.title) addRecentlyViewed(artwork);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId]);
 
   // Sync initial state from collection on mount / when itemId changes
   useEffect(() => {
@@ -271,9 +294,19 @@ export function QuickReport({
       } else {
         patch(itemId, { [key]: next[key] });
       }
+      // Sync with MyActivity context
+      if (key === "liked") {
+        if (next.liked) like(artwork, () => goTo("my"));
+        else unlike(artwork.artwork_id);
+      }
+      if (key === "saved") {
+        if (next.saved) save(artwork, () => goTo("my"));
+        else unsave(artwork.artwork_id);
+      }
       return next;
     });
-  }, [itemId, items, a, imagePreview, upsert, patch]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itemId, items, a, imagePreview, upsert, patch, like, unlike, save, unsave, goTo]);
 
   const position   = deriveMarketPosition(a);
   const confidence = deriveConfidence(a);
@@ -544,9 +577,12 @@ export function QuickReport({
               label="컬렉션 추가"
               active={actions.collected}
               activeColor="#3DAA78"
-              onClick={() => toggle("collected")}
+              onClick={() => { toggle("collected"); setShowCollectionPicker(true); }}
             />
           </div>
+          {showCollectionPicker && (
+            <CollectionPicker artwork={artwork} onClose={() => setShowCollectionPicker(false)} onDone={() => goTo("my")} />
+          )}
 
           {/* Secondary: ask ARTENA assistant */}
           <div style={{ padding: "6px 20px 20px" }}>

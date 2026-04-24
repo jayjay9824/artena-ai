@@ -9,6 +9,8 @@ import { CollectionPageContent } from "../collection/page";
 import { TastePageContent } from "../taste/page";
 import { RecommendationsPageContent } from "../recommendations/page";
 import { GalleryPageContent } from "../gallery/page";
+import { MyPageContent } from "../my/page";
+import { MyActivityProvider } from "../context/MyActivityContext";
 
 /* ── Types (kept local for the scan analysis shape) ───────────── */
 
@@ -451,6 +453,11 @@ function AppShellContent() {
           <GalleryPageContent />
         </div>
       )}
+      {visited.has("my") && (
+        <div style={{ display: activeTab === "my" ? "block" : "none" }}>
+          <MyPageContent />
+        </div>
+      )}
     </>
   );
 }
@@ -459,8 +466,10 @@ function AppShellContent() {
 
 export default function AppShell() {
   return (
-    <TabProvider>
-      <AppShellContent />
-    </TabProvider>
+    <MyActivityProvider>
+      <TabProvider>
+        <AppShellContent />
+      </TabProvider>
+    </MyActivityProvider>
   );
 }
