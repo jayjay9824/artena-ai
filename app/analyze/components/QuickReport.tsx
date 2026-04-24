@@ -291,7 +291,7 @@ export function QuickReport({
       <div style={{
         maxWidth: 640, margin: "0 auto", background: "#FFFFFF",
         minHeight: "100vh", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-        position: "relative" as const, paddingBottom: 108,
+        position: "relative" as const, paddingBottom: 180,
         boxSizing: "border-box" as const, overflowX: "hidden",
       }}>
 
