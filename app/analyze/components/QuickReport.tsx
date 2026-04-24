@@ -563,7 +563,7 @@ export function QuickReport({
               }}
             >
               <span style={{ fontSize: 9, color: "#7C6FF7" }}>◆</span>
-              아르테나에게 더 물어보기
+              아르테나 AI에게 더 물어보기
             </button>
           </div>
         </div>
