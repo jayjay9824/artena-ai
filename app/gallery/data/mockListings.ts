@@ -1,11 +1,31 @@
-import { GalleryListing } from "../types/gallery";
+import { Gallery, GalleryListing } from "../types/gallery";
 
-const KUKJE: GalleryListing["gallery"] = {
+const KUKJE: Gallery = {
   gallery_id: "G-001",
   name: "Kukje Gallery",
-  verified_status: true,
-  description: "1982년 설립. 국내외 현대미술을 선도하는 한국의 대표 갤러리.",
+  verified_status: "premium",
+  description_short: "한국을 대표하는 국제 현대미술 갤러리. 서울·부산·뉴욕 거점.",
+  description_full:
+    "1982년 서울에서 설립된 국제갤러리는 국내 최초의 국제 현대미술 전문 갤러리다. " +
+    "이우환, 박서보, 하종현, 양혜규 등 한국 현대미술의 거장들과 함께 Louise Bourgeois, " +
+    "Bill Viola, Bruce Nauman 등 세계적인 작가들을 국내에 소개해왔다. " +
+    "서울·부산·뉴욕 세 곳의 공간을 운영하며, Art Basel, Frieze 등 주요 국제 아트페어에 정기 참가한다.",
   location: "Seoul, Korea",
+  founded_year: 1982,
+  cover_url: null,
+  logo_url: null,
+  website: "https://www.kukjegallery.com",
+  instagram: "https://www.instagram.com/kukjegallery",
+  artists: ["이우환", "박서보", "하종현", "양혜규", "김수자", "Do Ho Suh"],
+  exhibitions: [
+    { title: "하종현: 어둠의 표면", year: 2024, venue: "Kukje Gallery K3" },
+    { title: "이우환: 여백과 만남", year: 2023, venue: "Kukje Gallery K1&K2" },
+    { title: "양혜규: Handles and Links", year: 2023, venue: "Kukje Gallery K2" },
+    { title: "박서보: Écriture", year: 2022, venue: "Kukje Gallery K1" },
+  ],
+  transaction_count: 340,
+  response_rate: 96,
+  avg_response_time: "2시간 이내",
   communication_channels: [
     { type: "email", label: "Email", url: "mailto:info@kukjegallery.com", is_primary: true },
     { type: "website", label: "Website", url: "https://www.kukjegallery.com" },
@@ -13,42 +33,105 @@ const KUKJE: GalleryListing["gallery"] = {
   ],
 };
 
-const PKM: GalleryListing["gallery"] = {
+const PKM: Gallery = {
   gallery_id: "G-002",
   name: "PKM Gallery",
-  verified_status: true,
-  description: "국제적 시각으로 동시대 미술을 큐레이팅하는 갤러리.",
+  verified_status: "approved",
+  description_short: "국제적 시각으로 동시대 한국 현대미술을 큐레이팅하는 갤러리.",
+  description_full:
+    "PKM 갤러리는 2001년 서울에서 설립되었다. 국내외 동시대 미술을 아우르는 다양한 전시 프로그램을 운영하며, " +
+    "양혜규, 최정화, Candice Breitz, 오스카 무릴로 등 국제적으로 활발히 활동하는 작가들을 대표한다. " +
+    "국내를 넘어 Art Basel, Frieze, FIAC 등 주요 국제 아트페어에 지속적으로 참가하며 " +
+    "한국 현대미술의 국제화를 이끌고 있다.",
   location: "Seoul, Korea",
+  founded_year: 2001,
+  cover_url: null,
+  logo_url: null,
+  website: "https://www.pkmgallery.com",
+  instagram: "https://www.instagram.com/pkmgallery",
+  artists: ["양혜규", "최정화", "Candice Breitz", "Oscar Murillo", "Haim Steinbach"],
+  exhibitions: [
+    { title: "양혜규: Hybrid Environments", year: 2024, venue: "PKM Gallery" },
+    { title: "Oscar Murillo: frequencies", year: 2023, venue: "PKM Gallery" },
+    { title: "최정화: Happy Happy", year: 2022, venue: "PKM Gallery" },
+  ],
+  transaction_count: 210,
+  response_rate: 88,
+  avg_response_time: "4시간 이내",
   communication_channels: [
     { type: "email", label: "Email", url: "mailto:info@pkmgallery.com", is_primary: true },
     { type: "website", label: "Website", url: "https://www.pkmgallery.com" },
+    { type: "instagram", label: "Instagram", url: "https://www.instagram.com/pkmgallery" },
   ],
 };
 
-const TINA_KIM: GalleryListing["gallery"] = {
+const TINA_KIM: Gallery = {
   gallery_id: "G-003",
   name: "Tina Kim Gallery",
-  verified_status: true,
-  description: "뉴욕 기반. 한국 및 아시아 현대미술의 국제적 플랫폼.",
+  verified_status: "partner",
+  description_short: "뉴욕 기반. 한국 및 아시아 현대미술의 국제적 허브.",
+  description_full:
+    "Tina Kim Gallery는 2011년 뉴욕에서 설립된 이래 한국 및 아시아 현대미술을 국제 무대에 소개하는 " +
+    "핵심 플랫폼으로 자리잡았다. 이미래, 강서경, 문경원 & 전준호, Theaster Gates 등 " +
+    "국제 무대에서 활발히 활동하는 작가들을 대표하며, Art Basel, Frieze New York, " +
+    "FIAC 등 세계 주요 아트페어에 꾸준히 참가하고 있다. " +
+    "뉴욕과 서울을 연결하는 가교 역할을 자임하며 동시대 미술의 지형을 확장한다.",
   location: "New York, USA",
+  founded_year: 2011,
+  cover_url: null,
+  logo_url: null,
+  website: "https://www.tinakimgallery.com",
+  instagram: "https://www.instagram.com/tinakimgallery",
+  artists: ["이미래", "강서경", "문경원 & 전준호", "Theaster Gates", "Park Chan-kyong"],
+  exhibitions: [
+    { title: "이미래: Open Wound", year: 2024, venue: "Tina Kim Gallery, NYC" },
+    { title: "강서경: Hereafter", year: 2023, venue: "Tina Kim Gallery, NYC" },
+    { title: "문경원 & 전준호: Protocols of the New", year: 2022, venue: "Tina Kim Gallery, NYC" },
+  ],
+  transaction_count: 175,
+  response_rate: 93,
+  avg_response_time: "당일",
   communication_channels: [
     { type: "email", label: "Email", url: "mailto:info@tinakimgallery.com", is_primary: true },
     { type: "website", label: "Website", url: "https://www.tinakimgallery.com" },
+    { type: "instagram", label: "Instagram", url: "https://www.instagram.com/tinakimgallery" },
   ],
 };
 
-const GALLERY_HYUNDAI: GalleryListing["gallery"] = {
+const GALLERY_HYUNDAI: Gallery = {
   gallery_id: "G-004",
   name: "Gallery Hyundai",
-  verified_status: true,
-  description: "1970년 설립. 한국 근현대미술사를 함께한 갤러리.",
+  verified_status: "premium",
+  description_short: "1970년 설립. 한국 근현대미술사의 살아있는 아카이브.",
+  description_full:
+    "갤러리현대는 1970년 국내 최초의 사립 현대미술 갤러리로 설립되어 반세기 이상 한국 미술사와 함께해왔다. " +
+    "박수근, 이중섭, 김환기 등 한국 근현대 거장들의 작품을 체계적으로 소개하고 보존해왔으며, " +
+    "하종현, 이응노 등 현대 작가들의 국제 진출을 지원했다. " +
+    "서울 삼청동 본관 및 두산갤러리와의 협력 프로그램을 통해 " +
+    "한국 미술의 역사적 맥락과 동시대 담론을 함께 아우른다.",
   location: "Seoul, Korea",
+  founded_year: 1970,
+  cover_url: null,
+  logo_url: null,
+  website: "https://www.galleryhyundai.com",
+  instagram: "https://www.instagram.com/galleryhyundai",
+  artists: ["하종현", "이중섭", "김환기", "박수근", "이응노", "정상화"],
+  exhibitions: [
+    { title: "하종현: 접합, 귀환", year: 2024, venue: "갤러리현대 본관" },
+    { title: "김환기: 어디서 무엇이 되어 다시 만나랴", year: 2023, venue: "갤러리현대 본관" },
+    { title: "박수근: 나목의 서정", year: 2022, venue: "갤러리현대 신관" },
+  ],
+  transaction_count: 520,
+  response_rate: 91,
+  avg_response_time: "3시간 이내",
   communication_channels: [
     { type: "email", label: "Email", url: "mailto:info@galleryhyundai.com", is_primary: true },
     { type: "kakao", label: "KakaoTalk", url: "http://pf.kakao.com/_gallery", is_primary: false },
     { type: "website", label: "Website", url: "https://www.galleryhyundai.com" },
   ],
 };
+
+export const MOCK_GALLERIES: Gallery[] = [KUKJE, PKM, TINA_KIM, GALLERY_HYUNDAI];
 
 export const MOCK_LISTINGS: GalleryListing[] = [
   {
@@ -160,5 +243,3 @@ export const MOCK_LISTINGS: GalleryListing[] = [
     keywords: ["installation", "pop", "Korean contemporary"],
   },
 ];
-
-export const MOCK_GALLERIES = [KUKJE, PKM, TINA_KIM, GALLERY_HYUNDAI];

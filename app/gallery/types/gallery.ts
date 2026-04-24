@@ -3,6 +3,7 @@ export type ListingStatus = "available" | "held" | "sold" | "not_available";
 export type TrendDirection = "rising" | "stable" | "declining" | "unknown";
 export type UserTier = "visitor" | "premium" | "verified_collector" | "trusted_collector" | "vip_collector";
 export type ContactType = "kakao" | "email" | "instagram" | "whatsapp" | "website" | "phone";
+export type VerifiedTier = "approved" | "premium" | "partner";
 export type HoldStatus =
   | "requested" | "approved" | "active"
   | "expired" | "rejected" | "cancelled" | "converted_to_sale";
@@ -14,12 +15,29 @@ export interface CommunicationChannel {
   is_primary?: boolean;
 }
 
+export interface GalleryExhibition {
+  title: string;
+  year: number;
+  venue?: string;
+}
+
 export interface Gallery {
   gallery_id: string;
   name: string;
-  verified_status: boolean;
-  description: string;
+  verified_status: VerifiedTier | false;
+  description_short: string;
+  description_full: string;
   location: string;
+  founded_year: number;
+  cover_url: string | null;
+  logo_url: string | null;
+  website?: string;
+  instagram?: string;
+  artists: string[];
+  exhibitions: GalleryExhibition[];
+  transaction_count?: number;
+  response_rate?: number;
+  avg_response_time?: string;
   communication_channels: CommunicationChannel[];
 }
 
@@ -64,3 +82,9 @@ export interface GalleryListing {
 }
 
 export type GalleryFilter = "all" | "hold_available" | "price_visible";
+
+// Navigation state machine for gallery tab
+export type GalleryView =
+  | { type: "list" }
+  | { type: "gallery_profile"; galleryId: string; fromListing?: GalleryListing }
+  | { type: "listing_detail"; listing: GalleryListing; fromGalleryId?: string };
