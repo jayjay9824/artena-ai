@@ -5,7 +5,7 @@ import { TasteProfile } from "../types/taste";
 const STRENGTH_CONFIG = {
   forming:  { label: "Profile Forming",  color: "#BBBBBB", bg: "#F6F6F6"    },
   emerging: { label: "Profile Emerging", color: "#C09040", bg: "#FFF9F0"    },
-  defined:  { label: "Profile Defined",  color: "#1856FF", bg: "#EEF2FF"    },
+  defined:  { label: "Profile Defined",  color: "#8A6A3F", bg: "#F4EFE5"    },
 };
 
 interface TasteStatementProps {
@@ -47,7 +47,7 @@ export function TasteStatement({ profile, isDemo }: TasteStatementProps) {
 
       {/* Sub-statement */}
       <div style={{ display: "flex", alignItems: "stretch", gap: 0 }}>
-        <div style={{ width: 2, background: "#1856FF", opacity: 0.35, flexShrink: 0, borderRadius: 1, marginRight: 14 }} />
+        <div style={{ width: 2, background: "#8A6A3F", opacity: 0.35, flexShrink: 0, borderRadius: 1, marginRight: 14 }} />
         <p style={{
           fontSize: 13, color: "#666", lineHeight: 1.76, margin: 0,
           fontStyle: "italic", fontFamily: "Georgia, serif",

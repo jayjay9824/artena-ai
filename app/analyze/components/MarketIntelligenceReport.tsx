@@ -87,10 +87,10 @@ function ImgCard({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column" as const, gap: 10, flex: 1, minWidth: 0 }}>
-      <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".18em", textTransform: "uppercase" as const }}>{label}</span>
+      <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".18em", textTransform: "uppercase" as const }}>{label}</span>
       <div style={{ width: "100%", height: 160, background: "#F0F0F0", overflow: "hidden", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center" }}>
         {loading ? (
-          <div style={{ width: 20, height: 20, border: "2px solid #E0E0E0", borderTop: "2px solid #7C6FF7", borderRadius: "50%", animation: "mir-spin 0.8s linear infinite" }} />
+          <div style={{ width: 20, height: 20, border: "2px solid #E0E0E0", borderTop: "2px solid #8A6A3F", borderRadius: "50%", animation: "mir-spin 0.8s linear infinite" }} />
         ) : src ? (
           <img src={src} alt={caption} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
         ) : (
@@ -113,7 +113,7 @@ function ImgCard({
 function SectionHeader({ num, title }: { num: string; title: string }) {
   return (
     <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 18, paddingBottom: 10, borderBottom: "1px solid #F0F0F0" }}>
-      <span style={{ fontSize: 10, color: "#7C6FF7", fontWeight: 700, letterSpacing: ".14em" }}>{num}</span>
+      <span style={{ fontSize: 10, color: "#8A6A3F", fontWeight: 700, letterSpacing: ".14em" }}>{num}</span>
       <span style={{ fontSize: 10, letterSpacing: ".18em", textTransform: "uppercase" as const, fontWeight: 700, color: "#000", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>{title}</span>
     </div>
   );
@@ -132,7 +132,7 @@ function Row({ label, value }: { label: string; value: string }) {
 function Tag({ text, variant = "default" }: { text: string; variant?: "default" | "purple" | "orange" }) {
   const styles: Record<string, React.CSSProperties> = {
     default: { background: "#F5F5F5", color: "#555", border: "1px solid #EBEBEB" },
-    purple: { background: "#F3F2FF", color: "#7C6FF7", border: "1px solid #E0DCFF" },
+    purple: { background: "#F3F2FF", color: "#8A6A3F", border: "1px solid #E0DCFF" },
     orange: { background: "#FFF8F0", color: "#C07030", border: "1px solid #FFE5C0" },
   };
   return (
@@ -141,7 +141,7 @@ function Tag({ text, variant = "default" }: { text: string; variant?: "default" 
 }
 
 function ScoreBar({ label, value }: { label: string; value: number }) {
-  const color = value >= 65 ? "#4CAF86" : value >= 40 ? "#7C6FF7" : "#E0954A";
+  const color = value >= 65 ? "#4CAF86" : value >= 40 ? "#8A6A3F" : "#E0954A";
   return (
     <div style={{ marginBottom: 11 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
@@ -155,7 +155,7 @@ function ScoreBar({ label, value }: { label: string; value: number }) {
   );
 }
 
-function BulletList({ items, color = "#7C6FF7" }: { items: string[]; color?: string }) {
+function BulletList({ items, color = "#8A6A3F" }: { items: string[]; color?: string }) {
   return (
     <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
       {items.map((item, i) => (
@@ -191,7 +191,7 @@ function PriceTier({ currency, data }: { currency: string; data: { low: string; 
           { label: "MID", value: data.mid, accent: true },
           { label: "HIGH", value: data.high, accent: false },
         ].map(({ label, value, accent }) => (
-          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: accent ? "#7C6FF7" : "#FAFAFA", border: `1px solid ${accent ? "#7C6FF7" : "#F0F0F0"}` }}>
+          <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: accent ? "#8A6A3F" : "#FAFAFA", border: `1px solid ${accent ? "#8A6A3F" : "#F0F0F0"}` }}>
             <span style={{ fontSize: 9, letterSpacing: ".14em", color: accent ? "rgba(255,255,255,0.7)" : "#BBB", flexShrink: 0 }}>{label}</span>
             <span className="mir-price-value" style={{ fontWeight: 700, color: accent ? "#FFF" : "#333", fontFamily: "'KakaoBigSans', system-ui, sans-serif", fontSize: accent ? 14 : 12 }}>{value}</span>
           </div>
@@ -338,7 +338,7 @@ export function MarketIntelligenceReport({
         <div style={{ marginBottom: 36, paddingBottom: 24, borderBottom: "1px solid #F0F0F0" }}>
           <div className="mir-header-row">
             <div>
-              <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".24em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>ARTENA AI · Market Intelligence Report</span>
+              <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".24em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>ARTENA AI · Market Intelligence Report</span>
               <h2 style={{ fontSize: 20, fontWeight: 800, color: "#000", margin: "0 0 6px", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
                 {data.artworkOverview.artist}
               </h2>
@@ -351,7 +351,7 @@ export function MarketIntelligenceReport({
               <span style={{ fontSize: 9, color: "#CCC", letterSpacing: ".1em", display: "block", marginBottom: 4 }}>GENERATED</span>
               <span style={{ fontSize: 11, color: "#AAA" }}>{new Date().toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" })}</span>
               <div style={{ marginTop: 8, padding: "4px 10px", background: "#F3F2FF", border: "1px solid #E0DCFF", display: "inline-block" }}>
-                <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".1em" }}>참고용 · 공식 감정 아님</span>
+                <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".1em" }}>참고용 · 공식 감정 아님</span>
               </div>
             </div>
           </div>
@@ -363,7 +363,7 @@ export function MarketIntelligenceReport({
           <div className="mir-two-col" style={{ marginBottom: 20 }}>
             {/* Artist — no portrait unless explicitly verified */}
             <div style={{ display: "flex", flexDirection: "column" as const, gap: 10, flex: 1, minWidth: 0 }}>
-              <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".18em", textTransform: "uppercase" as const }}>Artist</span>
+              <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".18em", textTransform: "uppercase" as const }}>Artist</span>
               <ArtistPhotoAvatar
                 data={{
                   artistName: data.artworkOverview.artist,
@@ -393,7 +393,7 @@ export function MarketIntelligenceReport({
           {/* Row 2: Uploaded image */}
           {imagePreview && (
             <div style={{ display: "flex", flexDirection: "column" as const, gap: 10 }}>
-              <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".18em", textTransform: "uppercase" as const }}>Analyzed Work</span>
+              <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".18em", textTransform: "uppercase" as const }}>Analyzed Work</span>
               <div style={{ width: "100%", maxHeight: 280, overflow: "hidden" }}>
                 <img
                   src={imagePreview}
@@ -436,7 +436,7 @@ export function MarketIntelligenceReport({
           <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".14em", textTransform: "uppercase" as const, marginBottom: 10 }}>구조적 해석</p>
           <p style={{ fontSize: 13, color: "#444", lineHeight: 1.85, marginBottom: 18 }}>{data.interpretation.structuralAnalysis}</p>
           <div style={{ background: "#FAFAFA", border: "1px solid #F0F0F0", padding: "16px 20px" }}>
-            <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".14em", display: "block", marginBottom: 6 }}>ARTENA 한 줄 해석</span>
+            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".14em", display: "block", marginBottom: 6 }}>ARTENA 한 줄 해석</span>
             <p style={{ fontSize: 13, color: "#222", fontWeight: 600, margin: 0, lineHeight: 1.6, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>{data.interpretation.artenaSummary}</p>
           </div>
         </div>
@@ -448,7 +448,7 @@ export function MarketIntelligenceReport({
           <Row label="갤러리/기관 이력" value={data.artistPositioning.galleryHistory} />
           <Row label="시장 포지션" value={data.artistPositioning.marketPosition} />
           <div style={{ marginTop: 14, padding: "12px 16px", background: "#F8F7FF", border: "1px solid #E8E4FF" }}>
-            <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".12em", display: "block", marginBottom: 4 }}>ARTENA 평가</span>
+            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".12em", display: "block", marginBottom: 4 }}>ARTENA 평가</span>
             <p style={{ fontSize: 12, color: "#444", margin: 0, lineHeight: 1.65 }}>{data.artistPositioning.artenaEvaluation}</p>
           </div>
         </div>
@@ -494,7 +494,7 @@ export function MarketIntelligenceReport({
               <div className="mir-confidence-circle" style={{ textAlign: "center" as const, marginBottom: 16 }}>
                 {(() => {
                   const v = data.confidence.overall;
-                  const color = v >= 65 ? "#4CAF86" : v >= 40 ? "#7C6FF7" : "#E0954A";
+                  const color = v >= 65 ? "#4CAF86" : v >= 40 ? "#8A6A3F" : "#E0954A";
                   const tier = v >= 65 ? "HIGH" : v >= 40 ? "MID" : "LOW";
                   return (
                     <div style={{ width: 88, height: 88, border: `3px solid ${color}`, borderRadius: "50%", display: "flex", flexDirection: "column" as const, alignItems: "center", justifyContent: "center", margin: "0 auto" }}>
@@ -541,7 +541,7 @@ export function MarketIntelligenceReport({
           <Row label="지역 특성" value={data.marketContext.regional} />
           <Row label="수요 구조" value={data.marketContext.collectorDemand} />
           <div style={{ marginTop: 14, padding: "14px 18px", background: "#000", border: "1px solid #000" }}>
-            <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".14em", display: "block", marginBottom: 6 }}>ARTENA INSIGHT</span>
+            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".14em", display: "block", marginBottom: 6 }}>ARTENA INSIGHT</span>
             <p style={{ fontSize: 13, color: "#FFF", fontWeight: 600, margin: 0, lineHeight: 1.6, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>{data.marketContext.artenaInsight}</p>
           </div>
         </div>

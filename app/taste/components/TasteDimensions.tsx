@@ -19,7 +19,7 @@ function DimensionRow({ dim, delay }: { dim: TasteDimension; delay: number }) {
   const label = descriptor(dim);
   const isRight = dim.value >= 62;
   const isLeft  = dim.value <= 38;
-  const accentColor = isRight ? "#1856FF" : isLeft ? "#888" : "#AAAAAA";
+  const accentColor = isRight ? "#8A6A3F" : isLeft ? "#888" : "#AAAAAA";
 
   return (
     <div style={{ marginBottom: 24 }}>

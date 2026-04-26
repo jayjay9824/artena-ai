@@ -41,12 +41,12 @@ function TasteProfilePage() {
           {/* Profile monogram */}
           <div style={{
             width: 44, height: 44, borderRadius: "50%",
-            background: "linear-gradient(135deg, #1856FF18, #1856FF08)",
+            background: "linear-gradient(135deg, #8A6A3F18, #8A6A3F08)",
             border: "0.5px solid #E8E8E8",
             display: "flex", alignItems: "center", justifyContent: "center",
             flexShrink: 0, marginTop: 2,
           }}>
-            <span style={{ fontSize: 9, color: "#1856FF", letterSpacing: ".06em", fontFamily: "'KakaoSmallSans', system-ui" }}>
+            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".06em", fontFamily: "'KakaoSmallSans', system-ui" }}>
               {profile.dominantStyle.slice(0, 2).toUpperCase()}
             </span>
           </div>

@@ -12,7 +12,7 @@ const GRID_STYLES = `
   .sig-btn { transition: background 0.15s, transform 0.15s; }
   .sig-btn:hover  { background: #EDEDED !important; }
   .sig-btn:active { transform: scale(0.95); }
-  .sig-search-submit:hover  { background: #007AFF !important; }
+  .sig-search-submit:hover  { background: #8A6A3F !important; }
   .sig-search-submit:active { transform: scale(0.97); }
 `;
 
@@ -54,7 +54,7 @@ export function SecondaryInputGrid({ onFileSelected, onCamera, onTextSearch }: S
     },
     {
       key: "search",
-      icon: <IcoSearch size={18} color={showSearch ? "#007AFF" : "#666"} />,
+      icon: <IcoSearch size={18} color={showSearch ? "#8A6A3F" : "#666"} />,
       label: "텍스트 검색",
       sub: "작가·작품 검색",
       onClick: handleSearchToggle,
@@ -85,8 +85,8 @@ export function SecondaryInputGrid({ onFileSelected, onCamera, onTextSearch }: S
             style={{
               flex: 1,
               padding: "12px 6px",
-              background: item.active ? "#F0F6FF" : "#F6F6F6",
-              border: `0.5px solid ${item.active ? "#CCE0FF" : "#E8E8E8"}`,
+              background: item.active ? "#F4EFE5" : "#F6F6F6",
+              border: `0.5px solid ${item.active ? "#D9C9A6" : "#E8E8E8"}`,
               borderRadius: 12,
               cursor: "pointer",
               display: "flex", flexDirection: "column" as const,
@@ -107,7 +107,7 @@ export function SecondaryInputGrid({ onFileSelected, onCamera, onTextSearch }: S
             <div style={{ textAlign: "center" as const }}>
               <p style={{
                 fontSize: 11, fontWeight: 600,
-                color: item.active ? "#007AFF" : "#333",
+                color: item.active ? "#8A6A3F" : "#333",
                 margin: "0 0 1px",
               }}>
                 {item.label}
@@ -149,7 +149,7 @@ export function SecondaryInputGrid({ onFileSelected, onCamera, onTextSearch }: S
             className="sig-search-submit"
             style={{
               padding: "11px 16px",
-              background: query.trim() ? "#007AFF" : "#E0E0E0",
+              background: query.trim() ? "#8A6A3F" : "#E0E0E0",
               border: "none", borderRadius: 10,
               cursor: query.trim() ? "pointer" : "default",
               color: "#fff", fontSize: 13, fontWeight: 600,

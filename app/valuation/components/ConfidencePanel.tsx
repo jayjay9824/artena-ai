@@ -13,25 +13,25 @@ const DIMENSIONS: { key: keyof ConfidenceScores; label: string; desc: string }[]
 ];
 
 function ScoreBar({ value, accent = false }: { value: number; accent?: boolean }) {
-  const color = value >= 70 ? "#4CAF86" : value >= 50 ? "#7C6FF7" : "#E0954A";
+  const color = value >= 70 ? "#4CAF86" : value >= 50 ? "#8A6A3F" : "#E0954A";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div style={{ flex: 1, height: 4, background: "#F0F0F0" }}>
-        <div style={{ width: `${value}%`, height: "100%", background: accent ? "#7C6FF7" : color, transition: "width 0.6s ease" }} />
+        <div style={{ width: `${value}%`, height: "100%", background: accent ? "#8A6A3F" : color, transition: "width 0.6s ease" }} />
       </div>
-      <span style={{ fontSize: 11, color: accent ? "#7C6FF7" : color, fontWeight: 600, minWidth: 28, textAlign: "right" as const }}>{value}</span>
+      <span style={{ fontSize: 11, color: accent ? "#8A6A3F" : color, fontWeight: 600, minWidth: 28, textAlign: "right" as const }}>{value}</span>
     </div>
   );
 }
 
 export function ConfidencePanel({ scores }: { scores: ConfidenceScores }) {
-  const tier = scores.overall >= 70 ? { label: "HIGH", color: "#4CAF86" } : scores.overall >= 50 ? { label: "MEDIUM", color: "#7C6FF7" } : { label: "LOW", color: "#E0954A" };
+  const tier = scores.overall >= 70 ? { label: "HIGH", color: "#4CAF86" } : scores.overall >= 50 ? { label: "MEDIUM", color: "#8A6A3F" } : { label: "LOW", color: "#E0954A" };
 
   return (
     <div style={{ background: "#FFFFFF", border: "1px solid #E8E8E8", padding: "32px 36px" }}>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 28, paddingBottom: 20, borderBottom: "1px solid #F5F5F5" }}>
         <div>
-          <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>8-Dimension Analysis</span>
+          <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>8-Dimension Analysis</span>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: "#000", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>Valuation Confidence</h3>
         </div>
         <div style={{ textAlign: "center" as const }}>

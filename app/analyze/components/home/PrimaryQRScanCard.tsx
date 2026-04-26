@@ -12,7 +12,7 @@ const STYLES = `
     50%       { opacity: 0.20; }
   }
   .pqr-card { transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; }
-  .pqr-card:hover  { transform: scale(1.02); box-shadow: 0 6px 30px rgba(0,122,255,0.06) !important; }
+  .pqr-card:hover  { transform: scale(1.02); box-shadow: 0 6px 30px rgba(138,106,63,0.06) !important; }
   .pqr-card:active { transform: scale(0.97); }
   .pqr-btn:hover   { opacity: 0.88; }
   .pqr-btn:active  { transform: scale(0.97); }
@@ -26,12 +26,12 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
         className="pqr-card"
         onClick={onScan}
         style={{
-          background: "linear-gradient(145deg, #EDF4FF 0%, #F7FAFF 55%, #ECF3FF 100%)",
-          border: "1px solid #CCE0FF",
+          background: "linear-gradient(145deg, #F4EFE5 0%, #F8F4EB 55%, #F4EFE5 100%)",
+          border: "1px solid #D9C9A6",
           borderRadius: 20,
           padding: "24px 22px 22px",
           cursor: "pointer",
-          boxShadow: "0 4px 28px rgba(0,122,255,0.07)",
+          boxShadow: "0 4px 28px rgba(138,106,63,0.07)",
           marginBottom: 24,
           userSelect: "none" as const,
         }}
@@ -45,16 +45,16 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
             background: "#FFFFFF",
             borderRadius: 15,
             display: "flex", alignItems: "center", justifyContent: "center",
-            boxShadow: "0 2px 14px rgba(0,122,255,0.14)",
+            boxShadow: "0 2px 14px rgba(138,106,63,0.14)",
             position: "relative" as const, overflow: "hidden",
             flexShrink: 0,
           }}>
-            <IcoQr size={34} color="#007AFF" />
+            <IcoQr size={34} color="#8A6A3F" />
             {/* Pulse ring behind icon */}
             <div style={{
               position: "absolute" as const, inset: -6,
               borderRadius: "50%",
-              background: "radial-gradient(circle, rgba(0,122,255,0.12) 0%, transparent 70%)",
+              background: "radial-gradient(circle, rgba(138,106,63,0.12) 0%, transparent 70%)",
               animation: "qrGlow 2.8s ease-in-out infinite",
               pointerEvents: "none",
             }} />
@@ -69,10 +69,10 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
 
           {/* Badge */}
           <span style={{
-            fontSize: 9, letterSpacing: ".16em", color: "#007AFF",
+            fontSize: 9, letterSpacing: ".16em", color: "#8A6A3F",
             textTransform: "uppercase" as const,
             fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-            background: "rgba(0,122,255,0.09)",
+            background: "rgba(138,106,63,0.09)",
             padding: "4px 11px", borderRadius: 20,
             fontWeight: 600,
           }}>
@@ -104,14 +104,14 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
           onClick={(e) => { e.stopPropagation(); onScan(); }}
           style={{
             width: "100%", padding: "14px 0",
-            background: "#007AFF", border: "none",
+            background: "#8A6A3F", border: "none",
             borderRadius: 12, cursor: "pointer",
             fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
             fontSize: 14, fontWeight: 700, color: "#fff", letterSpacing: ".03em",
             marginBottom: 16,
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             transition: "opacity 0.15s, transform 0.15s",
-            boxShadow: "0 3px 14px rgba(0,122,255,0.32)",
+            boxShadow: "0 3px 14px rgba(138,106,63,0.32)",
           }}
         >
           <IcoQr size={16} color="#fff" />
@@ -122,8 +122,8 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
           {["작품 정보 자동 추출", "전시 / 갤러리 맥락", "시장 데이터 연결"].map(label => (
             <span key={label} style={{
-              fontSize: 10, color: "#007AFF",
-              background: "rgba(0,122,255,0.08)",
+              fontSize: 10, color: "#8A6A3F",
+              background: "rgba(138,106,63,0.08)",
               padding: "4px 10px", borderRadius: 20,
               fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
               letterSpacing: ".02em",

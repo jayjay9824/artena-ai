@@ -27,7 +27,7 @@ function InsightBlock({ title, items, color }: { title: string; items: string[];
 function ProseBlock({ title, text }: { title: string; text: string }) {
   return (
     <div style={{ background: "#FFF", border: "1px solid #E8E8E8", padding: "28px 32px" }}>
-      <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".18em", textTransform: "uppercase" as const, display: "block", marginBottom: 10 }}>{title}</span>
+      <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".18em", textTransform: "uppercase" as const, display: "block", marginBottom: 10 }}>{title}</span>
       <p style={{ fontSize: 13, color: "#333", lineHeight: 1.85, margin: 0 }}>{text}</p>
     </div>
   );
@@ -72,14 +72,14 @@ function ValuationPageInner() {
         </a>
         <div style={{ display: "flex", gap: 28 }}>
           <a href="/analyze" style={{ fontSize: 11, color: "#888", textDecoration: "none", letterSpacing: ".06em" }}>ANALYZE</a>
-          <a href="/valuation" style={{ fontSize: 11, color: "#7C6FF7", textDecoration: "none", letterSpacing: ".06em", fontWeight: 600 }}>VALUATION</a>
+          <a href="/valuation" style={{ fontSize: 11, color: "#8A6A3F", textDecoration: "none", letterSpacing: ".06em", fontWeight: 600 }}>VALUATION</a>
         </div>
       </div>
 
       <div style={{ maxWidth: 1100, margin: "0 auto", padding: "48px 24px 80px" }}>
         {/* Header */}
         <div style={{ marginBottom: 40 }}>
-          <div style={{ display: "inline-block", background: "#7C6FF7", padding: "4px 14px", marginBottom: 14 }}>
+          <div style={{ display: "inline-block", background: "#8A6A3F", padding: "4px 14px", marginBottom: 14 }}>
             <span style={{ fontSize: 9, color: "#FFF", letterSpacing: ".22em" }}>INTELLIGENCE LAYER · BETA</span>
           </div>
           <h1 style={{ fontSize: 34, fontWeight: 800, color: "#000", margin: "0 0 12px", fontFamily: "'KakaoBigSans', system-ui, sans-serif", lineHeight: 1.2 }}>
@@ -105,7 +105,7 @@ function ValuationPageInner() {
                 <div style={{ display: "inline-flex", gap: 6 }}>
                   {[0, 1, 2].map((i) => (
                     <div key={i} style={{
-                      width: 8, height: 8, background: "#7C6FF7", borderRadius: "50%",
+                      width: 8, height: 8, background: "#8A6A3F", borderRadius: "50%",
                       animation: `pulse 1.2s ease-in-out ${i * 0.2}s infinite`,
                     }} />
                   ))}
@@ -132,7 +132,7 @@ function ValuationPageInner() {
                 <ConfidencePanel scores={result.confidence} />
                 <div style={{ display: "flex", flexDirection: "column" as const, gap: 16 }}>
                   {result.keyDrivers?.length > 0 && (
-                    <InsightBlock title="Key Value Drivers" items={result.keyDrivers} color="#7C6FF7" />
+                    <InsightBlock title="Key Value Drivers" items={result.keyDrivers} color="#8A6A3F" />
                   )}
                   {result.riskFactors?.length > 0 && (
                     <InsightBlock title="Risk Considerations" items={result.riskFactors} color="#E0954A" />

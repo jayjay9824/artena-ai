@@ -163,7 +163,7 @@ const AA_STYLES = `
     0%, 100% { opacity: 1; }
     50%      { opacity: 0; }
   }
-  .aa-chip:hover         { background: #EEF0FF !important; border-color: #C4BFEE !important; }
+  .aa-chip:hover         { background: #F4EFE5 !important; border-color: #D9C9A6 !important; }
   .aa-close-btn:hover    { background: #F0F0F0 !important; }
   .aa-send-btn:hover     { opacity: 0.84; }
 `;
@@ -397,8 +397,8 @@ export function ArtAssistantScreen({
 
             {/* Context badge */}
             <span style={{
-              fontSize: 9, color: "#7C6FF7",
-              background: "#F3F1FF",
+              fontSize: 9, color: "#8A6A3F",
+              background: "#F4EFE5",
               padding: "4px 10px", borderRadius: 12,
               letterSpacing: ".06em", flexShrink: 0,
               whiteSpace: "nowrap",
@@ -415,7 +415,7 @@ export function ArtAssistantScreen({
           {messages.length === 0 && (
             <div style={{ marginBottom: 30 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 9, marginBottom: 22 }}>
-                <span style={{ fontSize: 8, color: "#7C6FF7", marginTop: 5, flexShrink: 0 }}>◆</span>
+                <span style={{ fontSize: 8, color: "#8A6A3F", marginTop: 5, flexShrink: 0 }}>◆</span>
                 <p style={{ fontSize: 13, color: "#444", lineHeight: 1.75, margin: 0 }}>
                   이 {analysis.category === "architecture" ? "건축물" : (analysis.category === "artifact" || analysis.category === "cultural_site") ? "유물" : "작품"}에
                   대해 더 깊이 알아보세요. 아래 질문을 선택하거나 직접 입력해 주세요.
@@ -473,7 +473,7 @@ export function ArtAssistantScreen({
               /* AI response */
               <div key={msg.id} style={{ marginBottom: 24 }}>
                 <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                  <span style={{ fontSize: 8, color: "#7C6FF7", marginTop: 6, flexShrink: 0 }}>◆</span>
+                  <span style={{ fontSize: 8, color: "#8A6A3F", marginTop: 6, flexShrink: 0 }}>◆</span>
                   <div style={{
                     fontSize: 13, color: "#1C1C1C", lineHeight: 1.8,
                     flex: 1,
@@ -491,7 +491,7 @@ export function ArtAssistantScreen({
           {isStreaming && (
             <div style={{ marginBottom: 22 }}>
               <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                <span style={{ fontSize: 8, color: "#7C6FF7", marginTop: 6, flexShrink: 0 }}>◆</span>
+                <span style={{ fontSize: 8, color: "#8A6A3F", marginTop: 6, flexShrink: 0 }}>◆</span>
                 <div style={{ fontSize: 13, color: "#1C1C1C", lineHeight: 1.8, flex: 1 }}>
                   {streamingContent ? (
                     <>
@@ -499,7 +499,7 @@ export function ArtAssistantScreen({
                       <span style={{
                         display: "inline-block",
                         width: 2, height: 14,
-                        background: "#7C6FF7",
+                        background: "#8A6A3F",
                         marginLeft: 2,
                         verticalAlign: "text-bottom",
                         animation: "aa-cursor 0.9s ease-in-out infinite",

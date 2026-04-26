@@ -17,7 +17,7 @@ function ScoreDots({ score }: { score: number }) {
   return (
     <div style={{ display: "flex", gap: 2 }}>
       {Array.from({ length: 5 }, (_, i) => (
-        <span key={i} style={{ display: "inline-block", width: 6, height: 6, background: i < filled ? "#7C6FF7" : "#EBEBEB" }} />
+        <span key={i} style={{ display: "inline-block", width: 6, height: 6, background: i < filled ? "#8A6A3F" : "#EBEBEB" }} />
       ))}
     </div>
   );
@@ -35,7 +35,7 @@ export function ComparableTable({ comparables, currency }: ComparableTableProps)
   return (
     <div style={{ background: "#FFFFFF", border: "1px solid #E8E8E8" }}>
       <div style={{ padding: "28px 36px 20px", borderBottom: "1px solid #F5F5F5" }}>
-        <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>Comparable Sales</span>
+        <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>Comparable Sales</span>
         <h3 style={{ fontSize: 16, fontWeight: 700, color: "#000", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>Market Reference Transactions</h3>
       </div>
 
@@ -72,7 +72,7 @@ export function ComparableTable({ comparables, currency }: ComparableTableProps)
                     <p style={{ fontSize: 10, color: "#BBB", margin: 0 }}>{c.country}</p>
                   </td>
                   <td style={{ padding: "12px 16px" }}>
-                    <span style={{ fontSize: 10, color: "#7C6FF7", background: "#F3F2FF", padding: "3px 8px", whiteSpace: "nowrap" as const }}>
+                    <span style={{ fontSize: 10, color: "#8A6A3F", background: "#F3F2FF", padding: "3px 8px", whiteSpace: "nowrap" as const }}>
                       {CHANNEL_LABELS[c.saleChannel]}
                     </span>
                   </td>

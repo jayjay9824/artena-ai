@@ -51,7 +51,7 @@ export function ValuationForm({ onSubmit, loading, initialArtist = "" }: Valuati
   return (
     <form onSubmit={handleSubmit}>
       <div style={{ background: "#FFF", border: "1px solid #E8E8E8", padding: "36px 36px 28px" }}>
-        <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>ARTENA · Valuation Engine</span>
+        <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>ARTENA · Valuation Engine</span>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: "#000", margin: "0 0 28px", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
           Market Value Estimator
         </h2>
@@ -122,7 +122,7 @@ export function ValuationForm({ onSubmit, loading, initialArtist = "" }: Valuati
                   style={{
                     flex: 1, padding: "10px 0", fontSize: 12, fontWeight: 600,
                     border: "1px solid #E0E0E0", cursor: "pointer",
-                    background: form.displayCurrency === cur ? "#7C6FF7" : "#FAFAFA",
+                    background: form.displayCurrency === cur ? "#8A6A3F" : "#FAFAFA",
                     color: form.displayCurrency === cur ? "#FFF" : "#777",
                     fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
                   }}
@@ -143,7 +143,7 @@ export function ValuationForm({ onSubmit, loading, initialArtist = "" }: Valuati
               <div
                 onClick={() => set("signed", !form.signed)}
                 style={{
-                  width: 36, height: 20, background: form.signed ? "#7C6FF7" : "#DDD",
+                  width: 36, height: 20, background: form.signed ? "#8A6A3F" : "#DDD",
                   borderRadius: 10, position: "relative" as const, transition: "background 0.2s", cursor: "pointer",
                 }}
               >
@@ -186,7 +186,7 @@ export function ValuationForm({ onSubmit, loading, initialArtist = "" }: Valuati
           style={{
             width: "100%", padding: "16px 0", fontSize: 13, fontWeight: 700,
             letterSpacing: ".12em", textTransform: "uppercase" as const,
-            background: loading || !form.artistName.trim() ? "#D0D0D0" : "#7C6FF7",
+            background: loading || !form.artistName.trim() ? "#D0D0D0" : "#8A6A3F",
             color: "#FFF", border: "none", cursor: loading || !form.artistName.trim() ? "not-allowed" : "pointer",
             fontFamily: "'KakaoBigSans', system-ui, sans-serif",
             transition: "background 0.2s",

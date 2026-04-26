@@ -4,17 +4,17 @@ import { IcoQr, IcoFileText, IcoImage } from "./icons";
 
 const STEPS = [
   {
-    icon: (active: boolean) => <IcoQr size={22} color={active ? "#007AFF" : "#888"} />,
+    icon: (active: boolean) => <IcoQr size={22} color={active ? "#8A6A3F" : "#888"} />,
     title: "QR 스캔",
     desc: "작품 옆 QR 코드를 스캔하세요",
   },
   {
-    icon: (active: boolean) => <IcoFileText size={22} color={active ? "#007AFF" : "#888"} />,
+    icon: (active: boolean) => <IcoFileText size={22} color={active ? "#8A6A3F" : "#888"} />,
     title: "라벨 촬영",
     desc: "작품 설명판을 촬영하세요",
   },
   {
-    icon: (active: boolean) => <IcoImage size={22} color={active ? "#007AFF" : "#888"} />,
+    icon: (active: boolean) => <IcoImage size={22} color={active ? "#8A6A3F" : "#888"} />,
     title: "작품 촬영",
     desc: "작품을 직접 찍으세요",
   },
@@ -48,7 +48,7 @@ export function UsageGuide() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", width: "100%" }}>
                 <div style={{
                   width: 40, height: 40,
-                  background: "#F4F7FF",
+                  background: "#F4EFE5",
                   borderRadius: 12,
                   display: "flex", alignItems: "center", justifyContent: "center",
                 }}>

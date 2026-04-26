@@ -28,12 +28,12 @@ export function PriceRangeDisplay({
     <div style={{ background: "#FFFFFF", border: "1px solid #E8E8E8", padding: "36px 36px 32px" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
-          <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>ARTENA · Market Value Engine</span>
+          <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>ARTENA · Market Value Engine</span>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: "#000", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>Estimated Market Value Range</h3>
         </div>
         <div style={{ textAlign: "right" as const }}>
           <span style={{ fontSize: 9, color: "#CCC", letterSpacing: ".1em", display: "block", marginBottom: 2 }}>BASIS</span>
-          <span style={{ fontSize: 11, color: "#7C6FF7", fontWeight: 600 }}>{basisLabel}</span>
+          <span style={{ fontSize: 11, color: "#8A6A3F", fontWeight: 600 }}>{basisLabel}</span>
         </div>
       </div>
 
@@ -46,8 +46,8 @@ export function PriceRangeDisplay({
         ].map(({ label, price, usd, accent }) => (
           <div key={label} style={{
             padding: "20px 18px",
-            background: accent ? "#7C6FF7" : "#FAFAFA",
-            border: `1px solid ${accent ? "#7C6FF7" : "#EBEBEB"}`,
+            background: accent ? "#8A6A3F" : "#FAFAFA",
+            border: `1px solid ${accent ? "#8A6A3F" : "#EBEBEB"}`,
           }}>
             <span style={{ fontSize: 8, letterSpacing: ".18em", color: accent ? "rgba(255,255,255,0.7)" : "#BBB", display: "block", marginBottom: 10 }}>{label}</span>
             <span style={{ fontSize: accent ? 22 : 18, fontWeight: 700, color: accent ? "#FFF" : "#111", fontFamily: "'KakaoBigSans', system-ui, sans-serif", display: "block", marginBottom: 4 }}>
@@ -69,7 +69,7 @@ export function PriceRangeDisplay({
             position: "absolute" as const,
             left: "0%", right: "0%",
             height: "100%",
-            background: "linear-gradient(90deg, #E8E6FF 0%, #7C6FF7 50%, #4A44B5 100%)",
+            background: "linear-gradient(90deg, #E8E6FF 0%, #8A6A3F 50%, #4A44B5 100%)",
           }} />
           <div style={{
             position: "absolute" as const,
@@ -77,15 +77,15 @@ export function PriceRangeDisplay({
             top: "50%",
             transform: "translate(-50%, -50%)",
             width: 14, height: 14,
-            background: "#7C6FF7",
+            background: "#8A6A3F",
             border: "2px solid #FFF",
             borderRadius: "50%",
-            boxShadow: "0 0 0 2px #7C6FF7",
+            boxShadow: "0 0 0 2px #8A6A3F",
           }} />
         </div>
         <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
           <span style={{ fontSize: 9, color: "#CCC" }}>Low</span>
-          <span style={{ fontSize: 9, color: "#7C6FF7", fontWeight: 600 }}>Mid Estimate</span>
+          <span style={{ fontSize: 9, color: "#8A6A3F", fontWeight: 600 }}>Mid Estimate</span>
           <span style={{ fontSize: 9, color: "#CCC" }}>High</span>
         </div>
       </div>

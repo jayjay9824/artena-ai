@@ -20,7 +20,7 @@ export function TasteInsight({ profile }: TasteInsightProps) {
 
       {/* Dominant axes summary */}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 22 }}>
-        <span style={{ fontSize: 9, color: "#1856FF", background: "#1856FF0D", padding: "4px 10px", letterSpacing: ".04em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>
+        <span style={{ fontSize: 9, color: "#8A6A3F", background: "#8A6A3F0D", padding: "4px 10px", letterSpacing: ".04em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>
           {profile.dominantStyle}
         </span>
         <span style={{ fontSize: 9, color: "#555", background: "#F4F4F4", padding: "4px 10px", letterSpacing: ".04em", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>
@@ -30,7 +30,7 @@ export function TasteInsight({ profile }: TasteInsightProps) {
 
       {/* Insight paragraph */}
       <div style={{ display: "flex", alignItems: "stretch" }}>
-        <div style={{ width: 2, background: "#1856FF", opacity: 0.3, flexShrink: 0, borderRadius: 1, marginRight: 16 }} />
+        <div style={{ width: 2, background: "#8A6A3F", opacity: 0.3, flexShrink: 0, borderRadius: 1, marginRight: 16 }} />
         <p style={{
           fontSize: 13, color: "#444", lineHeight: 1.84, margin: 0,
           fontStyle: "italic", fontFamily: "Georgia, serif",
@@ -51,7 +51,7 @@ export function TasteInsight({ profile }: TasteInsightProps) {
             transition: "opacity .15s",
           }}
         >
-          <span style={{ fontSize: 9, color: "#7C6FF7" }}>◆</span>
+          <span style={{ fontSize: 9, color: "#8A6A3F" }}>◆</span>
           Explore Recommendations
           <span style={{ fontSize: 10, color: "#666" }}>→</span>
         </button>

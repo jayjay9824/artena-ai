@@ -70,7 +70,7 @@ export function ArtenaGraph() {
                   key={i}
                   x1={CENTER.cx} y1={CENTER.cy}
                   x2={n.cx} y2={n.cy}
-                  stroke="#D8E4F8"
+                  stroke="#E2D6BE"
                   strokeWidth="1"
                   strokeDasharray={len}
                   strokeDashoffset={len}
@@ -85,7 +85,7 @@ export function ArtenaGraph() {
             <circle
               cx={CENTER.cx} cy={CENTER.cy}
               r="28"
-              fill="rgba(0,122,255,0.07)"
+              fill="rgba(138,106,63,0.07)"
               style={{ animation: "centerPulse 3s ease-in-out infinite" }}
             />
 
@@ -93,8 +93,8 @@ export function ArtenaGraph() {
             <circle
               cx={CENTER.cx} cy={CENTER.cy}
               r="22"
-              fill="#007AFF"
-              style={{ filter: "drop-shadow(0 2px 8px rgba(0,122,255,0.3))" }}
+              fill="#8A6A3F"
+              style={{ filter: "drop-shadow(0 2px 8px rgba(138,106,63,0.3))" }}
             />
             <text
               x={CENTER.cx} y={CENTER.cy - 3}
@@ -121,14 +121,14 @@ export function ArtenaGraph() {
             {NODES.map((n, i) => (
               <g key={i} style={{ animation: `nodeAppear 0.4s ease forwards ${n.delay + 0.05}s`, opacity: 0 }}>
                 {/* Outer ring */}
-                <circle cx={n.cx} cy={n.cy} r="17" fill="rgba(0,122,255,0.05)" stroke="#D8E4F8" strokeWidth="0.8" />
+                <circle cx={n.cx} cy={n.cy} r="17" fill="rgba(138,106,63,0.05)" stroke="#E2D6BE" strokeWidth="0.8" />
                 {/* Inner circle */}
-                <circle cx={n.cx} cy={n.cy} r="12" fill="#F4F8FF" />
+                <circle cx={n.cx} cy={n.cy} r="12" fill="#F4EFE5" />
                 {/* Label below */}
                 <text
                   x={n.cx} y={n.cy - 1}
                   textAnchor="middle"
-                  fill="#007AFF"
+                  fill="#8A6A3F"
                   fontSize="7"
                   fontWeight="700"
                   fontFamily="system-ui, sans-serif"

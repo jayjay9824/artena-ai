@@ -70,7 +70,7 @@ export function FeedItem({ rec, imageUrl, variant, flip = false, onTap, onLike, 
           <div>
             {/* Tier + Style tags */}
             <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginBottom: 16 }}>
-              <span style={{ fontSize: 8, letterSpacing: ".12em", color: "#1856FF", background: "#1856FF0D", padding: "3px 7px" }}>
+              <span style={{ fontSize: 8, letterSpacing: ".12em", color: "#8A6A3F", background: "#8A6A3F0D", padding: "3px 7px" }}>
                 {rec.marketTier}
               </span>
               <span style={{ fontSize: 8, letterSpacing: ".1em", color: "#AAA", background: "#F4F4F4", padding: "3px 7px" }}>
@@ -101,7 +101,7 @@ export function FeedItem({ rec, imageUrl, variant, flip = false, onTap, onLike, 
           {/* Actions */}
           <div style={{ display: "flex", gap: 14, marginTop: 20, alignItems: "center" }}>
             <MiniActionBtn active={rec.liked} activeColor="#E04848" icon={rec.liked ? "♥" : "♡"} label="좋아요" onClick={(e) => { e.stopPropagation(); onLike(); }} />
-            <MiniActionBtn active={rec.saved} activeColor="#1856FF" icon={rec.saved ? "◆" : "◇"} label="저장" onClick={(e) => { e.stopPropagation(); onSave(); }} />
+            <MiniActionBtn active={rec.saved} activeColor="#8A6A3F" icon={rec.saved ? "◆" : "◇"} label="저장" onClick={(e) => { e.stopPropagation(); onSave(); }} />
             <button
               onClick={onTap}
               style={{ marginLeft: "auto", background: "none", border: "0.5px solid #E4E4E4", cursor: "pointer", padding: "5px 11px", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}

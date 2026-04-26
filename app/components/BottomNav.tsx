@@ -34,7 +34,7 @@ export function BottomNav({ currentTab }: BottomNavProps) {
         style={{
           display: "flex", flexDirection: "column", alignItems: "center", gap: 3,
           background: "none", border: "none", cursor: "pointer",
-          color: active ? "#1856FF" : "#BBBBBB", flex: 1, padding: 0,
+          color: active ? "#8A6A3F" : "#BBBBBB", flex: 1, padding: 0,
           fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
           transition: "color .15s",
         }}

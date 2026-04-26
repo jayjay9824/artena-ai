@@ -210,7 +210,7 @@ function SectionLabel({ text }: { text: string }) {
 }
 
 function ScoreBar({ label, value, delay = 0 }: { label: string; value: number; delay?: number }) {
-  const color = value >= 65 ? "#1856FF" : value >= 40 ? "#555" : "#C09040";
+  const color = value >= 65 ? "#8A6A3F" : value >= 40 ? "#555" : "#C09040";
   return (
     <div style={{ marginBottom: 13 }}>
       <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 5 }}>
@@ -259,8 +259,8 @@ function ActionToast({
             flexShrink: 0,
           }}
         >
-          <IcoGrid color="#7C6FF7" />
-          <span style={{ fontSize: 12, color: "#7C6FF7", fontWeight: 600, fontFamily: "'KakaoSmallSans', system-ui, sans-serif", letterSpacing: ".02em" }}>
+          <IcoGrid color="#8A6A3F" />
+          <span style={{ fontSize: 12, color: "#8A6A3F", fontWeight: 600, fontFamily: "'KakaoSmallSans', system-ui, sans-serif", letterSpacing: ".02em" }}>
             {toast.actionLabel}
           </span>
         </button>
@@ -400,7 +400,7 @@ export function QuickReport({
   const dataDepth  = Math.min(confidence + 5, 94);
   const comparable = Math.max(confidence - 8, 22);
   const stability  = Math.round(confidence * 0.87);
-  const posColor   = position === "Blue-chip" ? "#1856FF" : position === "Emerging" ? "#B07030" : "#111";
+  const posColor   = position === "Blue-chip" ? "#8A6A3F" : position === "Emerging" ? "#B07030" : "#111";
 
   return (
     <>
@@ -512,7 +512,7 @@ export function QuickReport({
             <div style={{ display: "flex", flexDirection: "column" as const, gap: 11, marginBottom: 20 }}>
               {bullets.map((b, i) => (
                 <div key={i} style={{ display: "flex", gap: 11, alignItems: "flex-start" }}>
-                  <span style={{ color: "#1856FF", fontSize: 7, marginTop: 6, flexShrink: 0 }}>◆</span>
+                  <span style={{ color: "#8A6A3F", fontSize: 7, marginTop: 6, flexShrink: 0 }}>◆</span>
                   <span style={{ fontSize: 12, color: "#555", lineHeight: 1.68 }}>{b}</span>
                 </div>
               ))}
@@ -572,7 +572,7 @@ export function QuickReport({
             </div>
 
             {a.marketNote && (
-              <p style={{ fontSize: 12, color: "#666", lineHeight: 1.78, margin: 0, paddingLeft: 14, borderLeft: "2px solid #1856FF" }}>
+              <p style={{ fontSize: 12, color: "#666", lineHeight: 1.78, margin: 0, paddingLeft: 14, borderLeft: "2px solid #8A6A3F" }}>
                 {a.marketNote.length > 160 ? a.marketNote.slice(0, 160) + "…" : a.marketNote}
               </p>
             )}
@@ -661,8 +661,8 @@ export function QuickReport({
                 flex: 1,
                 display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
                 padding: "13px 0",
-                background: actions.saved ? "#1856FF" : "#fff",
-                border: `1px solid ${actions.saved ? "#1856FF" : "#D8D8D8"}`,
+                background: actions.saved ? "#8A6A3F" : "#fff",
+                border: `1px solid ${actions.saved ? "#8A6A3F" : "#D8D8D8"}`,
                 borderRadius: 10,
                 cursor: "pointer",
                 fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
@@ -713,7 +713,7 @@ export function QuickReport({
               }}
             >
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <span style={{ fontSize: 9, color: "#7C6FF7" }}>◆</span>
+                <span style={{ fontSize: 9, color: "#8A6A3F" }}>◆</span>
                 <span style={{ fontSize: 12, color: "#FFF", letterSpacing: ".07em" }}>아르테나 AI에게 더 물어보기</span>
               </div>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", letterSpacing: ".03em" }}>

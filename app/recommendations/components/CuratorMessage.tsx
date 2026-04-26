@@ -26,7 +26,7 @@ export function CuratorMessage({ tasteKeywords }: CuratorMessageProps) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5, marginBottom: 18 }}>
           {tasteKeywords.slice(0, 5).map(k => (
             <span key={k} style={{
-              fontSize: 9, color: "#1856FF", background: "#1856FF0C",
+              fontSize: 9, color: "#8A6A3F", background: "#8A6A3F0C",
               padding: "3px 9px", letterSpacing: ".04em",
               fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
             }}>

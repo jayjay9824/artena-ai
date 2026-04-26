@@ -15,9 +15,9 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
     <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 14 }}>
       <span style={{ fontSize: 12, color: "#888", minWidth: 56 }}>{label}</span>
       <div style={{ flex: 1, height: 1, background: "#EFEFEF", position: "relative" as const }}>
-        <div style={{ position: "absolute" as const, left: 0, top: "-1px", height: "3px", width: `${score}%`, background: "#7C6FF7", transition: "width 0.8s ease" }} />
+        <div style={{ position: "absolute" as const, left: 0, top: "-1px", height: "3px", width: `${score}%`, background: "#8A6A3F", transition: "width 0.8s ease" }} />
       </div>
-      <span style={{ fontSize: 11, color: "#7C6FF7", minWidth: 24, textAlign: "right" as const }}>{score}</span>
+      <span style={{ fontSize: 11, color: "#8A6A3F", minWidth: 24, textAlign: "right" as const }}>{score}</span>
     </div>
   );
 }
@@ -26,7 +26,7 @@ function SectionBlock({ number, title, children }: { number: string; title: stri
   return (
     <div style={{ marginBottom: 40 }}>
       <div style={{ display: "flex", alignItems: "baseline", gap: 12, marginBottom: 16, paddingBottom: 12, borderBottom: "1px solid #F5F5F5" }}>
-        <span style={{ fontSize: 10, color: "#7C6FF7", fontWeight: 600, letterSpacing: ".14em" }}>{number}</span>
+        <span style={{ fontSize: 10, color: "#8A6A3F", fontWeight: 600, letterSpacing: ".14em" }}>{number}</span>
         <span style={{ fontSize: 10, color: "#000", letterSpacing: ".16em", textTransform: "uppercase" as const, fontWeight: 700, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>{title}</span>
       </div>
       {children}
@@ -49,7 +49,7 @@ function RiskSquares({ level }: { level: string }) {
     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
       <div style={{ display: "flex", gap: 3 }}>
         {Array.from({ length: 5 }, (_, i) => (
-          <span key={i} style={{ display: "inline-block", width: 8, height: 8, background: i < filled ? "#7C6FF7" : "#EBEBEB" }} />
+          <span key={i} style={{ display: "inline-block", width: 8, height: 8, background: i < filled ? "#8A6A3F" : "#EBEBEB" }} />
         ))}
       </div>
       <span style={{ fontSize: 12, color: "#555" }}>{level} Risk</span>
@@ -68,7 +68,7 @@ export function MarketReport({ data }: { data: MarketReportData }) {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 36, paddingBottom: 24, borderBottom: "1px solid #F0F0F0" }}>
         <div>
-          <span style={{ fontSize: 9, color: "#7C6FF7", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>ARTENA Intelligence Layer</span>
+          <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>ARTENA Intelligence Layer</span>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", letterSpacing: ".01em", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>Market Intelligence Report</h2>
         </div>
         <div style={{ textAlign: "right" as const }}>
@@ -101,7 +101,7 @@ export function MarketReport({ data }: { data: MarketReportData }) {
           <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".16em", textTransform: "uppercase" as const, marginBottom: 12 }}>Structural Analysis</p>
           {data.interpretationLayer.structuralAnalysis.map((s, i) => (
             <div key={i} style={{ display: "flex", gap: 12, marginBottom: 10 }}>
-              <span style={{ color: "#7C6FF7", fontSize: 11, flexShrink: 0, marginTop: 2 }}>○</span>
+              <span style={{ color: "#8A6A3F", fontSize: 11, flexShrink: 0, marginTop: 2 }}>○</span>
               <span style={{ fontSize: 12, color: "#444", lineHeight: 1.75 }}>{s}</span>
             </div>
           ))}

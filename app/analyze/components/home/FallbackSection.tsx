@@ -12,7 +12,7 @@ const FALLBACK_STYLES = `
   .fbs-btn { transition: background 0.15s, transform 0.15s; }
   .fbs-btn:hover  { background: #F0F0F0 !important; }
   .fbs-btn:active { transform: scale(0.96); }
-  .fbs-search-btn:hover  { background: #007AFF !important; }
+  .fbs-search-btn:hover  { background: #8A6A3F !important; }
   .fbs-search-btn:active { transform: scale(0.97); }
 `;
 
@@ -78,7 +78,7 @@ export function FallbackSection({ onCamera, onLabel, onTextSearch }: FallbackSec
           />
           {/* 텍스트 검색 */}
           <FallbackBtn
-            icon={<IcoSearch size={20} color={showSearch ? "#007AFF" : "#444"} />}
+            icon={<IcoSearch size={20} color={showSearch ? "#8A6A3F" : "#444"} />}
             title="텍스트 검색"
             desc="작가 · 작품명"
             onClick={handleSearchToggle}
@@ -116,7 +116,7 @@ export function FallbackSection({ onCamera, onLabel, onTextSearch }: FallbackSec
               disabled={!query.trim()}
               style={{
                 padding: "11px 16px",
-                background: query.trim() ? "#007AFF" : "#E0E0E0",
+                background: query.trim() ? "#8A6A3F" : "#E0E0E0",
                 border: "none", borderRadius: 10, cursor: query.trim() ? "pointer" : "default",
                 color: "#fff", fontSize: 13, fontWeight: 600,
                 fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
@@ -150,7 +150,7 @@ function FallbackBtn({
       style={{
         flex: 1,
         padding: "16px 10px 14px",
-        background: active ? "#F0F6FF" : "transparent",
+        background: active ? "#F4EFE5" : "transparent",
         border: "none",
         borderRight: border === "right" ? "0.5px solid #F2F2F2" : "none",
         cursor: "pointer",
@@ -160,7 +160,7 @@ function FallbackBtn({
     >
       <div style={{
         width: 42, height: 42,
-        background: active ? "rgba(0,122,255,0.08)" : "#F6F6F6",
+        background: active ? "rgba(138,106,63,0.08)" : "#F6F6F6",
         borderRadius: 12,
         display: "flex", alignItems: "center", justifyContent: "center",
         transition: "background 0.15s",
@@ -168,7 +168,7 @@ function FallbackBtn({
         {icon}
       </div>
       <div style={{ textAlign: "center" as const }}>
-        <p style={{ fontSize: 11.5, fontWeight: 600, color: active ? "#007AFF" : "#222", margin: "0 0 2px" }}>
+        <p style={{ fontSize: 11.5, fontWeight: 600, color: active ? "#8A6A3F" : "#222", margin: "0 0 2px" }}>
           {title}
         </p>
         <p style={{ fontSize: 10, color: "#999", margin: 0, lineHeight: 1.4 }}>

@@ -218,7 +218,7 @@ function ScanScreen() {
   // Preview — confirm uploaded image before analysis
   if (screen === "preview") {
     return (
-      <div style={{ fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18", padding: "52px 22px 100px", maxWidth: 430, margin: "0 auto", background: "#F8F8FA", minHeight: "100vh", boxSizing: "border-box" as const }}>
+      <div style={{ fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18", padding: "52px 22px 100px", maxWidth: 430, margin: "0 auto", background: "#FAF9F6", minHeight: "100vh", boxSizing: "border-box" as const }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22 }}>
           <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
           <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase" as const, color: "#CCC" }}>Cultural Intelligence AI</span>
@@ -229,7 +229,7 @@ function ScanScreen() {
           </div>
         )}
         <button onClick={analyzeImage} style={{ width: "100%", padding: "15px 0", background: "#111", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, fontWeight: 600, letterSpacing: ".05em", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
-          <span style={{ fontSize: 10, color: "#7C6FF7" }}>◆</span>
+          <span style={{ fontSize: 10, color: "#8A6A3F" }}>◆</span>
           ARTENA AI 분석
         </button>
         <button onClick={() => { setScreen("upload"); setImagePreview(null); setPendingFile(null); setError(null); }} style={{ width: "100%", padding: "12px 0", background: "transparent", color: "#AAA", border: "0.5px solid #E0E0E0", borderRadius: 12, cursor: "pointer", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 13 }}>
@@ -261,7 +261,7 @@ function ScanScreen() {
     return (
       <div style={{
         maxWidth: 430, margin: "0 auto", minHeight: "100vh",
-        background: imagePreview ? "#000" : "#F9F9FB",
+        background: imagePreview ? "#000" : "#FAF9F6",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "0 22px",
         position: "relative" as const, overflow: "hidden",
