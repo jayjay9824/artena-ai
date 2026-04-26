@@ -5,14 +5,13 @@ import { QuickReport } from "./components/QuickReport";
 import { IntroSplash } from "./components/IntroSplash";
 import { SmartScanner } from "./components/SmartScanner";
 import { HomeScreen } from "./components/home/HomeScreen";
-import { TabProvider, useTabNav, AppTab } from "../context/TabContext";
+import { useTabNav, AppTab } from "../context/TabContext";
 import { BottomNav } from "../components/BottomNav";
 import { CollectionPageContent } from "../collection/page";
 import { TastePageContent } from "../taste/page";
 import { RecommendationsPageContent } from "../recommendations/page";
 import { GalleryPageContent } from "../gallery/page";
 import { MyPageContent } from "../my/page";
-import { MyActivityProvider } from "../context/MyActivityContext";
 
 /* ── Types (kept local for the scan analysis shape) ───────────── */
 
@@ -356,13 +355,8 @@ function AppShellContent() {
 }
 
 /* ── App shell entry point ────────────────────────────────────── */
+/* Providers live at app/layout.tsx now so every route can access them. */
 
 export default function AppShell() {
-  return (
-    <MyActivityProvider>
-      <TabProvider>
-        <AppShellContent />
-      </TabProvider>
-    </MyActivityProvider>
-  );
+  return <AppShellContent />;
 }
