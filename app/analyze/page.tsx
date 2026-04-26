@@ -4,6 +4,7 @@ import { MarketIntelligenceData } from "./components/MarketIntelligenceReport";
 import { QuickReport } from "./components/QuickReport";
 import { IntroSplash } from "./components/IntroSplash";
 import { SmartScanner } from "./components/SmartScanner";
+import { HomeScreen } from "./components/home/HomeScreen";
 import { TabProvider, useTabNav, AppTab } from "../context/TabContext";
 import { BottomNav } from "../components/BottomNav";
 import { CollectionPageContent } from "../collection/page";
@@ -44,54 +45,26 @@ function LoadingSpinner() {
   );
 }
 
-/* ── Scan screen (upload → loading → QuickReport) ─────────────── */
+/* ── Scan screen ──────────────────────────────────────────────── */
 
 function ScanScreen() {
-  const [showIntro, setShowIntro] = useState(true);
-  const [screen, setScreen] = useState("upload");
-  const [error, setError] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const [analysis, setAnalysis] = useState<Analysis | null>(null);
-  const [textQuery, setTextQuery] = useState("");
-  const [activeInput, setActiveInput] = useState<"image" | "camera" | "text">("image");
-  const [reportType, setReportType] = useState<"intelligence" | null>(null);
-  const [reportData, setReportData] = useState<MarketIntelligenceData | null>(null);
+  const [showIntro,     setShowIntro]     = useState(true);
+  const [screen,        setScreen]        = useState("upload");
+  const [error,         setError]         = useState<string | null>(null);
+  const [imagePreview,  setImagePreview]  = useState<string | null>(null);
+  const [pendingFile,   setPendingFile]   = useState<File | null>(null);
+  const [analysis,      setAnalysis]      = useState<Analysis | null>(null);
+  const [reportType,    setReportType]    = useState<"intelligence" | null>(null);
+  const [reportData,    setReportData]    = useState<MarketIntelligenceData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
-  const [pasteHint, setPasteHint] = useState(false);
-  const [showScanner, setShowScanner] = useState(false);
-
-  const fileInputRef  = useRef<HTMLInputElement>(null);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const [showScanner,   setShowScanner]   = useState(false);
 
   const handleIntroComplete = useCallback(() => setShowIntro(false), []);
 
-  // Open scanner when camera tab is selected
-  const handleCameraTabClick = useCallback(() => {
-    setActiveInput("camera");
-    setShowScanner(true);
-  }, []);
-
-  // Clipboard paste listener — active only on image tab while on upload screen
-  useEffect(() => {
-    if (showIntro || screen !== "upload" || activeInput !== "image") return;
-    const handlePaste = (e: ClipboardEvent) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (const item of Array.from(items)) {
-        if (item.type.startsWith("image/")) {
-          const file = item.getAsFile();
-          if (file) { loadPreview(file); return; }
-        }
-      }
-    };
-    window.addEventListener("paste", handlePaste);
-    return () => window.removeEventListener("paste", handlePaste);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [showIntro, screen, activeInput]);
-
-  // Show intro splash on first mount — all hooks above run unconditionally
+  // All hooks above run unconditionally
   if (showIntro) return <IntroSplash onComplete={handleIntroComplete} />;
+
+  /* ── Helpers ────────────────────────────────────────────────── */
 
   const loadPreview = (file: File) => {
     const reader = new FileReader();
@@ -102,9 +75,8 @@ function ScanScreen() {
     setScreen("preview");
   };
 
-  // Resize large images client-side to stay under Vercel's 4.5MB request limit
   const compressIfNeeded = (file: File): Promise<Blob> => {
-    const LIMIT = 3 * 1024 * 1024; // 3 MB threshold
+    const LIMIT = 3 * 1024 * 1024;
     if (file.size <= LIMIT) return Promise.resolve(file);
     return new Promise((resolve) => {
       const img = new Image();
@@ -114,7 +86,7 @@ function ScanScreen() {
         let { width, height } = img;
         if (width > MAX || height > MAX) {
           if (width >= height) { height = Math.round((height / width) * MAX); width = MAX; }
-          else { width = Math.round((width / height) * MAX); height = MAX; }
+          else                 { width  = Math.round((width / height) * MAX); height = MAX; }
         }
         const canvas = document.createElement("canvas");
         canvas.width = width; canvas.height = height;
@@ -127,7 +99,7 @@ function ScanScreen() {
     });
   };
 
-  // Called by SmartScanner after frame capture — skips preview screen
+  // SmartScanner frame capture → skip preview, go straight to analysis
   const analyzeWithFile = async (file: File, dataUrl: string) => {
     setShowScanner(false);
     setImagePreview(dataUrl);
@@ -136,12 +108,12 @@ function ScanScreen() {
     setScreen("loading");
     try {
       const blob = await compressIfNeeded(file);
-      const formData = new FormData();
-      formData.append("image", blob, "scan.jpg");
-      const res = await fetch("/api/analyze", { method: "POST", body: formData });
-      const contentType = res.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        if (res.status === 413) throw new Error("이미지가 너무 큽니다. 더 작은 이미지를 사용해주세요.");
+      const fd   = new FormData();
+      fd.append("image", blob, "scan.jpg");
+      const res  = await fetch("/api/analyze", { method: "POST", body: fd });
+      const ct   = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) {
+        if (res.status === 413) throw new Error("이미지가 너무 큽니다.");
         throw new Error(`서버 오류 (${res.status})`);
       }
       const json = await res.json();
@@ -160,48 +132,43 @@ function ScanScreen() {
     setScreen("loading");
     try {
       const blob = await compressIfNeeded(pendingFile);
-      const formData = new FormData();
-      formData.append("image", blob, "image.jpg");
-      const res = await fetch("/api/analyze", { method: "POST", body: formData });
-
-      // Guard against non-JSON error responses (e.g. 413 from Vercel)
-      const contentType = res.headers.get("content-type") ?? "";
-      if (!contentType.includes("application/json")) {
-        if (res.status === 413) throw new Error("이미지가 너무 큽니다. 더 작은 이미지를 사용해주세요.");
+      const fd   = new FormData();
+      fd.append("image", blob, "image.jpg");
+      const res  = await fetch("/api/analyze", { method: "POST", body: fd });
+      const ct   = res.headers.get("content-type") ?? "";
+      if (!ct.includes("application/json")) {
+        if (res.status === 413) throw new Error("이미지가 너무 큽니다.");
         throw new Error(`서버 오류 (${res.status})`);
       }
-
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "분석 실패");
       setAnalysis(json.data);
       setScreen("result");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
-      setScreen("preview"); // Stay on preview so user can retry without re-uploading
+      setScreen("preview");
     }
   };
 
-  const analyzeText = async () => {
-    if (!textQuery.trim()) return;
+  // Called from HomeScreen text search — accepts query directly
+  const analyzeTextQuery = async (query: string) => {
+    if (!query.trim()) return;
     setImagePreview(null);
     setError(null);
     setScreen("loading");
     try {
-      const res  = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query: textQuery }) });
+      const res  = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }) });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "분석 실패");
       setAnalysis(json.data);
       setScreen("result");
-
-      // Async image fetch — show result immediately, image loads in background
-      const d = json.data;
-      const category = d.category ?? "painting";
-      const isArch = category === "architecture" || category === "artifact" || category === "cultural_site";
-      const imageQuery = isArch
-        ? (d.title ?? "")
-        : [d.title, d.artist].filter(Boolean).join(" ");
-      if (imageQuery.trim()) {
-        fetch(`/api/wiki-image?q=${encodeURIComponent(imageQuery)}`)
+      // Async wiki image fetch — result shown immediately, image loads in bg
+      const d        = json.data;
+      const cat      = d.category ?? "painting";
+      const isArch   = cat === "architecture" || cat === "artifact" || cat === "cultural_site";
+      const imgQuery = isArch ? (d.title ?? "") : [d.title, d.artist].filter(Boolean).join(" ");
+      if (imgQuery.trim()) {
+        fetch(`/api/wiki-image?q=${encodeURIComponent(imgQuery)}`)
           .then(r => r.json())
           .then(img => { if (img.url) setImagePreview(img.url); })
           .catch(() => {});
@@ -214,7 +181,7 @@ function ScanScreen() {
 
   const reset = () => {
     setScreen("upload"); setAnalysis(null);
-    setImagePreview(null); setPendingFile(null); setError(null); setTextQuery("");
+    setImagePreview(null); setPendingFile(null); setError(null);
     setReportType(null); setReportData(null);
   };
 
@@ -235,105 +202,52 @@ function ScanScreen() {
     }
   };
 
-  // Full-screen smart scanner overlay — placed here so analyzeWithFile is in scope
+  /* ── Conditional screens ────────────────────────────────────── */
+
+  // SmartScanner — full-screen overlay
   if (showScanner) {
     return (
       <SmartScanner
         onClose={() => setShowScanner(false)}
         onCapture={analyzeWithFile}
-        onUpload={() => {
-          setShowScanner(false);
-          setActiveInput("image");
-          setTimeout(() => fileInputRef.current?.click(), 120);
-        }}
-        onManualSearch={() => {
-          setShowScanner(false);
-          setActiveInput("text");
-        }}
+        onUpload={() => setShowScanner(false)}
+        onManualSearch={() => setShowScanner(false)}
       />
     );
   }
 
-  // Preview screen — show uploaded image + confirm button
+  // Preview — confirm uploaded image before analysis
   if (screen === "preview") {
     return (
-      <div style={{
-        fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18",
-        padding: "20px 22px 100px", maxWidth: 640, margin: "0 auto", background: "#F8F7F4",
-        minHeight: "100vh", boxSizing: "border-box" as const, overflowX: "hidden",
-      }}>
-        {/* Header */}
-        <div style={{ marginBottom: 22, paddingBottom: 12, borderBottom: "0.5px solid #e8e3db" }}>
-          <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 3 }}>
-            <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
-            <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
-          </div>
-          <p style={{ fontSize: 12, color: "#bbb", margin: 0 }}>업로드된 이미지를 확인하고 분석을 시작하세요</p>
+      <div style={{ fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18", padding: "52px 22px 100px", maxWidth: 430, margin: "0 auto", background: "#F8F8FA", minHeight: "100vh", boxSizing: "border-box" as const }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22 }}>
+          <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
+          <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase" as const, color: "#CCC" }}>Cultural Intelligence AI</span>
         </div>
-
-        {/* Image preview */}
         {imagePreview && (
-          <div style={{
-            width: "100%", borderRadius: 12, overflow: "hidden",
-            marginBottom: 16, background: "#000",
-            boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
-          }}>
-            <img
-              src={imagePreview}
-              alt="업로드된 작품"
-              style={{ width: "100%", maxHeight: 420, objectFit: "contain", display: "block" }}
-            />
+          <div style={{ width: "100%", borderRadius: 14, overflow: "hidden", marginBottom: 18, background: "#000", boxShadow: "0 4px 24px rgba(0,0,0,0.1)" }}>
+            <img src={imagePreview} alt="업로드된 작품" style={{ width: "100%", maxHeight: 420, objectFit: "contain", display: "block" }} />
           </div>
         )}
-
-        {/* Analyze CTA */}
-        <button
-          onClick={analyzeImage}
-          style={{
-            width: "100%", padding: "15px 0",
-            background: "#1a1a18", color: "#fff", border: "none",
-            borderRadius: 10, cursor: "pointer",
-            fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-            fontSize: 14, fontWeight: 600, letterSpacing: ".06em",
-            marginBottom: 12, display: "flex", alignItems: "center",
-            justifyContent: "center", gap: 8, transition: "opacity .15s",
-          }}
-        >
+        <button onClick={analyzeImage} style={{ width: "100%", padding: "15px 0", background: "#111", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, fontWeight: 600, letterSpacing: ".05em", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
           <span style={{ fontSize: 10, color: "#7C6FF7" }}>◆</span>
           ARTENA AI 분석
         </button>
-
-        {/* Re-select */}
-        <button
-          onClick={() => { setScreen("upload"); setImagePreview(null); setPendingFile(null); setError(null); if (fileInputRef.current) fileInputRef.current.value = ""; }}
-          style={{
-            width: "100%", padding: "12px 0",
-            background: "transparent", color: "#aaa", border: "0.5px solid #e0dbd4",
-            borderRadius: 10, cursor: "pointer",
-            fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-            fontSize: 13, letterSpacing: ".04em",
-          }}
-        >
+        <button onClick={() => { setScreen("upload"); setImagePreview(null); setPendingFile(null); setError(null); }} style={{ width: "100%", padding: "12px 0", background: "transparent", color: "#AAA", border: "0.5px solid #E0E0E0", borderRadius: 12, cursor: "pointer", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 13 }}>
           다시 선택하기
         </button>
-
-        {error && (
-          <div style={{ background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
-            <p style={{ fontSize: 12, color: "#DC2626", marginBottom: 4 }}>⚠️ 오류 발생</p>
-            <p style={{ fontSize: 11, color: "#991B1B" }}>{error}</p>
-          </div>
-        )}
+        {error && <div style={{ background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}><p style={{ fontSize: 12, color: "#DC2626", margin: 0 }}>{error}</p></div>}
       </div>
     );
   }
 
-  // QuickReport result — full screen, no bottom nav
+  // Result — QuickReport (full-screen, no nav)
   if (screen === "result") {
     return (
       <QuickReport
         analysis={analysis ?? {}}
         imagePreview={imagePreview}
-        sourceType={activeInput === "camera" ? "camera" : activeInput === "text" ? "text" : "image"}
+        sourceType="image"
         onReset={reset}
         onFullReport={generateIntelligenceReport}
         reportLoading={reportLoading && reportType === "intelligence"}
@@ -342,130 +256,26 @@ function ScanScreen() {
     );
   }
 
-  // Upload / Loading
-  const tabBtn = (id: "image" | "camera" | "text", icon: string, label: string, onClick?: () => void) => (
-    <button
-      key={id}
-      onClick={onClick ?? (() => setActiveInput(id))}
-      style={{
-        flex: 1, padding: "10px 0", border: "none", background: "transparent",
-        fontFamily: "'KakaoSmallSans', system-ui, sans-serif", cursor: "pointer",
-        display: "flex", flexDirection: "column", alignItems: "center", gap: 5,
-        borderBottom: activeInput === id ? "2px solid #1a1a18" : "2px solid transparent",
-        color: activeInput === id ? "#1a1a18" : "#bbb",
-        transition: "all .15s",
-      }}
-    >
-      <span style={{ fontSize: 20 }}>{icon}</span>
-      <span style={{ fontSize: 11, letterSpacing: ".04em" }}>{label}</span>
-    </button>
-  );
-
-  return (
-    <div style={{
-      fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18",
-      padding: "20px 22px 100px", maxWidth: 640, margin: "0 auto", background: "#F8F7F4",
-      minHeight: "100vh", boxSizing: "border-box", overflowX: "hidden",
-    }}>
-      {/* Header — ARTENA branding only */}
-      <div style={{ marginBottom: 22, paddingBottom: 12, borderBottom: "0.5px solid #e8e3db" }}>
-        <div style={{ display: "flex", alignItems: "baseline", gap: 10, marginBottom: 3 }}>
-          <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
-          <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase", color: "#ccc" }}>Cultural Intelligence AI</span>
-        </div>
-        <p style={{ fontSize: 12, color: "#bbb", margin: 0 }}>작품을 올리면 감성 분석 + 시장 데이터를 함께 보여드립니다</p>
+  // Loading
+  if (screen === "loading") {
+    return (
+      <div style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: "#F8F8FA", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 22px" }}>
+        <LoadingSpinner />
       </div>
+    );
+  }
 
-      {screen === "loading" ? <LoadingSpinner /> : (
-        <>
-          {/* Input type tabs */}
-          <div style={{ display: "flex", borderBottom: "0.5px solid #e8e3db", marginBottom: 20 }}>
-            {tabBtn("image", "🖼️", "이미지 업로드")}
-            {tabBtn("camera", "📷", "카메라", handleCameraTabClick)}
-            {tabBtn("text", "🔍", "텍스트 검색")}
-          </div>
-
-          {activeInput === "image" && (
-            <>
-              <div
-                onClick={() => fileInputRef.current?.click()}
-                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f?.type.startsWith("image/")) loadPreview(f); }}
-                onDragOver={(e) => { e.preventDefault(); setPasteHint(false); }}
-                onFocus={() => setPasteHint(true)}
-                onBlur={() => setPasteHint(false)}
-                tabIndex={0}
-                style={{
-                  border: `2px dashed ${pasteHint ? "#1a1a18" : "#e0dbd4"}`,
-                  borderRadius: 10, padding: "44px 24px", textAlign: "center", cursor: "pointer",
-                  marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center",
-                  flexDirection: "column", minHeight: 200, outline: "none",
-                  transition: "border-color .15s",
-                }}
-              >
-                <div style={{ fontSize: 40, marginBottom: 14 }}>🖼️</div>
-                <p style={{ fontSize: 14, color: "#777", marginBottom: 4 }}>작품 이미지를 업로드하세요</p>
-                <p style={{ fontSize: 11, color: "#ccc", marginBottom: 18 }}>JPG, PNG, WEBP · 최대 20MB</p>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center" }}>
-                  <span style={{ fontSize: 11, color: "#888", background: "#f0ece8", padding: "7px 18px", borderRadius: 20, border: "0.5px solid #e0dbd4" }}>
-                    클릭하거나 드래그
-                  </span>
-                  <span style={{ fontSize: 11, color: "#888", background: "#f0ece8", padding: "7px 18px", borderRadius: 20, border: "0.5px solid #e0dbd4" }}>
-                    Ctrl+V 붙여넣기
-                  </span>
-                </div>
-              </div>
-              <input ref={fileInputRef} type="file" accept="image/*" style={{ display: "none" }} onChange={(e) => { if (e.target.files?.[0]) loadPreview(e.target.files[0]); }} />
-            </>
-          )}
-
-          {/* Camera tab: scanner opens as full-screen overlay (handled above) */}
-          {activeInput === "camera" && (
-            <div
-              onClick={handleCameraTabClick}
-              style={{ border: "2px dashed #e0dbd4", borderRadius: 10, padding: "44px 24px", textAlign: "center", cursor: "pointer", marginBottom: 16, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", minHeight: 200 }}
-            >
-              <div style={{ fontSize: 36, marginBottom: 14, opacity: 0.5 }}>◎</div>
-              <p style={{ fontSize: 14, color: "#777", marginBottom: 4 }}>ARTENA AI 스캐너</p>
-              <p style={{ fontSize: 11, color: "#ccc", marginBottom: 18 }}>작품 · 라벨 · QR 코드 실시간 인식</p>
-              <span style={{ fontSize: 11, color: "#555", background: "#f0ece8", padding: "8px 20px", borderRadius: 20, border: "0.5px solid #e0dbd4", letterSpacing: ".05em" }}>
-                스캐너 열기
-              </span>
-            </div>
-          )}
-
-          {activeInput === "text" && (
-            <div style={{ marginBottom: 16 }}>
-              <p style={{ fontSize: 12, color: "#aaa", marginBottom: 12 }}>작품명, 작가명, 또는 작품 설명을 입력하세요</p>
-              <textarea
-                value={textQuery}
-                onChange={(e) => setTextQuery(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); analyzeText(); } }}
-                placeholder={"예: 모네의 수련 연작\n예: 파란 배경에 점들로 가득한 추상화\n예: 김환기 귀로"}
-                rows={5}
-                style={{ width: "100%", border: "0.5px solid #e0dbd4", borderRadius: 10, padding: "14px 16px", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 13, color: "#1a1a18", background: "#fff", resize: "none", outline: "none", lineHeight: 1.7, marginBottom: 12 }}
-              />
-              <button
-                onClick={analyzeText}
-                disabled={!textQuery.trim()}
-                style={{ width: "100%", padding: "13px 0", background: textQuery.trim() ? "#1a1a18" : "#e0dbd4", color: textQuery.trim() ? "#fff" : "#bbb", border: "none", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 13, letterSpacing: ".06em", cursor: textQuery.trim() ? "pointer" : "default", borderRadius: 8, transition: "all .2s" }}
-              >
-                분석하기
-              </button>
-            </div>
-          )}
-
-          {error && (
-            <div style={{ background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, padding: "12px 14px", marginTop: 8 }}>
-              <p style={{ fontSize: 12, color: "#DC2626", marginBottom: 4 }}>⚠️ 오류 발생</p>
-              <p style={{ fontSize: 11, color: "#991B1B" }}>{error}</p>
-            </div>
-          )}
-        </>
-      )}
-
-      {/* Bottom nav — only on upload screen (not loading, not result) */}
-      {screen === "upload" && <BottomNav currentTab="scan" />}
-    </div>
+  // Home (upload) — new Cultural Intelligence UI
+  return (
+    <>
+      <HomeScreen
+        onOpenScanner={() => setShowScanner(true)}
+        onFileSelected={loadPreview}
+        onTextSubmit={analyzeTextQuery}
+        error={error}
+      />
+      <BottomNav currentTab="scan" />
+    </>
   );
 }
 
