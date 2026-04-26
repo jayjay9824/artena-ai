@@ -275,6 +275,12 @@ const QR_STYLES = `
   @keyframes qr-spin        { to { transform: rotate(360deg); } }
   @keyframes heartPop       { 0% { transform: scale(1); } 40% { transform: scale(1.32); } 70% { transform: scale(0.92); } 100% { transform: scale(1); } }
   @keyframes toastSlideDown { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: translateY(0); } }
+  /* Receiving end of the scanner's spatial zoom — hero image stays
+     immediate, everything else fades in over the captured frame.
+     Opacity-only so it doesn't clobber transform-based positioning
+     (e.g., the fixed action bar uses translateX(-50%) to center). */
+  @keyframes qrTextFadeIn   { from { opacity: 0; } to { opacity: 1; } }
+  .qr-content               { animation: qrTextFadeIn 0.36s ease-out 0.05s both; }
   .qr-full-btn:hover        { background: #F5F5F5 !important; }
   .qr-ask-btn:hover         { opacity: .84 !important; }
   .qr-save-btn:active       { opacity: .78; }
@@ -491,7 +497,7 @@ export function QuickReport({
         </div>
 
         {/* ── Content ─────────────────────────────────────────────── */}
-        <div style={{ padding: "0 22px" }}>
+        <div className="qr-content" style={{ padding: "0 22px" }}>
 
           {/* ── 2. ARTENA Insight ────────────────────────────────── */}
           <div style={{ paddingTop: 32, paddingBottom: 28, borderBottom: "0.5px solid #F0F0F0" }}>
@@ -632,7 +638,7 @@ export function QuickReport({
         </div>
 
         {/* ── 4. Action Bar (fixed) ─────────────────────────────────── */}
-        <div style={{
+        <div className="qr-content" style={{
           position: "fixed" as const, bottom: 0, left: "50%", transform: "translateX(-50%)",
           width: "100%", maxWidth: 640,
           background: "rgba(255,255,255,0.97)",

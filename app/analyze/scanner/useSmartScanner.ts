@@ -17,6 +17,16 @@ export interface UseSmartScannerOptions {
   service?: DetectionService;
   /** When no service is provided, run the scripted mock timeline. */
   mockDetectionEnabled?: boolean;
+  /**
+   * Dev-only state cycler. When true, walks scanState through every
+   * visual state (idle → artwork_detected → label_detected →
+   * qr_detected → analyzing → idle) every `debugCycleMs` so QA can
+   * verify each state's UI without scripting detection. Disables the
+   * detection service and failure timeout while running.
+   */
+  debugCycleEnabled?: boolean;
+  /** ms between debug-cycle steps. Default 2000. */
+  debugCycleMs?: number;
   /** Called when state reaches "success" — receives the locked detection. */
   onSuccess?: (target: Exclude<DetectionTarget, "none">, locked: Detection) => void;
   /** ms with no lock before transitioning to "failed". */
@@ -69,6 +79,8 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
   const {
     service,
     mockDetectionEnabled = true,
+    debugCycleEnabled    = false,
+    debugCycleMs         = 2000,
     onSuccess,
     failTimeoutMs   = 3000,
     lockThreshold   = 0.85,
@@ -126,6 +138,7 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
   /* ── 2. Subscribe to detection service while idle ─────────────────── */
 
   useEffect(() => {
+    if (debugCycleEnabled)    return;          // debug cycler owns scanState
     if (cameraStatus !== "ready") return;
     if (scanState !== "idle") return;
 
@@ -134,7 +147,7 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
     if (!svc) return;
 
     return svc.subscribe(setRawDetections);
-  }, [cameraStatus, scanState, service, mockDetectionEnabled]);
+  }, [cameraStatus, scanState, service, mockDetectionEnabled, debugCycleEnabled]);
 
   /* ── 3. Confidence jitter tick (only while idle) ──────────────────── */
 
@@ -176,6 +189,7 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
   /* ── 6. Locked → analyzing ────────────────────────────────────────── */
 
   useEffect(() => {
+    if (debugCycleEnabled) return;             // cycler owns transitions
     if (
       scanState !== "qr_detected" &&
       scanState !== "label_detected" &&
@@ -183,11 +197,12 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
     ) return;
     const t = setTimeout(() => setScanState("analyzing"), lockHoldMs);
     return () => clearTimeout(t);
-  }, [scanState, lockHoldMs]);
+  }, [scanState, lockHoldMs, debugCycleEnabled]);
 
   /* ── 7. Analyzing → success ───────────────────────────────────────── */
 
   useEffect(() => {
+    if (debugCycleEnabled) return;             // cycler stays in analyzing
     if (scanState !== "analyzing") return;
     const t = setTimeout(() => {
       setScanState("success");
@@ -196,18 +211,19 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
       }
     }, analyzeMs);
     return () => clearTimeout(t);
-  }, [scanState, analyzeMs, lockedDetection]);
+  }, [scanState, analyzeMs, lockedDetection, debugCycleEnabled]);
 
   /* ── 8. Failure timeout ───────────────────────────────────────────── */
 
   useEffect(() => {
+    if (debugCycleEnabled) return;               // cycler runs forever
     if (cameraStatus !== "ready" || scanState !== "idle") return;
     const t = setTimeout(() => {
       // Only fail if we never locked anything in this window.
       setScanState(s => (s === "idle" ? "failed" : s));
     }, failTimeoutMs);
     return () => clearTimeout(t);
-  }, [cameraStatus, scanState, failTimeoutMs]);
+  }, [cameraStatus, scanState, failTimeoutMs, debugCycleEnabled]);
 
   /* ── 9. Rotating analyzing label ──────────────────────────────────── */
 
@@ -226,6 +242,42 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
     }, 380);
     return () => clearInterval(id);
   }, [scanState, lockedDetection]);
+
+  /* ── 9b. Debug cycler — walks every visual state every debugCycleMs ─ */
+
+  useEffect(() => {
+    if (!debugCycleEnabled) return;
+
+    const SEQ: ScannerState[] = [
+      "idle",
+      "artwork_detected",
+      "label_detected",
+      "qr_detected",
+      "analyzing",
+    ];
+
+    // Synthetic detections so each *_detected state has a box to render.
+    const synth: Record<Exclude<DetectionTarget, "none">, Detection> = {
+      artwork: { id: "dbg-art", target: "artwork", x: 14, y: 18, w: 58, h: 44, confidence: 0.91 },
+      label:   { id: "dbg-lbl", target: "label",   x: 12, y: 65, w: 38, h: 11, confidence: 0.86 },
+      qr:      { id: "dbg-qr",  target: "qr",      x: 64, y: 58, w: 24, h: 22, confidence: 0.97 },
+    };
+
+    let i = 0;
+    const apply = () => {
+      const s = SEQ[i % SEQ.length];
+      setScanState(s);
+      if (s === "artwork_detected") { setRawDetections([synth.artwork]); setLockedDetection(synth.artwork); }
+      else if (s === "label_detected")   { setRawDetections([synth.label]);   setLockedDetection(synth.label);   }
+      else if (s === "qr_detected")      { setRawDetections([synth.qr]);      setLockedDetection(synth.qr);      }
+      else if (s === "idle")             { setRawDetections([]);              setLockedDetection(null);          }
+      // analyzing — keep last locked detection so the box stays on screen
+      i++;
+    };
+    apply();
+    const id = setInterval(apply, debugCycleMs);
+    return () => clearInterval(id);
+  }, [debugCycleEnabled, debugCycleMs]);
 
   /* ── 10. Retry ────────────────────────────────────────────────────── */
 

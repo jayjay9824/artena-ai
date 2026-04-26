@@ -141,15 +141,19 @@ function BoundingBox({ d, isPrimary, isLocked }: BoundingBoxProps) {
         top:    `${d.y}%`,
         width:  `${d.w}%`,
         height: `${d.h}%`,
-        scale:  isLocked ? 1.0 : isPrimary ? 1.005 : 1.0,
+        // Snap from 1.02 → 1.00 on lock (spec). Tracking primary stays at 1.0.
+        scale:  isLocked ? [1.02, 1.0] : 1.0,
         opacity,
       }}
       transition={{
-        // Locked snap is faster + tighter than tracking jitter.
+        // Locked snap uses a keyframed scale; box position uses a tight spring.
         type: "spring",
         stiffness: isLocked ? 360 : 220,
         damping:   isLocked ? 28  : 30,
         mass:      0.6,
+        scale: isLocked
+          ? { duration: 0.32, times: [0, 1], ease: "easeOut" }
+          : { duration: 0.18, ease: "easeOut" },
       }}
       style={{
         position: "absolute",
