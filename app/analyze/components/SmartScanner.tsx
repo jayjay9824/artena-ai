@@ -1,20 +1,30 @@
 "use client";
-import React, { useRef, useEffect, useState, useCallback } from "react";
+import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import { trackEvent } from "../lib/analytics";
 
 /* ── Types ──────────────────────────────────────────────────────────── */
 
-export type DetectionTarget = "none" | "artwork" | "label" | "qr";
+export type DetectionKind = "qr" | "artwork" | "text";
+
+export interface Detection {
+  id: string;
+  kind: DetectionKind;
+  /** Bounding box in percent of viewport (0–100) */
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  /** Confidence 0–1 */
+  confidence: number;
+}
 
 export type ScannerState =
   | "permission_pending"
   | "permission_denied"
-  | "idle"
-  | "artwork_detected"
-  | "label_detected"
-  | "qr_detected"
+  | "scanning"
+  | "locked"
   | "analyzing"
-  | "failed"
-  | "success";
+  | "failed";
 
 export interface SmartScannerProps {
   onClose: () => void;
@@ -23,81 +33,53 @@ export interface SmartScannerProps {
   onManualSearch: () => void;
 }
 
-/* ── State visual config ────────────────────────────────────────────── */
+/* ── Visual config per detection kind ───────────────────────────────── */
 
-interface StateCfg {
-  cornerColor: string;
-  glowColor: string;
-  statusText: string;
-  subText: string | null;
-  badge: string | null;
-  badgeIcon: "image" | "filetext" | "qrcode" | null;
-  scanLine: boolean;
+interface KindStyle {
+  border:    string;
+  borderStyle: "solid" | "dashed";
+  borderWidth: number;
+  pillBg:    string;
+  pillBorder:string;
+  pillText:  string;
+  glow:      string;
+  label:     string;
+  status:    string;
 }
 
-const STATE_CFG: Record<ScannerState, StateCfg> = {
-  permission_pending: {
-    cornerColor: "rgba(255,255,255,0.25)",
-    glowColor: "transparent",
-    statusText: "Requesting camera access",
-    subText: null,
-    badge: null, badgeIcon: null, scanLine: false,
+const KIND_STYLES: Record<DetectionKind, KindStyle> = {
+  qr: {
+    border:      "#1856FF",
+    borderStyle: "solid",
+    borderWidth: 1.6,
+    pillBg:      "rgba(24,86,255,0.92)",
+    pillBorder:  "rgba(72,125,255,0.6)",
+    pillText:    "#fff",
+    glow:        "rgba(24,86,255,0.16)",
+    label:       "QR",
+    status:      "Recognizing QR…",
   },
-  permission_denied: {
-    cornerColor: "rgba(160,160,160,0.30)",
-    glowColor: "transparent",
-    statusText: "Camera Access Required",
-    subText: "Camera access is needed to scan artwork, labels, or QR codes.",
-    badge: null, badgeIcon: null, scanLine: false,
+  artwork: {
+    border:      "rgba(255,255,255,0.92)",
+    borderStyle: "solid",
+    borderWidth: 1.4,
+    pillBg:      "rgba(8,8,18,0.78)",
+    pillBorder:  "rgba(255,255,255,0.32)",
+    pillText:    "#fff",
+    glow:        "rgba(255,255,255,0.06)",
+    label:       "Artwork",
+    status:      "Analyzing artwork…",
   },
-  idle: {
-    cornerColor: "rgba(255,255,255,0.50)",
-    glowColor: "transparent",
-    statusText: "Point at artwork, label, or QR",
-    subText: null,
-    badge: null, badgeIcon: null, scanLine: false,
-  },
-  artwork_detected: {
-    cornerColor: "rgba(72,125,255,0.92)",
-    glowColor: "rgba(72,125,255,0.10)",
-    statusText: "Artwork detected",
-    subText: "Hold steady to analyze image and style",
-    badge: "Artwork", badgeIcon: "image", scanLine: false,
-  },
-  label_detected: {
-    cornerColor: "rgba(155,180,215,0.88)",
-    glowColor: "rgba(155,180,215,0.09)",
-    statusText: "Label detected",
-    subText: "Reading artist, title, year, and medium",
-    badge: "Label", badgeIcon: "filetext", scanLine: false,
-  },
-  qr_detected: {
-    cornerColor: "rgba(24,86,255,0.95)",
-    glowColor: "rgba(24,86,255,0.14)",
-    statusText: "QR detected",
-    subText: "Extracting artwork and exhibition data",
-    badge: "QR Code", badgeIcon: "qrcode", scanLine: false,
-  },
-  analyzing: {
-    cornerColor: "rgba(72,125,255,0.80)",
-    glowColor: "rgba(72,125,255,0.12)",
-    statusText: "Analyzing context",
-    subText: null,
-    badge: null, badgeIcon: null, scanLine: true,
-  },
-  failed: {
-    cornerColor: "rgba(160,160,160,0.40)",
-    glowColor: "transparent",
-    statusText: "Couldn't recognize the target",
-    subText: "Try another angle or use a different input method",
-    badge: null, badgeIcon: null, scanLine: false,
-  },
-  success: {
-    cornerColor: "rgba(72,125,255,0.85)",
-    glowColor: "rgba(72,125,255,0.16)",
-    statusText: "Analyzing context",
-    subText: null,
-    badge: null, badgeIcon: null, scanLine: true,
+  text: {
+    border:      "rgba(220,220,220,0.55)",
+    borderStyle: "dashed",
+    borderWidth: 1,
+    pillBg:      "rgba(28,28,32,0.72)",
+    pillBorder:  "rgba(220,220,220,0.28)",
+    pillText:    "rgba(255,255,255,0.85)",
+    glow:        "transparent",
+    label:       "Label",
+    status:      "Reading label…",
   },
 };
 
@@ -115,41 +97,6 @@ function IcoZap({ size = 18, color = "#fff" }: { size?: number; color?: string }
   return (
     <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
       <path d="M11 2L4 12h7l-2 6 9-10H11l2-6z" stroke={color} strokeWidth="1.5" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function IcoImage({ size = 13, color = "#fff" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="3.5" width="16" height="13" rx="2" />
-      <circle cx="7" cy="8.5" r="1.5" />
-      <path d="M2 14l4-4 3.5 3.5 2.5-2.5L18 14.5" />
-    </svg>
-  );
-}
-
-function IcoFileText({ size = 13, color = "#fff" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M12 2H5a1 1 0 00-1 1v14a1 1 0 001 1h10a1 1 0 001-1V7l-4-5z" />
-      <path d="M12 2v5h4" />
-      <line x1="7" y1="11" x2="13" y2="11" />
-      <line x1="7" y1="14" x2="10" y2="14" />
-    </svg>
-  );
-}
-
-function IcoQr({ size = 13, color = "#fff" }: { size?: number; color?: string }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 20 20" fill="none">
-      <rect x="2" y="2" width="7" height="7" rx="1" stroke={color} strokeWidth="1.4" />
-      <rect x="11" y="2" width="7" height="7" rx="1" stroke={color} strokeWidth="1.4" />
-      <rect x="2" y="11" width="7" height="7" rx="1" stroke={color} strokeWidth="1.4" />
-      <rect x="4" y="4" width="3" height="3" fill={color} />
-      <rect x="13" y="4" width="3" height="3" fill={color} />
-      <rect x="4" y="13" width="3" height="3" fill={color} />
-      <path d="M11 11h2v2h-2zM15 11h2M11 15h2M15 15h2v2h-2zM11 17h2" stroke={color} strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   );
 }
@@ -172,164 +119,192 @@ function IcoSearch({ size = 16, color = "rgba(255,255,255,0.75)" }: { size?: num
   );
 }
 
-/* ── Badge icon ─────────────────────────────────────────────────────── */
-
-function BadgeIcon({ type }: { type: StateCfg["badgeIcon"] }) {
-  if (type === "image") return <IcoImage />;
-  if (type === "filetext") return <IcoFileText />;
-  if (type === "qrcode") return <IcoQr />;
-  return null;
+function IcoFileText({ size = 13, color = "#fff" }: { size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2H5a1 1 0 00-1 1v14a1 1 0 001 1h10a1 1 0 001-1V7l-4-5z" />
+      <path d="M12 2v5h4" />
+      <line x1="7" y1="11" x2="13" y2="11" />
+      <line x1="7" y1="14" x2="10" y2="14" />
+    </svg>
+  );
 }
 
-/* ── Scan frame ─────────────────────────────────────────────────────── */
+/* ── Mock detection script ──────────────────────────────────────────── */
+/*
+ * Simulates real-time inference. Each tick produces a list of current
+ * detections with confidence scores, mimicking a CV pipeline that
+ * proposes multiple candidates simultaneously. Replace this generator
+ * with real inference output later.
+ */
 
-function ScannerFrame({ state, onTap }: { state: ScannerState; onTap: () => void }) {
-  const cfg = STATE_CFG[state];
-  const W = 262;
-  const H = 318;
-  const C = 28;       // corner arm length
-  const LW = 2;       // line width
-  const R = 5;        // radius
+interface DetectionTick {
+  /** Time offset from scan start in ms */
+  t: number;
+  detections: Detection[];
+}
 
-  const isAnalyzing  = state === "analyzing" || state === "success";
-  const isDetected   = state === "artwork_detected" || state === "label_detected" || state === "qr_detected";
-  const isFailed     = state === "failed";
-  const color        = cfg.cornerColor;
+const MOCK_TIMELINE: DetectionTick[] = [
+  // 0.6s — weak text candidate appears
+  {
+    t: 600,
+    detections: [
+      { id: "txt", kind: "text", x: 12, y: 65, w: 38, h: 11, confidence: 0.58 },
+    ],
+  },
+  // 1.2s — artwork enters
+  {
+    t: 1200,
+    detections: [
+      { id: "art", kind: "artwork", x: 14, y: 18, w: 58, h: 44, confidence: 0.71 },
+      { id: "txt", kind: "text",    x: 12, y: 65, w: 38, h: 11, confidence: 0.65 },
+    ],
+  },
+  // 1.8s — QR appears, dominates
+  {
+    t: 1800,
+    detections: [
+      { id: "art", kind: "artwork", x: 14, y: 18, w: 58, h: 44, confidence: 0.78 },
+      { id: "txt", kind: "text",    x: 12, y: 65, w: 38, h: 11, confidence: 0.72 },
+      { id: "qr",  kind: "qr",      x: 64, y: 58, w: 24, h: 22, confidence: 0.86 },
+    ],
+  },
+  // 2.4s — QR locks
+  {
+    t: 2400,
+    detections: [
+      { id: "art", kind: "artwork", x: 14, y: 18, w: 58, h: 44, confidence: 0.81 },
+      { id: "txt", kind: "text",    x: 12, y: 65, w: 38, h: 11, confidence: 0.74 },
+      { id: "qr",  kind: "qr",      x: 64, y: 58, w: 24, h: 22, confidence: 0.94 },
+    ],
+  },
+];
 
-  const corner = (pos: { top?: 0; bottom?: 0; left?: 0; right?: 0 }) => {
-    const hasBorderTop    = "top" in pos;
-    const hasBorderBottom = "bottom" in pos;
-    const hasBorderLeft   = "left" in pos;
-    const hasBorderRight  = "right" in pos;
+const LOCK_THRESHOLD   = 0.90;
+const FAIL_TIMEOUT_MS  = 6000;
+const FAIL_HINT_DELAY  = 2000;
 
-    const rad = hasBorderTop && hasBorderLeft   ? `${R}px 0 0 0`
-              : hasBorderTop && hasBorderRight  ? `0 ${R}px 0 0`
-              : hasBorderBottom && hasBorderLeft ? `0 0 0 ${R}px`
-              :                                    `0 0 ${R}px 0`;
+/* ── Bounding Box ──────────────────────────────────────────────────── */
 
-    return (
-      <div style={{
-        position: "absolute",
-        ...pos,
-        width: C, height: C,
-        borderTop:    hasBorderTop    ? `${LW}px solid ${color}` : undefined,
-        borderBottom: hasBorderBottom ? `${LW}px solid ${color}` : undefined,
-        borderLeft:   hasBorderLeft   ? `${LW}px solid ${color}` : undefined,
-        borderRight:  hasBorderRight  ? `${LW}px solid ${color}` : undefined,
-        borderRadius: rad,
-        transition: "border-color 0.4s ease",
-        boxSizing: "border-box" as const,
-      }} />
-    );
-  };
+function BoundingBox({ d, primary }: { d: Detection; primary: boolean }) {
+  const s = KIND_STYLES[d.kind];
+  const pct = (n: number) => `${n}%`;
+  const conf = Math.round(d.confidence * 100);
 
   return (
-    <div onClick={onTap} style={{ position: "relative", width: W, height: H, cursor: "pointer" }}>
-      <style>{`
-        @keyframes scanLine {
-          0%   { top: 3%; }
-          50%  { top: 90%; }
-          100% { top: 3%; }
-        }
-        @keyframes glowPulse {
-          0%, 100% { opacity: 1; }
-          50%       { opacity: 0.5; }
-        }
-        @keyframes badgeFadeIn {
-          from { opacity: 0; transform: translateX(-50%) translateY(5px); }
-          to   { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-        @keyframes frameLock {
-          0%   { transform: scale(1); }
-          40%  { transform: scale(0.97); }
-          70%  { transform: scale(1.01); }
-          100% { transform: scale(1); }
-        }
-      `}</style>
-
-      {/* Inner glow overlay */}
-      {cfg.glowColor !== "transparent" && (
-        <div style={{
-          position: "absolute", inset: 0,
-          background: cfg.glowColor,
-          borderRadius: R,
-          pointerEvents: "none",
-          animation: isDetected ? "glowPulse 2.4s ease-in-out infinite" : "none",
-        }} />
-      )}
-
-      {/* Lock animation wrapper */}
-      <div style={{
-        position: "absolute", inset: 0,
-        animation: isDetected ? "frameLock 0.45s ease forwards" : "none",
-      }}>
-        {corner({ top: 0, left: 0 })}
-        {corner({ top: 0, right: 0 })}
-        {corner({ bottom: 0, left: 0 })}
-        {corner({ bottom: 0, right: 0 })}
-      </div>
-
-      {/* Scan line */}
-      {isAnalyzing && (
-        <div style={{
-          position: "absolute", left: 6, right: 6,
-          height: 1,
-          background: `linear-gradient(90deg, transparent 0%, ${cfg.cornerColor} 25%, ${cfg.cornerColor} 75%, transparent 100%)`,
-          animation: "scanLine 1.9s ease-in-out infinite",
-          pointerEvents: "none",
-          opacity: 0.85,
-        }} />
-      )}
-
-      {/* Detection badge */}
-      {cfg.badge && (
-        <div style={{
+    <div
+      style={{
+        position: "absolute",
+        left: pct(d.x),
+        top: pct(d.y),
+        width: pct(d.w),
+        height: pct(d.h),
+        borderStyle: s.borderStyle,
+        borderWidth: s.borderWidth,
+        borderColor: s.border,
+        borderRadius: 4,
+        boxShadow: primary ? `0 0 0 3px ${s.glow}, 0 0 24px ${s.glow}` : undefined,
+        transition: "all 220ms ease-out, box-shadow 220ms ease-out",
+        pointerEvents: "none",
+        opacity: primary ? 1 : 0.62,
+      }}
+    >
+      {/* Confidence pill */}
+      <div
+        style={{
           position: "absolute",
-          bottom: -40,
-          left: "50%",
-          animation: "badgeFadeIn 0.3s ease forwards",
-          display: "flex", alignItems: "center", gap: 5,
-          background: "rgba(8,8,18,0.84)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
-          border: `0.5px solid ${cfg.cornerColor}`,
-          borderRadius: 20,
-          padding: "5px 13px 5px 10px",
+          left: 0,
+          top: -28,
+          display: "flex",
+          alignItems: "center",
+          gap: 6,
+          background: s.pillBg,
+          border: `0.5px solid ${s.pillBorder}`,
+          borderRadius: 12,
+          padding: "3px 9px 3px 8px",
+          backdropFilter: "blur(8px)",
+          WebkitBackdropFilter: "blur(8px)",
           whiteSpace: "nowrap",
-          pointerEvents: "none",
+          animation: "bboxPillIn 220ms ease-out",
+        }}
+      >
+        <span
+          style={{
+            width: 5, height: 5, borderRadius: "50%",
+            background: s.border,
+            boxShadow: primary ? `0 0 6px ${s.border}` : "none",
+          }}
+        />
+        <span style={{
+          color: s.pillText, fontSize: 10.5, fontWeight: 600,
+          letterSpacing: ".04em",
+          fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
         }}>
-          <BadgeIcon type={cfg.badgeIcon} />
-          <span style={{
-            color: "#fff", fontSize: 11, letterSpacing: ".09em",
-            fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-            fontWeight: 500,
-          }}>
-            {cfg.badge} detected
-          </span>
-        </div>
-      )}
-
-      {/* Failed hint */}
-      {isFailed && (
-        <div style={{
-          position: "absolute", inset: 0,
-          display: "flex", alignItems: "center", justifyContent: "center",
-          pointerEvents: "none",
-        }}>
-          <span style={{
-            color: "rgba(255,255,255,0.28)",
-            fontSize: 10, letterSpacing: ".14em",
-            fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-          }}>
-            TAP TO RETRY
-          </span>
-        </div>
-      )}
+          {s.label} detected ({conf}%)
+        </span>
+      </div>
     </div>
   );
 }
 
-/* ── Shared button styles ───────────────────────────────────────────── */
+/* ── Center reticle ─────────────────────────────────────────────────── */
+/* Subtle full-screen guidance when no detections yet. */
+
+function CenterReticle({ visible }: { visible: boolean }) {
+  return (
+    <div style={{
+      position: "absolute",
+      left: "50%", top: "50%",
+      transform: "translate(-50%, -50%)",
+      width: 220, height: 260,
+      pointerEvents: "none",
+      opacity: visible ? 1 : 0,
+      transition: "opacity 320ms ease-out",
+    }}>
+      {[
+        { top: 0, left: 0, br: "4px 0 0 0",  bt: 1, bl: 1 },
+        { top: 0, right: 0, br: "0 4px 0 0", bt: 1, br_w: 1 },
+        { bottom: 0, left: 0, br: "0 0 0 4px",  bb: 1, bl: 1 },
+        { bottom: 0, right: 0, br: "0 0 4px 0", bb: 1, br_w: 1 },
+      ].map((c, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            top: c.top, bottom: c.bottom, left: c.left, right: c.right,
+            width: 22, height: 22,
+            borderTop:    c.bt ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
+            borderBottom: c.bb ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
+            borderLeft:   c.bl ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
+            borderRight:  c.br_w ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
+            borderRadius: c.br,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
+/* ── Lock pulse — emanates from primary box ─────────────────────────── */
+
+function LockPulse({ d }: { d: Detection }) {
+  const s = KIND_STYLES[d.kind];
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: `${d.x}%`, top: `${d.y}%`,
+        width: `${d.w}%`, height: `${d.h}%`,
+        borderRadius: 4,
+        border: `1.5px solid ${s.border}`,
+        animation: "lockPulse 700ms ease-out forwards",
+        pointerEvents: "none",
+      }}
+    />
+  );
+}
+
+/* ── Permission-denied screen ───────────────────────────────────────── */
 
 const glassBtnStyle: React.CSSProperties = {
   flex: 1,
@@ -352,8 +327,6 @@ const fallbackBtnStyle: React.CSSProperties = {
   color: "rgba(255,255,255,0.65)", fontSize: 12, letterSpacing: ".04em",
   cursor: "pointer", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
 };
-
-/* ── Permission-denied screen ───────────────────────────────────────── */
 
 function PermissionDenied({ onUpload, onManualSearch }: { onUpload: () => void; onManualSearch: () => void }) {
   return (
@@ -400,11 +373,15 @@ function PermissionDenied({ onUpload, onManualSearch }: { onUpload: () => void; 
 export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: SmartScannerProps) {
   const videoRef  = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const scanStartRef = useRef<number>(0);
 
-  const [scanState, setScanState]     = useState<ScannerState>("permission_pending");
-  const [flashOn,   setFlashOn]       = useState(false);
-  const [videoReady, setVideoReady]   = useState(false);
+  const [scanState,    setScanState]    = useState<ScannerState>("permission_pending");
+  const [flashOn,      setFlashOn]      = useState(false);
+  const [videoReady,   setVideoReady]   = useState(false);
+  const [detections,   setDetections]   = useState<Detection[]>([]);
+  const [primaryId,    setPrimaryId]    = useState<string | null>(null);
   const [analyzeLabel, setAnalyzeLabel] = useState("Reading target");
+  const [showFailHint, setShowFailHint] = useState(false);
 
   /* ── Camera init ──────────────────────────────────────────────────── */
 
@@ -427,7 +404,9 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => {});
         }
-        setScanState("idle");
+        scanStartRef.current = Date.now();
+        setScanState("scanning");
+        trackEvent("scan_started", { surface: "camera" });
       } catch {
         if (!cancelled) setScanState("permission_denied");
       }
@@ -440,39 +419,43 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
     };
   }, []);
 
-  /* ── Mock detection cycle ─────────────────────────────────────────── */
+  /* ── Mock detection timeline ──────────────────────────────────────── */
 
   useEffect(() => {
-    if (scanState !== "idle") return;
-    const t = setTimeout(() => setScanState("artwork_detected"), 3200);
+    if (scanState !== "scanning") return;
+    const timers = MOCK_TIMELINE.map(tick =>
+      setTimeout(() => setDetections(tick.detections), tick.t)
+    );
+    return () => { timers.forEach(clearTimeout); };
+  }, [scanState]);
+
+  /* ── Pick primary detection (highest confidence) ──────────────────── */
+
+  const primary = useMemo<Detection | null>(() => {
+    if (detections.length === 0) return null;
+    return detections.reduce((best, d) => d.confidence > best.confidence ? d : best, detections[0]);
+  }, [detections]);
+
+  useEffect(() => {
+    setPrimaryId(primary?.id ?? null);
+  }, [primary]);
+
+  /* ── Lock when primary crosses threshold ──────────────────────────── */
+
+  useEffect(() => {
+    if (scanState !== "scanning" || !primary) return;
+    if (primary.confidence >= LOCK_THRESHOLD) {
+      setScanState("locked");
+    }
+  }, [scanState, primary]);
+
+  /* ── Locked → analyzing → capture ─────────────────────────────────── */
+
+  useEffect(() => {
+    if (scanState !== "locked") return;
+    const t = setTimeout(() => setScanState("analyzing"), 520);
     return () => clearTimeout(t);
   }, [scanState]);
-
-  useEffect(() => {
-    if (scanState !== "artwork_detected") return;
-    const t = setTimeout(() => setScanState("analyzing"), 1600);
-    return () => clearTimeout(t);
-  }, [scanState]);
-
-  useEffect(() => {
-    if (scanState !== "analyzing") return;
-    const t = setTimeout(captureFrame, 2400);
-    return () => clearTimeout(t);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scanState]);
-
-  /* ── Analyze label cycle ──────────────────────────────────────────── */
-
-  useEffect(() => {
-    if (scanState !== "analyzing" && scanState !== "success") return;
-    const labels = ["Reading target", "Extracting data", "Building report"];
-    let i = 0;
-    setAnalyzeLabel(labels[0]);
-    const id = setInterval(() => { i = (i + 1) % labels.length; setAnalyzeLabel(labels[i]); }, 900);
-    return () => clearInterval(id);
-  }, [scanState]);
-
-  /* ── Frame capture ────────────────────────────────────────────────── */
 
   const captureFrame = useCallback(async () => {
     const video = videoRef.current;
@@ -480,22 +463,67 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
       setScanState("failed");
       return;
     }
-    setScanState("success");
-
     const canvas  = document.createElement("canvas");
     canvas.width  = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d")!.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-
     try {
       const blob = await fetch(dataUrl).then(r => r.blob());
       const file = new File([blob], "scan.jpg", { type: "image/jpeg" });
-      setTimeout(() => onCapture(file, dataUrl), 700);
+      const elapsedMs = scanStartRef.current ? Date.now() - scanStartRef.current : 0;
+      const top = primary;
+      trackEvent("scan_succeeded", {
+        kind: top?.kind ?? "unknown",
+        confidence: top ? Math.round(top.confidence * 100) : 0,
+        elapsedMs,
+      });
+      onCapture(file, dataUrl);
     } catch {
       setScanState("failed");
     }
-  }, [onCapture]);
+  }, [onCapture, primary]);
+
+  useEffect(() => {
+    if (scanState !== "analyzing") return;
+    const t = setTimeout(captureFrame, 900);
+    return () => clearTimeout(t);
+  }, [scanState, captureFrame]);
+
+  /* ── Failure timeout ──────────────────────────────────────────────── */
+
+  useEffect(() => {
+    if (scanState !== "scanning") return;
+    const t = setTimeout(() => {
+      const top = primary?.confidence ?? 0;
+      if (top < LOCK_THRESHOLD) {
+        setScanState("failed");
+        trackEvent("scan_failed", {
+          reason: "no_lock",
+          topConfidence: Math.round(top * 100),
+          elapsedMs: scanStartRef.current ? Date.now() - scanStartRef.current : 0,
+        });
+      }
+    }, FAIL_TIMEOUT_MS);
+    return () => clearTimeout(t);
+  }, [scanState, primary]);
+
+  useEffect(() => {
+    if (scanState !== "failed") { setShowFailHint(false); return; }
+    const t = setTimeout(() => setShowFailHint(true), FAIL_HINT_DELAY);
+    return () => clearTimeout(t);
+  }, [scanState]);
+
+  /* ── Analyze label cycle ──────────────────────────────────────────── */
+
+  useEffect(() => {
+    if (scanState !== "analyzing") return;
+    const labels = ["Reading target", "Extracting data", "Building report"];
+    let i = 0;
+    setAnalyzeLabel(labels[0]);
+    const id = setInterval(() => { i = (i + 1) % labels.length; setAnalyzeLabel(labels[i]); }, 700);
+    return () => clearInterval(id);
+  }, [scanState]);
 
   /* ── Flashlight ───────────────────────────────────────────────────── */
 
@@ -509,23 +537,41 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
     } catch { /* torch not supported */ }
   }, [flashOn]);
 
-  /* ── Tap to advance state ─────────────────────────────────────────── */
+  /* ── Retry on tap ─────────────────────────────────────────────────── */
 
-  const handleFrameTap = useCallback(() => {
-    if      (scanState === "idle")     setScanState("artwork_detected");
-    else if (scanState === "artwork_detected" || scanState === "label_detected" || scanState === "qr_detected")
-                                       setScanState("analyzing");
-    else if (scanState === "failed")   setScanState("idle");
-  }, [scanState]);
+  const retry = useCallback(() => {
+    setDetections([]);
+    setPrimaryId(null);
+    setShowFailHint(false);
+    scanStartRef.current = Date.now();
+    setScanState("scanning");
+  }, []);
+
+  /* ── Status text — driven by primary detection or scan state ──────── */
+
+  const statusText = useMemo(() => {
+    if (scanState === "scanning" && !primary) return "Point at artwork, label, or QR";
+    if (scanState === "scanning" && primary)  return KIND_STYLES[primary.kind].status;
+    if (scanState === "locked"   && primary)  return `${KIND_STYLES[primary.kind].label} locked`;
+    if (scanState === "analyzing")            return analyzeLabel;
+    if (scanState === "failed")               return "Couldn't recognize the target";
+    return "";
+  }, [scanState, primary, analyzeLabel]);
+
+  const subText = useMemo(() => {
+    if (scanState === "scanning" && !primary) return "ARTENA reads QR · label · artwork in real time";
+    if (scanState === "failed")               return "Try another angle or use a different input";
+    return null;
+  }, [scanState, primary]);
 
   /* ── Render ───────────────────────────────────────────────────────── */
 
-  const cfg        = STATE_CFG[scanState];
   const isPending  = scanState === "permission_pending";
   const isDenied   = scanState === "permission_denied";
-  const isActive   = !isPending && !isDenied;
   const isFailed   = scanState === "failed";
-  const isAnalyz   = scanState === "analyzing" || scanState === "success";
+  const isAnalyz   = scanState === "analyzing";
+  const isLocked   = scanState === "locked" || scanState === "analyzing";
+  const isActive   = !isPending && !isDenied;
 
   return (
     <div style={{
@@ -537,6 +583,25 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
       fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
       overflow: "hidden",
     }}>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes bboxPillIn {
+          from { opacity: 0; transform: translateY(4px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes lockPulse {
+          0%   { opacity: 1; transform: scale(1); }
+          100% { opacity: 0; transform: scale(1.15); }
+        }
+        @keyframes scanSweep {
+          0%   { transform: translateY(-100%); }
+          100% { transform: translateY(2400%); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+      `}</style>
 
       {/* Camera feed */}
       <video
@@ -555,12 +620,51 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
       {/* Dim overlay */}
       <div style={{
         position: "absolute", inset: 0,
-        background: scanState === "success"
-          ? "rgba(0,0,0,0.55)"
-          : "rgba(0,0,0,0.38)",
-        transition: "background 0.7s ease",
+        background: isLocked ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.32)",
+        transition: "background 0.5s ease",
         pointerEvents: "none",
       }} />
+
+      {/* ── Detection layer ─────────────────────────────────────────── */}
+      {isActive && (
+        <div style={{
+          position: "absolute", inset: 0, zIndex: 5,
+          pointerEvents: "none",
+        }}>
+          {/* Bounding boxes */}
+          {detections.map(d => (
+            <BoundingBox key={d.id} d={d} primary={d.id === primaryId} />
+          ))}
+
+          {/* Lock pulse on primary */}
+          {scanState === "locked" && primary && <LockPulse d={primary} />}
+
+          {/* Center reticle when no detections */}
+          <CenterReticle visible={scanState === "scanning" && detections.length === 0} />
+
+          {/* Sweep line during analyzing */}
+          {isAnalyz && primary && (
+            <div style={{
+              position: "absolute",
+              left: `${primary.x}%`,
+              top:  `${primary.y}%`,
+              width: `${primary.w}%`,
+              height: `${primary.h}%`,
+              overflow: "hidden",
+              borderRadius: 4,
+              pointerEvents: "none",
+            }}>
+              <div style={{
+                position: "absolute", left: 0, right: 0,
+                height: 2,
+                background: `linear-gradient(90deg, transparent, ${KIND_STYLES[primary.kind].border}, transparent)`,
+                animation: "scanSweep 1.4s ease-in-out infinite",
+                opacity: 0.85,
+              }} />
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Top bar ────────────────────────────────────────────────── */}
       <div style={{
@@ -598,15 +702,15 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
         </button>
       </div>
 
-      {/* ── Center ─────────────────────────────────────────────────── */}
+      {/* ── Center — only fills space, real action is in detection layer ─ */}
       <div style={{
         flex: 1,
         position: "relative", zIndex: 10,
         display: "flex", alignItems: "center", justifyContent: "center",
+        pointerEvents: "none",
       }}>
         {isPending && (
-          <div style={{ textAlign: "center" }}>
-            <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <div style={{ textAlign: "center", pointerEvents: "auto" }}>
             <div style={{
               width: 34, height: 34,
               border: "1.5px solid rgba(255,255,255,0.2)",
@@ -620,9 +724,30 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
           </div>
         )}
 
-        {isDenied && <PermissionDenied onUpload={onUpload} onManualSearch={onManualSearch} />}
+        {isDenied && (
+          <div style={{ width: "100%", pointerEvents: "auto" }}>
+            <PermissionDenied onUpload={onUpload} onManualSearch={onManualSearch} />
+          </div>
+        )}
 
-        {isActive && <ScannerFrame state={scanState} onTap={handleFrameTap} />}
+        {isFailed && (
+          <button
+            onClick={retry}
+            style={{
+              pointerEvents: "auto",
+              padding: "12px 22px",
+              background: "rgba(255,255,255,0.10)",
+              border: "0.5px solid rgba(255,255,255,0.20)",
+              borderRadius: 10,
+              color: "#fff", fontSize: 12, letterSpacing: ".10em",
+              fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+              cursor: "pointer",
+              animation: "fadeIn 240ms ease forwards",
+            }}
+          >
+            TAP TO RETRY
+          </button>
+        )}
       </div>
 
       {/* ── Bottom ─────────────────────────────────────────────────── */}
@@ -632,34 +757,34 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
           padding: "0 22px 44px",
           display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         }}>
-
           {/* Status text */}
           <div style={{ textAlign: "center", marginBottom: 2 }}>
             <p style={{
               color: "#fff", fontSize: 15.5, fontWeight: 500,
               letterSpacing: ".025em", marginBottom: 5,
+              transition: "color 200ms ease",
             }}>
-              {isAnalyz ? analyzeLabel : cfg.statusText}
+              {statusText}
             </p>
-            {cfg.subText && !isAnalyz && (
+            {subText && (
               <p style={{
                 color: "rgba(255,255,255,0.42)", fontSize: 12.5,
                 letterSpacing: ".03em", lineHeight: 1.55,
               }}>
-                {cfg.subText}
+                {subText}
               </p>
             )}
           </div>
 
-          {/* Fallback block — failed */}
-          {isFailed && (
+          {/* Fallback panel — failed + hint timer elapsed */}
+          {isFailed && showFailHint && (
             <div style={{
               width: "100%",
               background: "rgba(255,255,255,0.05)",
               backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
               border: "0.5px solid rgba(255,255,255,0.10)",
               borderRadius: 14, padding: "13px 14px",
-              marginBottom: 2,
+              animation: "fadeIn 320ms ease forwards",
             }}>
               <p style={{
                 color: "rgba(255,255,255,0.38)", fontSize: 10,
@@ -672,9 +797,9 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
                   <IcoUpload size={13} color="rgba(255,255,255,0.6)" />
                   <span>Upload Image</span>
                 </button>
-                <button onClick={() => {}} style={fallbackBtnStyle}>
+                <button onClick={retry} style={fallbackBtnStyle}>
                   <IcoFileText size={13} color="rgba(255,255,255,0.6)" />
-                  <span>Scan Label</span>
+                  <span>Try Again</span>
                 </button>
                 <button onClick={onManualSearch} style={fallbackBtnStyle}>
                   <IcoSearch size={13} color="rgba(255,255,255,0.6)" />
@@ -684,8 +809,8 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
             </div>
           )}
 
-          {/* Standard bottom actions */}
-          {isActive && !isFailed && (
+          {/* Standard bottom actions — scanning only */}
+          {scanState === "scanning" && (
             <div style={{ display: "flex", gap: 10, width: "100%" }}>
               <button onClick={onUpload} style={glassBtnStyle}>
                 <IcoUpload />

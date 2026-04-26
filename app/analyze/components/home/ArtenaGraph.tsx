@@ -53,9 +53,10 @@ export function ArtenaGraph() {
         <div style={{
           background: "#fff",
           border: "0.5px solid #EBEBEB",
-          borderRadius: 16,
+          borderRadius: 20,
           padding: "8px 0 16px",
           overflow: "hidden",
+          boxShadow: "0 4px 30px rgba(0,0,0,0.06)",
         }}>
           <svg
             viewBox="0 0 340 235"

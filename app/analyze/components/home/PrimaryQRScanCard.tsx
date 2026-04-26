@@ -11,9 +11,9 @@ const STYLES = `
     0%, 100% { opacity: 0.55; }
     50%       { opacity: 0.20; }
   }
-  .pqr-card { transition: transform 0.18s ease-out, box-shadow 0.18s ease-out; }
-  .pqr-card:hover  { transform: scale(1.012); box-shadow: 0 6px 36px rgba(0,122,255,0.12) !important; }
-  .pqr-card:active { transform: scale(0.975); }
+  .pqr-card { transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; }
+  .pqr-card:hover  { transform: scale(1.02); box-shadow: 0 6px 30px rgba(0,122,255,0.06) !important; }
+  .pqr-card:active { transform: scale(0.97); }
   .pqr-btn:hover   { opacity: 0.88; }
   .pqr-btn:active  { transform: scale(0.97); }
 `;

@@ -10,6 +10,7 @@ import {
 import { useMyActivity, SavedArtwork } from "../../context/MyActivityContext";
 import { useTabNav } from "../../context/TabContext";
 import { CollectionPicker } from "../../my/CollectionPicker";
+import { trackEvent as track } from "../lib/analytics";
 
 /* ── Types ───────────────────────────────────────────────────── */
 
@@ -41,8 +42,7 @@ type TrackableEvent =
   | "ask_artena_clicked";
 
 function trackEvent(event: TrackableEvent, artworkId: string) {
-  // Future: connect to analytics service (Mixpanel, Amplitude, etc.)
-  console.log("[ARTENA]", { event, artworkId, timestamp: new Date().toISOString() });
+  track(event, { artworkId });
 }
 
 /* ── Mock data ───────────────────────────────────────────────── */

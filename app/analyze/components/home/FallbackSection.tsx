@@ -36,9 +36,10 @@ export function FallbackSection({ onCamera, onLabel, onTextSearch }: FallbackSec
       <div style={{
         background: "#fff",
         border: "0.5px solid #EBEBEB",
-        borderRadius: 16,
+        borderRadius: 20,
         overflow: "hidden",
         marginBottom: 24,
+        boxShadow: "0 4px 30px rgba(0,0,0,0.06)",
       }}>
         {/* Header */}
         <div style={{ padding: "16px 18px 14px", borderBottom: "0.5px solid #F2F2F2" }}>
