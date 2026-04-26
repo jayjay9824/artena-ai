@@ -1,89 +1,78 @@
 "use client";
-import React, { useRef, useEffect, useState, useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { trackEvent } from "../lib/analytics";
+import { useSmartScanner } from "../scanner/useSmartScanner";
+import type {
+  Detection,
+  DetectionTarget,
+  ScannerState,
+} from "../scanner/types";
 
-/* ── Types ──────────────────────────────────────────────────────────── */
+/* ── Re-export types so callers can stay on a single import path ────── */
 
-export type DetectionKind = "qr" | "artwork" | "text";
-
-export interface Detection {
-  id: string;
-  kind: DetectionKind;
-  /** Bounding box in percent of viewport (0–100) */
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-  /** Confidence 0–1 */
-  confidence: number;
-}
-
-export type ScannerState =
-  | "permission_pending"
-  | "permission_denied"
-  | "scanning"
-  | "locked"
-  | "analyzing"
-  | "failed";
+export type { DetectionTarget, ScannerState } from "../scanner/types";
 
 export interface SmartScannerProps {
-  onClose: () => void;
-  onCapture: (file: File, dataUrl: string) => void;
-  onUpload: () => void;
+  onClose:        () => void;
+  onCapture:      (file: File, dataUrl: string) => void;
+  onUpload:       () => void;
   onManualSearch: () => void;
+  /** Toggle the scripted mock detection. Default true while no real CV is wired. */
+  mockDetectionEnabled?: boolean;
 }
 
-/* ── Visual config per detection kind ───────────────────────────────── */
+/* ── Spec copy — verbatim ───────────────────────────────────────────── */
 
-interface KindStyle {
-  border:    string;
-  borderStyle: "solid" | "dashed";
-  borderWidth: number;
-  pillBg:    string;
-  pillBorder:string;
-  pillText:  string;
-  glow:      string;
-  label:     string;
-  status:    string;
+const STATE_COPY: Record<ScannerState, { primary: string; sub: string }> = {
+  idle:             { primary: "Point at artwork, label, or QR", sub: "ARTENA reads QR · label · artwork in real time" },
+  artwork_detected: { primary: "Artwork detected",               sub: "Hold steady to analyze image and style" },
+  label_detected:   { primary: "Label detected",                 sub: "Reading artist, title, year, and medium" },
+  qr_detected:      { primary: "QR detected",                    sub: "Extracting artwork and exhibition data" },
+  analyzing:        { primary: "Analyzing context",              sub: "Connecting artwork, exhibition, and market data" },
+  success:          { primary: "Analyzing context",              sub: "Connecting artwork, exhibition, and market data" },
+  failed:           { primary: "Couldn't recognize the target",  sub: "Try artwork photo, label scan, or manual search" },
+};
+
+/* ── Per-target visuals ─────────────────────────────────────────────── */
+
+interface TargetStyle {
+  border:     string;
+  pillBg:     string;
+  pillBorder: string;
+  pillText:   string;
+  glow:       string;
+  label:      string;
 }
 
-const KIND_STYLES: Record<DetectionKind, KindStyle> = {
+const TARGET_STYLES: Record<Exclude<DetectionTarget, "none">, TargetStyle> = {
   qr: {
-    border:      "#1856FF",
-    borderStyle: "solid",
-    borderWidth: 1.6,
-    pillBg:      "rgba(24,86,255,0.92)",
-    pillBorder:  "rgba(72,125,255,0.6)",
-    pillText:    "#fff",
-    glow:        "rgba(24,86,255,0.16)",
-    label:       "QR",
-    status:      "Recognizing QR…",
+    border:     "#007AFF",
+    pillBg:     "rgba(0,122,255,0.92)",
+    pillBorder: "rgba(72,125,255,0.6)",
+    pillText:   "#fff",
+    glow:       "rgba(0,122,255,0.20)",
+    label:      "QR",
   },
   artwork: {
-    border:      "rgba(255,255,255,0.92)",
-    borderStyle: "solid",
-    borderWidth: 1.4,
-    pillBg:      "rgba(8,8,18,0.78)",
-    pillBorder:  "rgba(255,255,255,0.32)",
-    pillText:    "#fff",
-    glow:        "rgba(255,255,255,0.06)",
-    label:       "Artwork",
-    status:      "Analyzing artwork…",
+    border:     "#FFFFFF",
+    pillBg:     "rgba(8,8,18,0.78)",
+    pillBorder: "rgba(255,255,255,0.32)",
+    pillText:   "#fff",
+    glow:       "rgba(255,255,255,0.10)",
+    label:      "Artwork",
   },
-  text: {
-    border:      "rgba(220,220,220,0.55)",
-    borderStyle: "dashed",
-    borderWidth: 1,
-    pillBg:      "rgba(28,28,32,0.72)",
-    pillBorder:  "rgba(220,220,220,0.28)",
-    pillText:    "rgba(255,255,255,0.85)",
-    glow:        "transparent",
-    label:       "Label",
-    status:      "Reading label…",
+  label: {
+    border:     "#B8C0CC",
+    pillBg:     "rgba(28,28,32,0.78)",
+    pillBorder: "rgba(184,192,204,0.36)",
+    pillText:   "#fff",
+    glow:       "rgba(184,192,204,0.10)",
+    label:      "Label",
   },
 };
 
-/* ── Inline SVG icons ───────────────────────────────────────────────── */
+/* ── Inline icons ───────────────────────────────────────────────────── */
 
 function IcoArrowLeft({ size = 20, color = "#fff" }: { size?: number; color?: string }) {
   return (
@@ -130,87 +119,69 @@ function IcoFileText({ size = 13, color = "#fff" }: { size?: number; color?: str
   );
 }
 
-/* ── Mock detection script ──────────────────────────────────────────── */
-/*
- * Simulates real-time inference. Each tick produces a list of current
- * detections with confidence scores, mimicking a CV pipeline that
- * proposes multiple candidates simultaneously. Replace this generator
- * with real inference output later.
- */
+/* ── Bounding box ───────────────────────────────────────────────────── */
 
-interface DetectionTick {
-  /** Time offset from scan start in ms */
-  t: number;
-  detections: Detection[];
+interface BoundingBoxProps {
+  d: Detection;
+  isPrimary: boolean;
+  isLocked:  boolean;
 }
 
-const MOCK_TIMELINE: DetectionTick[] = [
-  // 0.6s — weak text candidate appears
-  {
-    t: 600,
-    detections: [
-      { id: "txt", kind: "text", x: 12, y: 65, w: 38, h: 11, confidence: 0.58 },
-    ],
-  },
-  // 1.2s — artwork enters
-  {
-    t: 1200,
-    detections: [
-      { id: "art", kind: "artwork", x: 14, y: 18, w: 58, h: 44, confidence: 0.71 },
-      { id: "txt", kind: "text",    x: 12, y: 65, w: 38, h: 11, confidence: 0.65 },
-    ],
-  },
-  // 1.8s — QR appears, dominates
-  {
-    t: 1800,
-    detections: [
-      { id: "art", kind: "artwork", x: 14, y: 18, w: 58, h: 44, confidence: 0.78 },
-      { id: "txt", kind: "text",    x: 12, y: 65, w: 38, h: 11, confidence: 0.72 },
-      { id: "qr",  kind: "qr",      x: 64, y: 58, w: 24, h: 22, confidence: 0.86 },
-    ],
-  },
-  // 2.4s — QR locks
-  {
-    t: 2400,
-    detections: [
-      { id: "art", kind: "artwork", x: 14, y: 18, w: 58, h: 44, confidence: 0.81 },
-      { id: "txt", kind: "text",    x: 12, y: 65, w: 38, h: 11, confidence: 0.74 },
-      { id: "qr",  kind: "qr",      x: 64, y: 58, w: 24, h: 22, confidence: 0.94 },
-    ],
-  },
-];
-
-const LOCK_THRESHOLD   = 0.90;
-const FAIL_TIMEOUT_MS  = 6000;
-const FAIL_HINT_DELAY  = 2000;
-
-/* ── Bounding Box ──────────────────────────────────────────────────── */
-
-function BoundingBox({ d, primary }: { d: Detection; primary: boolean }) {
-  const s = KIND_STYLES[d.kind];
-  const pct = (n: number) => `${n}%`;
-  const conf = Math.round(d.confidence * 100);
+function BoundingBox({ d, isPrimary, isLocked }: BoundingBoxProps) {
+  const s = TARGET_STYLES[d.target];
+  const conf = (d.confidence * 100).toFixed(1);
+  const opacity = isLocked ? 1 : isPrimary ? 0.95 : 0.6;
 
   return (
-    <div
+    <motion.div
+      layoutId={`bbox-${d.id}`}
+      initial={false}
+      animate={{
+        left:   `${d.x}%`,
+        top:    `${d.y}%`,
+        width:  `${d.w}%`,
+        height: `${d.h}%`,
+        scale:  isLocked ? 1.0 : isPrimary ? 1.005 : 1.0,
+        opacity,
+      }}
+      transition={{
+        // Locked snap is faster + tighter than tracking jitter.
+        type: "spring",
+        stiffness: isLocked ? 360 : 220,
+        damping:   isLocked ? 28  : 30,
+        mass:      0.6,
+      }}
       style={{
         position: "absolute",
-        left: pct(d.x),
-        top: pct(d.y),
-        width: pct(d.w),
-        height: pct(d.h),
-        borderStyle: s.borderStyle,
-        borderWidth: s.borderWidth,
-        borderColor: s.border,
-        borderRadius: 4,
-        boxShadow: primary ? `0 0 0 3px ${s.glow}, 0 0 24px ${s.glow}` : undefined,
-        transition: "all 220ms ease-out, box-shadow 220ms ease-out",
+        border: `${isLocked ? 1.6 : 1.2}px solid ${s.border}`,
+        borderRadius: 12,
+        boxShadow: isPrimary
+          ? `0 0 0 3px ${s.glow}, 0 0 24px ${s.glow}`
+          : undefined,
         pointerEvents: "none",
-        opacity: primary ? 1 : 0.62,
       }}
     >
+      {/* Lock pulse — emits once when isLocked first becomes true */}
+      {isLocked && (
+        <motion.div
+          initial={{ opacity: 0.65, scale: 1, borderRadius: 12 }}
+          animate={{ opacity: 0,    scale: 1.18, borderRadius: 12 }}
+          transition={{ duration: 0.55, ease: "easeOut" }}
+          style={{
+            position: "absolute",
+            inset: -2,
+            border: `1.4px solid ${s.border}`,
+            borderRadius: 12,
+            pointerEvents: "none",
+          }}
+        />
+      )}
+
       {/* Confidence pill */}
-      <div
+      <motion.div
+        initial={{ opacity: 0, y: 6 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.22, ease: "easeOut" }}
         style={{
           position: "absolute",
           left: 0,
@@ -225,47 +196,76 @@ function BoundingBox({ d, primary }: { d: Detection; primary: boolean }) {
           backdropFilter: "blur(8px)",
           WebkitBackdropFilter: "blur(8px)",
           whiteSpace: "nowrap",
-          animation: "bboxPillIn 220ms ease-out",
         }}
       >
-        <span
-          style={{
-            width: 5, height: 5, borderRadius: "50%",
-            background: s.border,
-            boxShadow: primary ? `0 0 6px ${s.border}` : "none",
-          }}
-        />
+        <span style={{
+          width: 5, height: 5, borderRadius: "50%",
+          background: s.border,
+          boxShadow: isPrimary ? `0 0 6px ${s.border}` : "none",
+        }} />
         <span style={{
           color: s.pillText, fontSize: 10.5, fontWeight: 600,
           letterSpacing: ".04em",
           fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+          fontVariantNumeric: "tabular-nums",
         }}>
-          {s.label} detected ({conf}%)
+          {s.label} detected {conf}%
         </span>
-      </div>
+      </motion.div>
+
+      {/* Sweep line during analyzing */}
+      {isLocked && (
+        <SweepLine color={s.border} />
+      )}
+    </motion.div>
+  );
+}
+
+function SweepLine({ color }: { color: string }) {
+  return (
+    <div style={{
+      position: "absolute",
+      inset: 0,
+      overflow: "hidden",
+      borderRadius: 12,
+      pointerEvents: "none",
+    }}>
+      <motion.div
+        initial={{ y: "-10%" }}
+        animate={{ y: "110%" }}
+        transition={{ duration: 1.4, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: "absolute", left: 0, right: 0,
+          height: 2,
+          background: `linear-gradient(90deg, transparent, ${color}, transparent)`,
+          opacity: 0.85,
+        }}
+      />
     </div>
   );
 }
 
-/* ── Center reticle ─────────────────────────────────────────────────── */
-/* Subtle full-screen guidance when no detections yet. */
+/* ── Center reticle (idle, no detections yet) ───────────────────────── */
 
 function CenterReticle({ visible }: { visible: boolean }) {
   return (
-    <div style={{
-      position: "absolute",
-      left: "50%", top: "50%",
-      transform: "translate(-50%, -50%)",
-      width: 220, height: 260,
-      pointerEvents: "none",
-      opacity: visible ? 1 : 0,
-      transition: "opacity 320ms ease-out",
-    }}>
+    <motion.div
+      initial={false}
+      animate={{ opacity: visible ? 1 : 0 }}
+      transition={{ duration: 0.32, ease: "easeOut" }}
+      style={{
+        position: "absolute",
+        left: "50%", top: "50%",
+        width: 220, height: 260,
+        marginLeft: -110, marginTop: -130,
+        pointerEvents: "none",
+      }}
+    >
       {[
-        { top: 0, left: 0, br: "4px 0 0 0",  bt: 1, bl: 1 },
-        { top: 0, right: 0, br: "0 4px 0 0", bt: 1, br_w: 1 },
-        { bottom: 0, left: 0, br: "0 0 0 4px",  bb: 1, bl: 1 },
-        { bottom: 0, right: 0, br: "0 0 4px 0", bb: 1, br_w: 1 },
+        { top: 0, left: 0, bt: 1, bl: 1 },
+        { top: 0, right: 0, bt: 1, brW: 1 },
+        { bottom: 0, left: 0, bb: 1, bl: 1 },
+        { bottom: 0, right: 0, bb: 1, brW: 1 },
       ].map((c, i) => (
         <div
           key={i}
@@ -273,38 +273,18 @@ function CenterReticle({ visible }: { visible: boolean }) {
             position: "absolute",
             top: c.top, bottom: c.bottom, left: c.left, right: c.right,
             width: 22, height: 22,
-            borderTop:    c.bt ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
-            borderBottom: c.bb ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
-            borderLeft:   c.bl ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
-            borderRight:  c.br_w ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
-            borderRadius: c.br,
+            borderTop:    c.bt   ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
+            borderBottom: c.bb   ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
+            borderLeft:   c.bl   ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
+            borderRight:  c.brW  ? "1.4px solid rgba(255,255,255,0.45)" : undefined,
           }}
         />
       ))}
-    </div>
+    </motion.div>
   );
 }
 
-/* ── Lock pulse — emanates from primary box ─────────────────────────── */
-
-function LockPulse({ d }: { d: Detection }) {
-  const s = KIND_STYLES[d.kind];
-  return (
-    <div
-      style={{
-        position: "absolute",
-        left: `${d.x}%`, top: `${d.y}%`,
-        width: `${d.w}%`, height: `${d.h}%`,
-        borderRadius: 4,
-        border: `1.5px solid ${s.border}`,
-        animation: "lockPulse 700ms ease-out forwards",
-        pointerEvents: "none",
-      }}
-    />
-  );
-}
-
-/* ── Permission-denied screen ───────────────────────────────────────── */
+/* ── Permission denied ──────────────────────────────────────────────── */
 
 const glassBtnStyle: React.CSSProperties = {
   flex: 1,
@@ -368,210 +348,116 @@ function PermissionDenied({ onUpload, onManualSearch }: { onUpload: () => void; 
   );
 }
 
-/* ── Main SmartScanner component ────────────────────────────────────── */
+/* ── Main component ─────────────────────────────────────────────────── */
 
-export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: SmartScannerProps) {
-  const videoRef  = useRef<HTMLVideoElement>(null);
-  const streamRef = useRef<MediaStream | null>(null);
-  const scanStartRef = useRef<number>(0);
+export function SmartScanner({
+  onClose,
+  onCapture,
+  onUpload,
+  onManualSearch,
+  mockDetectionEnabled = true,
+}: SmartScannerProps) {
+  const [capturedDataUrl, setCapturedDataUrl] = useState<string | null>(null);
+  const capturedFileRef = useRef<File | null>(null);
 
-  const [scanState,    setScanState]    = useState<ScannerState>("permission_pending");
-  const [flashOn,      setFlashOn]      = useState(false);
-  const [videoReady,   setVideoReady]   = useState(false);
-  const [detections,   setDetections]   = useState<Detection[]>([]);
-  const [primaryId,    setPrimaryId]    = useState<string | null>(null);
-  const [analyzeLabel, setAnalyzeLabel] = useState("Reading target");
-  const [showFailHint, setShowFailHint] = useState(false);
-
-  /* ── Camera init ──────────────────────────────────────────────────── */
-
-  useEffect(() => {
-    let cancelled = false;
-
-    const start = async () => {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        setScanState("permission_denied");
-        return;
-      }
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
-          audio: false,
-        });
-        if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
-        streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-          await videoRef.current.play().catch(() => {});
-        }
-        scanStartRef.current = Date.now();
-        setScanState("scanning");
-        trackEvent("scan_started", { surface: "camera" });
-      } catch {
-        if (!cancelled) setScanState("permission_denied");
-      }
-    };
-
-    start();
-    return () => {
-      cancelled = true;
-      streamRef.current?.getTracks().forEach(t => t.stop());
-    };
-  }, []);
-
-  /* ── Mock detection timeline ──────────────────────────────────────── */
-
-  useEffect(() => {
-    if (scanState !== "scanning") return;
-    const timers = MOCK_TIMELINE.map(tick =>
-      setTimeout(() => setDetections(tick.detections), tick.t)
-    );
-    return () => { timers.forEach(clearTimeout); };
-  }, [scanState]);
-
-  /* ── Pick primary detection (highest confidence) ──────────────────── */
-
-  const primary = useMemo<Detection | null>(() => {
-    if (detections.length === 0) return null;
-    return detections.reduce((best, d) => d.confidence > best.confidence ? d : best, detections[0]);
-  }, [detections]);
-
-  useEffect(() => {
-    setPrimaryId(primary?.id ?? null);
-  }, [primary]);
-
-  /* ── Lock when primary crosses threshold ──────────────────────────── */
-
-  useEffect(() => {
-    if (scanState !== "scanning" || !primary) return;
-    if (primary.confidence >= LOCK_THRESHOLD) {
-      setScanState("locked");
-    }
-  }, [scanState, primary]);
-
-  /* ── Locked → analyzing → capture ─────────────────────────────────── */
-
-  useEffect(() => {
-    if (scanState !== "locked") return;
-    const t = setTimeout(() => setScanState("analyzing"), 520);
-    return () => clearTimeout(t);
-  }, [scanState]);
-
-  const captureFrame = useCallback(async () => {
+  /** Captures the current video frame. Called when the hook reaches success. */
+  const handleSuccess = useCallback((target: Exclude<DetectionTarget, "none">, locked: Detection) => {
     const video = videoRef.current;
-    if (!video || video.readyState < 2 || video.videoWidth === 0) {
-      setScanState("failed");
-      return;
-    }
-    const canvas  = document.createElement("canvas");
+    if (!video || video.readyState < 2 || video.videoWidth === 0) return;
+
+    const canvas = document.createElement("canvas");
     canvas.width  = video.videoWidth;
     canvas.height = video.videoHeight;
     canvas.getContext("2d")!.drawImage(video, 0, 0);
     const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-    try {
-      const blob = await fetch(dataUrl).then(r => r.blob());
-      const file = new File([blob], "scan.jpg", { type: "image/jpeg" });
-      const elapsedMs = scanStartRef.current ? Date.now() - scanStartRef.current : 0;
-      const top = primary;
-      trackEvent("scan_succeeded", {
-        kind: top?.kind ?? "unknown",
-        confidence: top ? Math.round(top.confidence * 100) : 0,
-        elapsedMs,
-      });
-      onCapture(file, dataUrl);
-    } catch {
-      setScanState("failed");
-    }
-  }, [onCapture, primary]);
 
-  useEffect(() => {
-    if (scanState !== "analyzing") return;
-    const t = setTimeout(captureFrame, 900);
-    return () => clearTimeout(t);
-  }, [scanState, captureFrame]);
+    fetch(dataUrl)
+      .then(r => r.blob())
+      .then(blob => {
+        capturedFileRef.current = new File([blob], "scan.jpg", { type: "image/jpeg" });
+      })
+      .catch(() => { /* ignore — we still have dataUrl */ });
 
-  /* ── Failure timeout ──────────────────────────────────────────────── */
+    setCapturedDataUrl(dataUrl);
 
-  useEffect(() => {
-    if (scanState !== "scanning") return;
-    const t = setTimeout(() => {
-      const top = primary?.confidence ?? 0;
-      if (top < LOCK_THRESHOLD) {
-        setScanState("failed");
-        trackEvent("scan_failed", {
-          reason: "no_lock",
-          topConfidence: Math.round(top * 100),
-          elapsedMs: scanStartRef.current ? Date.now() - scanStartRef.current : 0,
-        });
-      }
-    }, FAIL_TIMEOUT_MS);
-    return () => clearTimeout(t);
-  }, [scanState, primary]);
-
-  useEffect(() => {
-    if (scanState !== "failed") { setShowFailHint(false); return; }
-    const t = setTimeout(() => setShowFailHint(true), FAIL_HINT_DELAY);
-    return () => clearTimeout(t);
-  }, [scanState]);
-
-  /* ── Analyze label cycle ──────────────────────────────────────────── */
-
-  useEffect(() => {
-    if (scanState !== "analyzing") return;
-    const labels = ["Reading target", "Extracting data", "Building report"];
-    let i = 0;
-    setAnalyzeLabel(labels[0]);
-    const id = setInterval(() => { i = (i + 1) % labels.length; setAnalyzeLabel(labels[i]); }, 700);
-    return () => clearInterval(id);
-  }, [scanState]);
-
-  /* ── Flashlight ───────────────────────────────────────────────────── */
-
-  const toggleFlash = useCallback(async () => {
-    const track = streamRef.current?.getVideoTracks()[0];
-    if (!track) return;
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (track as any).applyConstraints({ advanced: [{ torch: !flashOn }] });
-      setFlashOn(f => !f);
-    } catch { /* torch not supported */ }
-  }, [flashOn]);
-
-  /* ── Retry on tap ─────────────────────────────────────────────────── */
-
-  const retry = useCallback(() => {
-    setDetections([]);
-    setPrimaryId(null);
-    setShowFailHint(false);
-    scanStartRef.current = Date.now();
-    setScanState("scanning");
+    trackEvent("scan_succeeded", {
+      kind: target,
+      confidence: Math.round(locked.confidence * 100),
+    });
   }, []);
 
-  /* ── Status text — driven by primary detection or scan state ──────── */
+  const {
+    cameraStatus,
+    scanState,
+    detections,
+    primary,
+    analyzeLabel,
+    flashOn,
+    videoRef,
+    retry,
+    toggleFlash,
+  } = useSmartScanner({
+    mockDetectionEnabled,
+    onSuccess: handleSuccess,
+    failTimeoutMs: 3000,
+  });
 
-  const statusText = useMemo(() => {
-    if (scanState === "scanning" && !primary) return "Point at artwork, label, or QR";
-    if (scanState === "scanning" && primary)  return KIND_STYLES[primary.kind].status;
-    if (scanState === "locked"   && primary)  return `${KIND_STYLES[primary.kind].label} locked`;
-    if (scanState === "analyzing")            return analyzeLabel;
-    if (scanState === "failed")               return "Couldn't recognize the target";
-    return "";
-  }, [scanState, primary, analyzeLabel]);
+  /* ── Track scan_started once on mount, scan_failed on failure ─────── */
 
-  const subText = useMemo(() => {
-    if (scanState === "scanning" && !primary) return "ARTENA reads QR · label · artwork in real time";
-    if (scanState === "failed")               return "Try another angle or use a different input";
-    return null;
-  }, [scanState, primary]);
+  React.useEffect(() => {
+    trackEvent("scan_started", { surface: "camera" });
+  }, []);
 
-  /* ── Render ───────────────────────────────────────────────────────── */
+  React.useEffect(() => {
+    if (scanState === "failed") {
+      trackEvent("scan_failed", { reason: "no_lock" });
+    }
+  }, [scanState]);
 
-  const isPending  = scanState === "permission_pending";
-  const isDenied   = scanState === "permission_denied";
-  const isFailed   = scanState === "failed";
-  const isAnalyz   = scanState === "analyzing";
-  const isLocked   = scanState === "locked" || scanState === "analyzing";
-  const isActive   = !isPending && !isDenied;
+  /* ── Spatial zoom finalize ────────────────────────────────────────── */
+
+  const onZoomComplete = useCallback(() => {
+    const file = capturedFileRef.current;
+    if (file && capturedDataUrl) onCapture(file, capturedDataUrl);
+  }, [onCapture, capturedDataUrl]);
+
+  /* ── Derived UI flags ─────────────────────────────────────────────── */
+
+  const isDenied  = cameraStatus === "denied";
+  const isPending = cameraStatus === "pending";
+  const isFailed  = scanState === "failed";
+  const isLockedState =
+    scanState === "qr_detected" ||
+    scanState === "label_detected" ||
+    scanState === "artwork_detected" ||
+    scanState === "analyzing" ||
+    scanState === "success";
+
+  const copy = STATE_COPY[scanState];
+  const subText = scanState === "analyzing" || scanState === "success"
+    ? analyzeLabel
+    : copy.sub;
+
+  /* ── Show fallback panel after a brief delay on failure ──────────── */
+
+  const [showFailHint, setShowFailHint] = useState(false);
+  React.useEffect(() => {
+    if (!isFailed) { setShowFailHint(false); return; }
+    const t = setTimeout(() => setShowFailHint(true), 2000);
+    return () => clearTimeout(t);
+  }, [isFailed]);
+
+  /* ── Spatial zoom origin (relative to viewport) ───────────────────── */
+
+  const zoomOrigin = useMemo(() => {
+    if (!primary) return null;
+    return {
+      left:   `${primary.x}%`,
+      top:    `${primary.y}%`,
+      width:  `${primary.w}%`,
+      height: `${primary.h}%`,
+    };
+  }, [primary]);
 
   return (
     <div style={{
@@ -585,86 +471,89 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
     }}>
       <style>{`
         @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes bboxPillIn {
-          from { opacity: 0; transform: translateY(4px); }
-          to   { opacity: 1; transform: translateY(0); }
-        }
-        @keyframes lockPulse {
-          0%   { opacity: 1; transform: scale(1); }
-          100% { opacity: 0; transform: scale(1.15); }
-        }
-        @keyframes scanSweep {
-          0%   { transform: translateY(-100%); }
-          100% { transform: translateY(2400%); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to   { opacity: 1; }
-        }
       `}</style>
 
-      {/* Camera feed */}
-      <video
-        ref={videoRef}
+      {/* Camera feed — blurs on success */}
+      <motion.video
+        ref={videoRef as React.RefObject<HTMLVideoElement>}
         playsInline muted autoPlay
-        onLoadedMetadata={() => setVideoReady(true)}
+        animate={{
+          opacity: cameraStatus === "ready" ? 1 : 0,
+          filter:  scanState === "success" ? "blur(12px)" : "blur(0px)",
+        }}
+        transition={{ duration: 0.45, ease: "easeInOut" }}
         style={{
           position: "absolute", inset: 0,
           width: "100%", height: "100%",
           objectFit: "cover",
-          opacity: videoReady ? 1 : 0,
-          transition: "opacity 0.6s ease",
         }}
       />
 
       {/* Dim overlay */}
-      <div style={{
-        position: "absolute", inset: 0,
-        background: isLocked ? "rgba(0,0,0,0.55)" : "rgba(0,0,0,0.32)",
-        transition: "background 0.5s ease",
-        pointerEvents: "none",
-      }} />
+      <motion.div
+        animate={{
+          backgroundColor:
+            scanState === "success"   ? "rgba(0,0,0,0.55)"
+          : isLockedState             ? "rgba(0,0,0,0.42)"
+          :                             "rgba(0,0,0,0.32)",
+        }}
+        transition={{ duration: 0.45, ease: "easeInOut" }}
+        style={{
+          position: "absolute", inset: 0,
+          pointerEvents: "none",
+        }}
+      />
 
       {/* ── Detection layer ─────────────────────────────────────────── */}
-      {isActive && (
-        <div style={{
-          position: "absolute", inset: 0, zIndex: 5,
-          pointerEvents: "none",
-        }}>
-          {/* Bounding boxes */}
-          {detections.map(d => (
-            <BoundingBox key={d.id} d={d} primary={d.id === primaryId} />
+      {!isDenied && !isPending && (
+        <div style={{ position: "absolute", inset: 0, zIndex: 5, pointerEvents: "none" }}>
+          {/* Center reticle when no detections yet */}
+          <CenterReticle visible={scanState === "idle" && detections.length === 0} />
+
+          {/* Boxes — hidden during success (zoom layer takes over) */}
+          {scanState !== "success" && detections.map(d => (
+            <BoundingBox
+              key={d.id}
+              d={d}
+              isPrimary={primary?.id === d.id}
+              isLocked={isLockedState && primary?.id === d.id}
+            />
           ))}
-
-          {/* Lock pulse on primary */}
-          {scanState === "locked" && primary && <LockPulse d={primary} />}
-
-          {/* Center reticle when no detections */}
-          <CenterReticle visible={scanState === "scanning" && detections.length === 0} />
-
-          {/* Sweep line during analyzing */}
-          {isAnalyz && primary && (
-            <div style={{
-              position: "absolute",
-              left: `${primary.x}%`,
-              top:  `${primary.y}%`,
-              width: `${primary.w}%`,
-              height: `${primary.h}%`,
-              overflow: "hidden",
-              borderRadius: 4,
-              pointerEvents: "none",
-            }}>
-              <div style={{
-                position: "absolute", left: 0, right: 0,
-                height: 2,
-                background: `linear-gradient(90deg, transparent, ${KIND_STYLES[primary.kind].border}, transparent)`,
-                animation: "scanSweep 1.4s ease-in-out infinite",
-                opacity: 0.85,
-              }} />
-            </div>
-          )}
         </div>
       )}
+
+      {/* ── Spatial zoom layer ──────────────────────────────────────── */}
+      <AnimatePresence>
+        {scanState === "success" && capturedDataUrl && zoomOrigin && (
+          <motion.div
+            key="zoom"
+            initial={{
+              left: zoomOrigin.left, top: zoomOrigin.top,
+              width: zoomOrigin.width, height: zoomOrigin.height,
+              borderRadius: 12, opacity: 1,
+            }}
+            animate={{
+              left: "0%", top: "0%",
+              width: "100%", height: "100%",
+              borderRadius: 0, opacity: 1,
+            }}
+            transition={{ duration: 0.6, ease: [0.4, 0.0, 0.2, 1] }}
+            onAnimationComplete={onZoomComplete}
+            style={{
+              position: "absolute",
+              overflow: "hidden",
+              zIndex: 30,
+              boxShadow: "0 0 0 1px rgba(255,255,255,0.06)",
+            }}
+          >
+            <img
+              src={capturedDataUrl}
+              alt=""
+              style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Top bar ────────────────────────────────────────────────── */}
       <div style={{
@@ -687,7 +576,7 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
           fontSize: 13, letterSpacing: ".11em", color: "rgba(255,255,255,0.88)",
           fontWeight: 500,
         }}>
-          ARTENA AI Scanner
+          ARTENA Scanner
         </span>
 
         <button onClick={toggleFlash} style={{
@@ -702,7 +591,7 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
         </button>
       </div>
 
-      {/* ── Center — only fills space, real action is in detection layer ─ */}
+      {/* ── Center fill ────────────────────────────────────────────── */}
       <div style={{
         flex: 1,
         position: "relative", zIndex: 10,
@@ -731,8 +620,11 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
         )}
 
         {isFailed && (
-          <button
+          <motion.button
             onClick={retry}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.24 }}
             style={{
               pointerEvents: "auto",
               padding: "12px 22px",
@@ -742,75 +634,90 @@ export function SmartScanner({ onClose, onCapture, onUpload, onManualSearch }: S
               color: "#fff", fontSize: 12, letterSpacing: ".10em",
               fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
               cursor: "pointer",
-              animation: "fadeIn 240ms ease forwards",
             }}
           >
             TAP TO RETRY
-          </button>
+          </motion.button>
         )}
       </div>
 
-      {/* ── Bottom ─────────────────────────────────────────────────── */}
+      {/* ── Bottom bar ─────────────────────────────────────────────── */}
       {!isDenied && (
         <div style={{
           position: "relative", zIndex: 10,
           padding: "0 22px 44px",
           display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         }}>
-          {/* Status text */}
-          <div style={{ textAlign: "center", marginBottom: 2 }}>
-            <p style={{
-              color: "#fff", fontSize: 15.5, fontWeight: 500,
-              letterSpacing: ".025em", marginBottom: 5,
-              transition: "color 200ms ease",
-            }}>
-              {statusText}
-            </p>
-            {subText && (
-              <p style={{
-                color: "rgba(255,255,255,0.42)", fontSize: 12.5,
+          <div style={{ textAlign: "center", marginBottom: 2, minHeight: 44 }}>
+            <motion.p
+              key={`primary-${scanState}`}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, ease: "easeOut" }}
+              style={{
+                color: "#fff", fontSize: 15.5, fontWeight: 500,
+                letterSpacing: ".025em", marginBottom: 5,
+              }}
+            >
+              {copy.primary}
+            </motion.p>
+            <motion.p
+              key={`sub-${subText}`}
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.22 }}
+              style={{
+                color: "rgba(255,255,255,0.48)", fontSize: 12.5,
                 letterSpacing: ".03em", lineHeight: 1.55,
-              }}>
-                {subText}
-              </p>
-            )}
+              }}
+            >
+              {subText}
+            </motion.p>
           </div>
 
-          {/* Fallback panel — failed + hint timer elapsed */}
-          {isFailed && showFailHint && (
-            <div style={{
-              width: "100%",
-              background: "rgba(255,255,255,0.05)",
-              backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
-              border: "0.5px solid rgba(255,255,255,0.10)",
-              borderRadius: 14, padding: "13px 14px",
-              animation: "fadeIn 320ms ease forwards",
-            }}>
-              <p style={{
-                color: "rgba(255,255,255,0.38)", fontSize: 10,
-                letterSpacing: ".12em", textAlign: "center", marginBottom: 9,
-              }}>
-                NOT WORKING?
-              </p>
-              <div style={{ display: "flex", gap: 8 }}>
-                <button onClick={onUpload} style={fallbackBtnStyle}>
-                  <IcoUpload size={13} color="rgba(255,255,255,0.6)" />
-                  <span>Upload Image</span>
-                </button>
-                <button onClick={retry} style={fallbackBtnStyle}>
-                  <IcoFileText size={13} color="rgba(255,255,255,0.6)" />
-                  <span>Try Again</span>
-                </button>
-                <button onClick={onManualSearch} style={fallbackBtnStyle}>
-                  <IcoSearch size={13} color="rgba(255,255,255,0.6)" />
-                  <span>Manual Search</span>
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Failure fallback panel */}
+          <AnimatePresence>
+            {isFailed && showFailHint && (
+              <motion.div
+                key="fail-panel"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.32 }}
+                style={{
+                  width: "100%",
+                  background: "rgba(255,255,255,0.05)",
+                  backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)",
+                  border: "0.5px solid rgba(255,255,255,0.10)",
+                  borderRadius: 14, padding: "13px 14px",
+                }}
+              >
+                <p style={{
+                  color: "rgba(255,255,255,0.38)", fontSize: 10,
+                  letterSpacing: ".12em", textAlign: "center", marginBottom: 9,
+                }}>
+                  NOT WORKING?
+                </p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={onUpload} style={fallbackBtnStyle}>
+                    <IcoUpload size={13} color="rgba(255,255,255,0.6)" />
+                    <span>Upload Image</span>
+                  </button>
+                  <button onClick={retry} style={fallbackBtnStyle}>
+                    <IcoFileText size={13} color="rgba(255,255,255,0.6)" />
+                    <span>Try Again</span>
+                  </button>
+                  <button onClick={onManualSearch} style={fallbackBtnStyle}>
+                    <IcoSearch size={13} color="rgba(255,255,255,0.6)" />
+                    <span>Manual Search</span>
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-          {/* Standard bottom actions — scanning only */}
-          {scanState === "scanning" && (
+          {/* Default actions while idle */}
+          {scanState === "idle" && (
             <div style={{ display: "flex", gap: 10, width: "100%" }}>
               <button onClick={onUpload} style={glassBtnStyle}>
                 <IcoUpload />

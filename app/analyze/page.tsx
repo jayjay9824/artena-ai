@@ -256,11 +256,40 @@ function ScanScreen() {
     );
   }
 
-  // Loading
+  // Loading — when we have an image, keep it as backdrop so the
+  // scanner→loading→QuickReport flow feels visually continuous.
   if (screen === "loading") {
     return (
-      <div style={{ maxWidth: 430, margin: "0 auto", minHeight: "100vh", background: "#F8F8FA", display: "flex", alignItems: "center", justifyContent: "center", padding: "0 22px" }}>
-        <LoadingSpinner />
+      <div style={{
+        maxWidth: 430, margin: "0 auto", minHeight: "100vh",
+        background: imagePreview ? "#000" : "#F9F9FB",
+        display: "flex", alignItems: "center", justifyContent: "center",
+        padding: "0 22px",
+        position: "relative" as const, overflow: "hidden",
+      }}>
+        {imagePreview && (
+          <img
+            src={imagePreview}
+            alt=""
+            style={{
+              position: "absolute", inset: 0,
+              width: "100%", height: "100%", objectFit: "cover",
+              filter: "blur(14px) brightness(0.55)",
+              transform: "scale(1.06)",
+            }}
+          />
+        )}
+        <div style={{
+          position: "relative" as const, zIndex: 1,
+          background: imagePreview ? "rgba(255,255,255,0.92)" : "transparent",
+          backdropFilter: imagePreview ? "blur(14px)" : undefined,
+          WebkitBackdropFilter: imagePreview ? "blur(14px)" : undefined,
+          borderRadius: 20,
+          padding: imagePreview ? "28px 36px" : 0,
+          boxShadow: imagePreview ? "0 8px 40px rgba(0,0,0,0.18)" : undefined,
+        }}>
+          <LoadingSpinner />
+        </div>
       </div>
     );
   }
