@@ -112,6 +112,25 @@ export interface UserArtworkInteraction {
   createdAt:       string;
 }
 
+/* ── Aggregate analytics per artwork (read-side) ───────────────── */
+
+export interface ArtworkAnalytics {
+  artworkId:           ArtworkId;
+  galleryId:           GalleryId;
+  views:               number;
+  likes:               number;
+  saves:               number;
+  shares:              number;
+  collectionAdds:      number;
+  aiQuestions:         number;
+  priceQuestions:      number;
+  inquiryClicks:       number;
+  /** 0 – 100 weighted composite. */
+  leadScore:           number;
+  /** Most-recent interaction timestamp (ISO). */
+  lastInteractionAt?:  string;
+}
+
 /* ── Lead Signal (computed, no UI yet) ─────────────────────────── */
 
 export type LeadSignalType =
