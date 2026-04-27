@@ -3,17 +3,48 @@
  * reports. Wraps /api/reports so callers don't hardcode URLs.
  */
 
-import type { Report, SourceType } from "../lib/types";
+import type {
+  Report, SourceType, EstimatedRangeStatus, TrustLevel,
+} from "../lib/types";
 
 export interface CreateReportInput {
-  artist?:          string;
-  title?:           string;
-  imageUrl?:        string;
-  analysisSummary?: string;
-  analysisFull:     Record<string, unknown>;
-  sourceType:       SourceType;
+  /* Identity */
   matchedArtworkId?: string;
+  artworkAxid?:      string;
   galleryId?:        string;
+
+  /* Display */
+  artist?:           string;
+  artistNameKo?:     string;
+  title?:            string;
+  titleKo?:          string;
+  year?:             string;
+  medium?:           string;
+  dimensions?:       string;
+  representativeImageUrl?: string;
+  imageUrl?:         string;
+
+  /* Editorial */
+  artenaInsight?:    string;
+  analysisSummary?:  string;
+  analysisFull:      Record<string, unknown>;
+
+  /* Market snapshot */
+  marketSnapshotJson?:   Record<string, unknown>;
+  marketPosition?:       Report["marketPosition"];
+  marketConfidence?:     number;
+  estimatedRangeStatus?: EstimatedRangeStatus;
+  estimatedLow?:         number;
+  estimatedHigh?:        number;
+  currency?:             string;
+  dataDepth?:            Report["dataDepth"];
+  comparableMatches?:    number;
+  marketStability?:      Report["marketStability"];
+
+  /* Lifecycle */
+  sourceType:   SourceType;
+  trustLevel?:  TrustLevel;
+  isShareable?: boolean;
 }
 
 /** Save a report. Returns the new report id, or null on failure. */

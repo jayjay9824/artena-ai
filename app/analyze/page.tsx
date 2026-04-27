@@ -94,15 +94,51 @@ function ScanScreen() {
     imageUrl: string | null,
     sourceType: SourceType,
   ) => {
+    // Derive a safe estimated range status from the analysis. We never
+    // emit $0K-$0K — if low/high aren't available, the field stays
+    // "insufficient_data" and the viewer renders the safe label.
+    const auctionPrices = (a.auctions ?? [])
+      .map(au => parseAuctionPrice(au.result))
+      .filter((n): n is number => n !== null);
+    const hasRange = auctionPrices.length >= 1;
+    const sortedPrices = [...auctionPrices].sort((x, y) => x - y);
+
     const id = await saveReport({
       artist:          a.artist  ?? "Unknown",
       title:           a.title   ?? "Untitled",
+      year:            a.year,
       imageUrl:        imageUrl ?? undefined,
+      representativeImageUrl: imageUrl ?? undefined,
       analysisSummary: a.description ?? "",
+      // Insight: prefer marketNote (judgment-style) → description fallback,
+      // capped at 220 chars so the OG description stays clean.
+      artenaInsight: ((a.marketNote ?? a.description ?? "") || "").slice(0, 220) || undefined,
       analysisFull:    a as unknown as Record<string, unknown>,
       sourceType,
+      // Snapshot — these are best-effort derived signals; absence is fine.
+      estimatedRangeStatus: hasRange ? "available" : "insufficient_data",
+      estimatedLow:         hasRange ? sortedPrices[0] : undefined,
+      estimatedHigh:        hasRange ? sortedPrices[sortedPrices.length - 1] : undefined,
+      currency:             hasRange ? "USD" : undefined,
+      comparableMatches:    auctionPrices.length,
+      // Default trust for now: image/text inputs are AI-inferred.
+      trustLevel:           "ai_inferred",
+      isShareable:          true,
     });
     if (id) setReportId(id);
+  };
+
+  /** Parse "$28,000" / "$1.2M" / "$25K–$35K" into a USD number, or null. */
+  const parseAuctionPrice = (s: string): number | null => {
+    if (!s) return null;
+    const cleaned = s.replace(/,/g, "");
+    const m = cleaned.match(/([\d.]+)\s*([KkMm]?)/);
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    if (!isFinite(n) || n <= 0) return null;
+    if (/[Mm]/.test(m[2])) return n * 1_000_000;
+    if (/[Kk]/.test(m[2])) return n * 1_000;
+    return n;
   };
 
   const compressIfNeeded = (file: File): Promise<Blob> => {

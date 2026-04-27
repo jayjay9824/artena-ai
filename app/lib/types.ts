@@ -35,58 +35,142 @@ export interface Artist {
 export type PriceVisibility    = "public" | "on_request" | "private";
 export type AvailabilityStatus = "available" | "reserved" | "sold" | "not_for_sale";
 
+/**
+ * Trust hierarchy — how reliable a record is.
+ *   axid_verified    AXID-stamped + registry-confirmed (highest)
+ *   verified         gallery-uploaded with full provenance
+ *   gallery_provided gallery-uploaded, partial metadata
+ *   user_input       user-submitted, unverified
+ *   ai_inferred      Claude-inferred from image/text only (lowest)
+ */
+export type TrustLevel =
+  | "axid_verified"
+  | "verified"
+  | "gallery_provided"
+  | "user_input"
+  | "ai_inferred";
+
+/** Append-only lifecycle. Records are not deleted, only archived. */
+export type ArtworkStatus = "draft" | "live" | "archived";
+
 export interface Artwork {
-  id:                 ArtworkId;
-  galleryId:          GalleryId;
-  artistId:           ArtistId;
-  title:              string;
-  year?:              string;
-  medium?:            string;
-  imageUrl?:          string;
-  priceVisibility:    PriceVisibility;
-  availabilityStatus: AvailabilityStatus;
-  /** Human-friendly slug used in /report/<slug> share URLs. */
-  publicShareSlug?:   string;
-  qrCodeUrl?:         string;
+  id:                  ArtworkId;
+  /**
+   * Artwork eXchange ID — globally unique registry id. Highest-trust
+   * identifier; QR / NFC / explicit AXID lookups all key on this.
+   */
+  axid?:               string;
+  galleryId:           GalleryId;
+  artistId:            ArtistId;
+
+  /* Display */
+  artistName?:         string;     // denormalized for fast read
+  artistNameKo?:       string;
+  title:               string;
+  titleKo?:            string;
+  /** Alternate spellings, romanizations, abbreviations, prior titles. */
+  aliases?:            string[];
+
+  year?:               string;
+  period?:             string;     // "Late period", "Dansaekhwa era"
+  medium?:             string;
+  dimensions?:         string;     // "200 × 150 cm"
+
+  /* Imagery */
+  imageUrl?:           string;     // legacy field — kept for back-compat
+  primaryImageUrl?:    string;
+  perceptualImageHash?: string;    // pHash for image-based matching
+  visualEmbeddingId?:  string;     // vector store id for semantic match
+
+  /* Editorial */
+  description?:        string;
+  artenaInsight?:      string;
+  shortSummary?:       string;
+
+  /* Trust + lifecycle */
+  trustLevel?:         TrustLevel;
+  status?:             ArtworkStatus;
+
+  /* Commerce */
+  priceVisibility:     PriceVisibility;
+  availabilityStatus:  AvailabilityStatus;
+  publicShareSlug?:    string;
+  qrCodeUrl?:          string;
+
+  createdAt?:          string;
+  updatedAt?:          string;
 }
 
 /* ── Matching ──────────────────────────────────────────────────── */
 
-export type MatchedBy = "qr" | "label" | "image" | "text";
+export type MatchedBy = "axid" | "nfc" | "qr" | "label" | "image" | "text";
 
 export interface MatchedArtwork {
   artworkId:  ArtworkId;
   galleryId:  GalleryId;
-  /** 0 – 1 */
+  /** 0 – 1. AXID/NFC/QR return 1.0 when the registry confirms. */
   confidence: number;
   matchedBy:  MatchedBy;
 }
 
+/**
+ * What the matching service hands back.
+ *   confident  — clear winner (≥ 0.85 score from any path)
+ *   ambiguous  — 2-3 candidates in the 0.6-0.85 band → show selector
+ *   no_match   — nothing crossed 0.6 → show NoMatch screen
+ */
+export type MatchOutcome =
+  | { kind: "confident"; match: MatchedArtwork }
+  | { kind: "ambiguous"; candidates: MatchedArtwork[] }
+  | { kind: "no_match" };
+
 /* ── Report (the analysis output that gets shared) ─────────────── */
 
-export type SourceType = "qr" | "image" | "label" | "text";
+export type SourceType = "axid" | "nfc" | "qr" | "image" | "label" | "text";
+
+/** Three-state for any price/range field. Never display $0K-$0K. */
+export type EstimatedRangeStatus = "available" | "insufficient_data" | "unavailable";
 
 export interface Report {
   id:                ReportId;
-  /** Set if the analysis matched a known Artwork in the Gallery DB. */
   matchedArtworkId?: ArtworkId;
+  artworkAxid?:      string;       // mirrored from Artwork.axid
   galleryId?:        GalleryId;
 
-  // Display fields surfaced on the QuickReport screen.
+  /* Display — frozen at share time */
   artist:            string;
+  artistNameKo?:     string;
   title:             string;
-  imageUrl?:         string;
+  titleKo?:          string;
+  year?:             string;
+  medium?:           string;
+  dimensions?:       string;
+  representativeImageUrl?: string; // canonical image for OG + viewer
+  imageUrl?:         string;       // legacy / inline preview
+
+  /* Editorial — judgment-style. UI caps at 3 lines. */
+  artenaInsight?:    string;
   analysisSummary:   string;
-  /**
-   * Full structured analysis — kept loose because the analysis API
-   * shape currently varies (architecture vs. artwork vs. artifact).
-   * Gallery Console only needs summary + matchedArtworkId, so this
-   * field is intentionally untyped here.
-   */
+  /** Full structured analysis (varies by category). */
   analysisFull:      Record<string, unknown>;
 
-  sourceType:        SourceType;
-  createdAt:         string;     // ISO timestamp
+  /* Market snapshot — frozen at share time */
+  marketSnapshotJson?:   Record<string, unknown>;
+  marketPosition?:       "Emerging" | "Established" | "Blue-chip";
+  marketConfidence?:     number;   // 0-100
+  estimatedRangeStatus?: EstimatedRangeStatus;
+  estimatedLow?:         number;   // omitted unless status === "available"
+  estimatedHigh?:        number;
+  currency?:             string;   // "USD" / "KRW"
+  dataDepth?:            "thin" | "moderate" | "deep";
+  comparableMatches?:    number;
+  marketStability?:      "low" | "moderate" | "high";
+
+  /* Source + lifecycle */
+  sourceType:   SourceType;
+  trustLevel?:  TrustLevel;
+  isShareable?: boolean;        // default true
+  createdAt:    string;         // ISO timestamp
 }
 
 /* ── User interactions (write-heavy, consumed by analytics) ────── */

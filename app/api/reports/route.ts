@@ -1,27 +1,60 @@
 /**
  * POST /api/reports — save a shareable report, returns { id }.
  *
- * Receives the analysis output + sourceType + image, mints a short
- * reportId with nanoid, and persists via the configured ReportStore.
- * Today the store is in-memory; swap to KV/Postgres later by changing
- * app/services/reportStore.ts.
+ * Accepts the wider snapshot shape from app/lib/types.ts so the
+ * receiving viewer (and crawlers / OG previewers) can render the
+ * frozen result without recomputing anything.
  */
 import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { getReportStore } from "../../services/reportStore";
-import type { Report, SourceType } from "../../lib/types";
+import type {
+  Report,
+  SourceType,
+  EstimatedRangeStatus,
+  TrustLevel,
+} from "../../lib/types";
 
 export const runtime = "nodejs";
 
 interface CreateReportBody {
-  artist?:          string;
-  title?:           string;
-  imageUrl?:        string;
-  analysisSummary?: string;
-  analysisFull?:    Record<string, unknown>;
-  sourceType?:      SourceType;
+  /* Identity */
   matchedArtworkId?: string;
+  artworkAxid?:      string;
   galleryId?:        string;
+
+  /* Display */
+  artist?:           string;
+  artistNameKo?:     string;
+  title?:            string;
+  titleKo?:          string;
+  year?:             string;
+  medium?:           string;
+  dimensions?:       string;
+  representativeImageUrl?: string;
+  imageUrl?:         string;
+
+  /* Editorial */
+  artenaInsight?:    string;
+  analysisSummary?:  string;
+  analysisFull?:     Record<string, unknown>;
+
+  /* Market snapshot */
+  marketSnapshotJson?:   Record<string, unknown>;
+  marketPosition?:       Report["marketPosition"];
+  marketConfidence?:     number;
+  estimatedRangeStatus?: EstimatedRangeStatus;
+  estimatedLow?:         number;
+  estimatedHigh?:        number;
+  currency?:             string;
+  dataDepth?:            Report["dataDepth"];
+  comparableMatches?:    number;
+  marketStability?:      Report["marketStability"];
+
+  /* Lifecycle */
+  sourceType?:  SourceType;
+  trustLevel?:  TrustLevel;
+  isShareable?: boolean;
 }
 
 export async function POST(req: NextRequest) {
@@ -36,15 +69,45 @@ export async function POST(req: NextRequest) {
 
     const report: Report = {
       id,
-      artist:          body.artist          ?? "Unknown Artist",
-      title:           body.title           ?? "Untitled",
-      imageUrl:        body.imageUrl,
+
+      /* Identity */
+      matchedArtworkId: body.matchedArtworkId,
+      artworkAxid:      body.artworkAxid,
+      galleryId:        body.galleryId,
+
+      /* Display */
+      artist:                 body.artist        ?? "Unknown Artist",
+      artistNameKo:           body.artistNameKo,
+      title:                  body.title         ?? "Untitled",
+      titleKo:                body.titleKo,
+      year:                   body.year,
+      medium:                 body.medium,
+      dimensions:             body.dimensions,
+      representativeImageUrl: body.representativeImageUrl ?? body.imageUrl,
+      imageUrl:               body.imageUrl,
+
+      /* Editorial */
+      artenaInsight:   body.artenaInsight,
       analysisSummary: body.analysisSummary ?? "",
       analysisFull:    body.analysisFull,
-      sourceType:      body.sourceType      ?? "image",
-      matchedArtworkId: body.matchedArtworkId,
-      galleryId:        body.galleryId,
-      createdAt:       new Date().toISOString(),
+
+      /* Market snapshot */
+      marketSnapshotJson:   body.marketSnapshotJson,
+      marketPosition:       body.marketPosition,
+      marketConfidence:     body.marketConfidence,
+      estimatedRangeStatus: body.estimatedRangeStatus,
+      estimatedLow:         body.estimatedLow,
+      estimatedHigh:        body.estimatedHigh,
+      currency:             body.currency,
+      dataDepth:            body.dataDepth,
+      comparableMatches:    body.comparableMatches,
+      marketStability:      body.marketStability,
+
+      /* Lifecycle */
+      sourceType:  body.sourceType  ?? "image",
+      trustLevel:  body.trustLevel,
+      isShareable: body.isShareable ?? true,
+      createdAt:   new Date().toISOString(),
     };
 
     await getReportStore().put(report);

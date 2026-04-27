@@ -129,14 +129,21 @@ function parseUSD(s: string): number | null {
 }
 
 function derivePriceRange(a: QRAnalysis): string {
-  if (isArchitecture(a)) return "해당 없음";
+  // Trust-first: never produce $0K-$0K. Architecture / artifact have
+  // no commercial market → "Unavailable". Anything else without
+  // verified comparables → "Insufficient market data".
+  if (isArchitecture(a)) return "Unavailable";
   const prices = (a.auctions ?? [])
     .map(au => parseUSD(au.result))
-    .filter((p): p is number => p !== null)
+    .filter((p): p is number => p !== null && p > 0)
     .sort((x, y) => x - y);
-  if (prices.length === 0) return "공개 데이터 없음";
+  if (prices.length === 0) return "Insufficient market data";
   const fmt = (n: number) =>
     n >= 1_000_000 ? `$${(n / 1_000_000).toFixed(1)}M` : `$${Math.round(n / 1000)}K`;
+  // Defensive: if both endpoints round to 0K, fall back to the safe label.
+  if (fmt(prices[0]) === "$0K" && fmt(prices[prices.length - 1]) === "$0K") {
+    return "Insufficient market data";
+  }
   return prices.length === 1 ? fmt(prices[0]) : `${fmt(prices[0])} – ${fmt(prices[prices.length - 1])}`;
 }
 
@@ -420,7 +427,7 @@ export function QuickReport({
       <div style={{
         maxWidth: 640, margin: "0 auto", background: "#FFFFFF",
         minHeight: "100vh", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-        position: "relative" as const, paddingBottom: 200,
+        position: "relative" as const, paddingBottom: 96,
         boxSizing: "border-box" as const, overflowX: "hidden",
       }}>
 
@@ -611,7 +618,9 @@ export function QuickReport({
                 </div>
               </div>
               <div style={{ textAlign: "right" as const }}>
-                <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".16em", margin: "0 0 4px" }}>CONFIDENCE</p>
+                <p style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".16em", margin: "0 0 4px", fontWeight: 600 }}>
+                  MARKET CONFIDENCE
+                </p>
                 <div style={{ display: "flex", alignItems: "baseline", gap: 2, justifyContent: "flex-end" }}>
                   <span style={{ fontSize: 32, fontWeight: 800, color: "#111", fontFamily: "'KakaoBigSans', system-ui, sans-serif", lineHeight: 1 }}>{confidence}</span>
                   <span style={{ fontSize: 13, color: "#CCC", marginBottom: 2 }}>/100</span>
@@ -619,24 +628,41 @@ export function QuickReport({
               </div>
             </div>
 
-            <div style={{ padding: "14px 16px", background: "#F8F8F8", marginBottom: 24 }}>
-              <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".18em", margin: "0 0 6px" }}>
-                {isArchitecture(a) ? "시장 거래" : isArtifact(a) ? "경매 기록" : "ESTIMATED RANGE"}
+            <div style={{ padding: "14px 16px", background: "#F8F7F4", marginBottom: 24, borderRadius: 8 }}>
+              <p style={{ fontSize: 9, color: "#9A9A9A", letterSpacing: ".18em", margin: "0 0 6px" }}>
+                ESTIMATED MARKET RANGE
               </p>
-              <p style={{ fontSize: isArchitecture(a) ? 14 : 22, fontWeight: 800, color: isArchitecture(a) ? "#888" : "#111", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif", letterSpacing: "-.02em" }}>
+              <p style={{
+                // Sized down for the safe-label fallback so it fits on one line.
+                fontSize: priceRange === "Insufficient market data" || priceRange === "Unavailable" ? 14 : 22,
+                fontWeight: 700,
+                color: priceRange === "Insufficient market data" || priceRange === "Unavailable" ? "#9A9A9A" : "#111",
+                margin: 0,
+                fontFamily: "'KakaoBigSans', system-ui, sans-serif",
+                letterSpacing: "-.02em",
+              }}>
                 {priceRange}
               </p>
             </div>
 
+            {/* Key Metrics — Data Depth / Comparable Matches / Market Stability */}
             <div style={{ marginBottom: 22 }}>
-              <ScoreBar label="데이터 깊이"     value={dataDepth}  delay={0}   />
-              <ScoreBar label="Comparable 매칭" value={comparable} delay={80}  />
-              <ScoreBar label="시장 안정성"     value={stability}  delay={160} />
+              <ScoreBar label="Data Depth"          value={dataDepth}  delay={0}   />
+              <ScoreBar label="Comparable Matches"  value={comparable} delay={80}  />
+              <ScoreBar label="Market Stability"    value={stability}  delay={160} />
             </div>
 
+            {/* ARTENA Insight — judgment-style, capped at 3 lines via line-clamp */}
             {a.marketNote && (
-              <p style={{ fontSize: 12, color: "#666", lineHeight: 1.78, margin: 0, paddingLeft: 14, borderLeft: "2px solid #8A6A3F" }}>
-                {a.marketNote.length > 160 ? a.marketNote.slice(0, 160) + "…" : a.marketNote}
+              <p style={{
+                fontSize: 12, color: "#444", lineHeight: 1.7, margin: 0,
+                paddingLeft: 14, borderLeft: "2px solid #8A6A3F",
+                display: "-webkit-box",
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: "vertical" as const,
+                overflow: "hidden",
+              }}>
+                {a.marketNote}
               </p>
             )}
           </div>
@@ -679,6 +705,71 @@ export function QuickReport({
               <MarketIntelligenceReport data={reportData} imagePreview={imagePreview} />
             </div>
           )}
+
+          {/* ── Ask ARTENA (separate section, in scroll flow) ─────── */}
+          {/* Spec: Ask ARTENA must live as its own section, not inside
+              the fixed bottom bar. Question chips and the Ask CTA stay
+              together as one block here so the layer reads as one unit. */}
+          <div style={{ paddingTop: 24, paddingBottom: 8 }}>
+            {(() => {
+              const chips = getQuickReportChips(a);
+              if (chips.length === 0) return null;
+              return (
+                <div style={{
+                  display: "flex", flexWrap: "wrap" as const, gap: 7,
+                  marginBottom: 12,
+                }}>
+                  {chips.map(q => (
+                    <button
+                      key={q.text}
+                      onClick={() => {
+                        setPendingQuestion({ text: q.text, type: q.type });
+                        setShowAssistant(true);
+                        trackEvent("ask_artena_clicked", itemId);
+                      }}
+                      style={{
+                        padding: "8px 14px",
+                        background: "#FFFFFF",
+                        border: "0.5px solid #E7E2D8",
+                        borderRadius: 22,
+                        cursor: "pointer",
+                        fontSize: 12, color: "#1C1A17",
+                        fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+                        letterSpacing: "-.005em",
+                        lineHeight: 1.3,
+                        transition: "background .12s, border-color .12s",
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4EFE5"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#D9C9A6"; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#FFFFFF"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#E7E2D8"; }}
+                    >
+                      {q.text}
+                    </button>
+                  ))}
+                </div>
+              );
+            })()}
+
+            <button
+              onClick={() => { setPendingQuestion(null); setShowAssistant(true); trackEvent("ask_artena_clicked", itemId); }}
+              className="qr-ask-btn"
+              style={{
+                width: "100%", padding: "13px 0",
+                background: "#0F0F0F", border: "none",
+                borderRadius: 10, cursor: "pointer",
+                fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+                display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
+                transition: "opacity .15s",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ fontSize: 9, color: "#8A6A3F" }}>◆</span>
+                <span style={{ fontSize: 12, color: "#FFF", letterSpacing: ".07em" }}>아르테나 AI에게 더 물어보기</span>
+              </div>
+              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", letterSpacing: ".03em" }}>
+                이 작품을 더 깊이 이해해보세요
+              </span>
+            </button>
+          </div>
 
           {/* Reset link */}
           <div style={{ paddingTop: 24, paddingBottom: 12, display: "flex", justifyContent: "center" as const }}>
@@ -757,71 +848,6 @@ export function QuickReport({
               <IcoFolder filled={actions.collected} size={17} color={actions.collected ? "#fff" : "#111"} />
               <span style={{ fontSize: 13, fontWeight: 600, color: actions.collected ? "#fff" : "#111", letterSpacing: ".01em" }}>
                 컬렉션에 추가
-              </span>
-            </button>
-          </div>
-
-          {/* Contextual question chips — tap to open Ask with that question
-              already submitted. Same logic as the chat empty-state, but
-              trimmed to 3 picks for the QuickReport surface. */}
-          {(() => {
-            const chips = getQuickReportChips(a);
-            if (chips.length === 0) return null;
-            return (
-              <div style={{
-                padding: "8px 18px 4px",
-                display: "flex", flexWrap: "wrap" as const, gap: 7,
-              }}>
-                {chips.map(q => (
-                  <button
-                    key={q.text}
-                    onClick={() => {
-                      setPendingQuestion({ text: q.text, type: q.type });
-                      setShowAssistant(true);
-                      trackEvent("ask_artena_clicked", itemId);
-                    }}
-                    style={{
-                      padding: "8px 14px",
-                      background: "#FFFFFF",
-                      border: "0.5px solid #E7E2D8",
-                      borderRadius: 22,
-                      cursor: "pointer",
-                      fontSize: 12, color: "#1C1A17",
-                      fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-                      letterSpacing: "-.005em",
-                      lineHeight: 1.3,
-                      transition: "background .12s, border-color .12s, transform .12s",
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4EFE5"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#D9C9A6"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#FFFFFF"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#E7E2D8"; }}
-                  >
-                    {q.text}
-                  </button>
-                ))}
-              </div>
-            );
-          })()}
-
-          {/* Secondary: Ask ARTENA */}
-          <div style={{ padding: "8px 18px 24px" }}>
-            <button
-              onClick={() => { setPendingQuestion(null); setShowAssistant(true); trackEvent("ask_artena_clicked", itemId); }}
-              className="qr-ask-btn"
-              style={{
-                width: "100%", padding: "13px 0",
-                background: "#0F0F0F", border: "none",
-                borderRadius: 10, cursor: "pointer",
-                fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-                display: "flex", flexDirection: "column" as const, alignItems: "center", gap: 3,
-                transition: "opacity .15s",
-              }}
-            >
-              <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-                <span style={{ fontSize: 9, color: "#8A6A3F" }}>◆</span>
-                <span style={{ fontSize: 12, color: "#FFF", letterSpacing: ".07em" }}>아르테나 AI에게 더 물어보기</span>
-              </div>
-              <span style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", letterSpacing: ".03em" }}>
-                이 작품을 더 깊이 이해해보세요
               </span>
             </button>
           </div>
