@@ -236,3 +236,44 @@ export interface LeadSignal {
   weight:     number;
   createdAt:  string;
 }
+
+/* ── Audit Trail (append-only, hash-chained) ───────────────────── */
+
+/**
+ * What got audited. Append new actions, never rename existing ones —
+ * historical entries reference these strings forever.
+ */
+export type AuditAction =
+  | "report_created"
+  | "report_shared"
+  | "axid_scanned"
+  | "invoice_sent"
+  | "payment_marked_paid"
+  | "certificate_issued"
+  | "artwork_updated";
+
+/** What the entry is *about*. */
+export type AuditEntityType = "report" | "artwork" | "gallery" | "invoice" | "certificate";
+
+/**
+ * Single audit entry. Append-only — production never deletes; lifecycle
+ * changes go through artwork_updated / status fields. The hash field
+ * chains entries together (each hash includes the previous hash) so
+ * the log is tamper-evident; production can later anchor the latest
+ * hash to a public chain.
+ */
+export interface AuditEntry {
+  id:            string;       // nanoid(12)
+  entityType:    AuditEntityType;
+  entityId:      string;
+  action:        AuditAction;
+  actorId:       string;       // user / gallery / system id
+  timestamp:     string;       // ISO
+  /** Field-level diffs. Optional because not every action is a state mutation. */
+  previousValue?: Record<string, unknown>;
+  newValue?:      Record<string, unknown>;
+  /** SHA-256 hex of prevHash + canonical JSON of this entry minus this field. */
+  hash:          string;
+  /** Hash of the entry directly before this one in the log; "" for genesis. */
+  prevHash:      string;
+}

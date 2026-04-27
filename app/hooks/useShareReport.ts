@@ -2,6 +2,7 @@
 import { useCallback, useState } from "react";
 import { buildShareUrl } from "../services/reportService";
 import { recordInteraction } from "../services/interactionService";
+import { recordAudit } from "../services/auditService";
 
 /**
  * useShareReport — share a saved report via the Web Share API,
@@ -40,12 +41,19 @@ export function useShareReport(opts: UseShareReportOptions) {
     const shareTitle = override?.artist ?? artist ?? "ARTENA";
     const shareText  = override?.title  ?? title  ?? "Cultural Intelligence Report";
 
-    // Record the interaction first so we don't lose the signal if the
-    // user dismisses the native share sheet without picking a channel.
+    // Record the interaction + audit entry first. Both write before
+    // the share sheet opens so we don't lose the signal if the user
+    // dismisses without picking a channel.
     recordInteraction({
       interactionType: "shared",
       reportId,
       meta: { surface: "report" },
+    });
+    void recordAudit({
+      entityType: "report",
+      entityId:   reportId,
+      action:     "report_shared",
+      newValue:   { url, channel: "pending" },
     });
 
     if (typeof navigator !== "undefined" && typeof navigator.share === "function") {

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { nanoid } from "nanoid";
 import { getReportStore } from "../../services/reportStore";
+import { recordAudit } from "../../services/auditService";
 import type {
   Report,
   SourceType,
@@ -111,6 +112,22 @@ export async function POST(req: NextRequest) {
     };
 
     await getReportStore().put(report);
+
+    // Audit — append-only, hash-chained. Never blocks the response.
+    void recordAudit({
+      entityType: "report",
+      entityId:   id,
+      action:     "report_created",
+      actorId:    "system",
+      newValue: {
+        artist:           report.artist,
+        title:            report.title,
+        sourceType:       report.sourceType,
+        trustLevel:       report.trustLevel,
+        matchedArtworkId: report.matchedArtworkId,
+        galleryId:        report.galleryId,
+      },
+    });
 
     return NextResponse.json({ success: true, id });
   } catch (err: unknown) {

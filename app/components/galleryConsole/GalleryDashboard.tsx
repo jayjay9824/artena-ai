@@ -16,6 +16,7 @@ import { LeadSignalsPanel } from "./LeadSignalsPanel";
 import { InterestedUsersPanel } from "./InterestedUsersPanel";
 import { ArtworkAnalyticsDetail } from "./ArtworkAnalyticsDetail";
 import { ReportPreviewPanel } from "./ReportPreviewPanel";
+import { AuditTrailCard } from "./AuditTrailCard";
 
 interface DashboardProps {
   galleryId: GalleryId;
@@ -166,6 +167,11 @@ export function GalleryDashboard({ galleryId, galleryName }: DashboardProps) {
             strength={leadStrength} onStrength={setLeadStrength}
           />
           <InterestedUsersPanel users={interested.users} loading={interested.loading} />
+        </div>
+
+        {/* Audit Trail — append-only event log, hash-chained */}
+        <div style={{ marginTop: 24 }}>
+          <AuditTrailCard />
         </div>
       </div>
     </div>
