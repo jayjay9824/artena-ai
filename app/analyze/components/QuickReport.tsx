@@ -329,6 +329,7 @@ export function QuickReport({
 
   const artwork: SavedArtwork = {
     artwork_id: itemId,
+    report_id:   reportId,
     image_url:   imagePreview ?? null,
     artist_name: a.artist ?? "Unknown",
     title:       a.title  ?? "Untitled",

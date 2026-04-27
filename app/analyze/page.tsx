@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { MarketIntelligenceData } from "./components/MarketIntelligenceReport";
 import { QuickReport } from "./components/QuickReport";
 import { IntroSplash } from "./components/IntroSplash";
@@ -13,6 +14,7 @@ import { RecommendationsPageContent } from "../recommendations/page";
 import { GalleryPageContent } from "../gallery/page";
 import { MyPageContent } from "../my/page";
 import { saveReport } from "../services/reportService";
+import { useCollection } from "../collection/hooks/useCollection";
 import type { SourceType } from "../lib/types";
 
 /* ── Types (kept local for the scan analysis shape) ───────────── */
@@ -72,6 +74,22 @@ function ScanScreen() {
   const [reportId,      setReportId]      = useState<string | null>(null);
 
   const handleIntroComplete = useCallback(() => setShowIntro(false), []);
+
+  // Deep-link: ?artworkId=… restores a previously-analysed artwork
+  // from the local Collection store. Skips intro and lands on the
+  // Quick Report directly. View Analysis from /my routes here.
+  const searchParams = useSearchParams();
+  const { items: collectionItems } = useCollection();
+  useEffect(() => {
+    const id = searchParams.get("artworkId");
+    if (!id) return;
+    const item = collectionItems.find(i => i.id === id);
+    if (!item) return;
+    setShowIntro(false);
+    setAnalysis(item.analysis as unknown as Analysis);
+    setImagePreview(item.imagePreview ?? null);
+    setScreen("result");
+  }, [searchParams, collectionItems]);
 
   // All hooks above run unconditionally
   if (showIntro) return <IntroSplash onComplete={handleIntroComplete} />;
@@ -438,5 +456,11 @@ function AppShellContent() {
 /* Providers live at app/layout.tsx now so every route can access them. */
 
 export default function AppShell() {
-  return <AppShellContent />;
+  // Suspense boundary required by Next 15 because AppShellContent
+  // uses useSearchParams() (for the ?artworkId deep-link).
+  return (
+    <Suspense fallback={null}>
+      <AppShellContent />
+    </Suspense>
+  );
 }

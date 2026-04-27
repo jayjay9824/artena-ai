@@ -31,7 +31,8 @@ export interface Recommendation {
 }
 
 export const FILTER_OPTIONS: Record<string, string[]> = {
-  style: ["Minimalism", "Abstraction", "Conceptual", "Photography"],
+  // Spec: All / Minimalism / Abstraction / Conceptual / Korean Modernism
+  style: ["Minimalism", "Abstraction", "Conceptual", "Korean Modernism", "Photography"],
   market: ["Emerging", "Established", "Blue-chip"],
   medium: ["Painting", "Installation", "Photography", "Sculpture"],
 };

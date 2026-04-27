@@ -1,5 +1,6 @@
 "use client";
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useCollection, CollectionItem, makeItemId } from "./hooks/useCollection";
 import { useMyActivity, SavedArtwork, Collection as ColGroup } from "../context/MyActivityContext";
 import { useTabNav } from "../context/TabContext";
@@ -542,11 +543,32 @@ const PAGE_STYLES = `
 /* ─────────────────────────────────────────────────────────────────
    MAIN PAGE
 ───────────────────────────────────────────────────────────────── */
+/** Map the spec's ?tab values onto the internal tab keys. */
+function readTabParam(raw: string | null): MainTab | null {
+  if (!raw) return null;
+  const v = raw.toLowerCase();
+  if (v === "likes" || v === "liked") return "liked";
+  if (v === "saved")                  return "saved";
+  if (v === "collections" || v === "collection") return "collections";
+  return null;
+}
+
 function CollectionPage() {
   const { items: analysisItems, hydrated, patch } = useCollection();
   const { state: myState } = useMyActivity();
+  const searchParams = useSearchParams();
 
-  const [activeTab, setActiveTab]         = useState<MainTab>("saved");
+  const initialTab = readTabParam(searchParams.get("tab")) ?? "saved";
+  const [activeTab, setActiveTab]         = useState<MainTab>(initialTab);
+
+  // Keep activeTab in sync with the query param when it changes
+  // (browser back/forward, or a deep link arriving while mounted).
+  useEffect(() => {
+    const next = readTabParam(searchParams.get("tab"));
+    if (next && next !== activeTab) setActiveTab(next);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
+
   const [sortBy, setSortBy]               = useState<SortKey>("recent");
   const [selectedAnalysis, setSelected]   = useState<CollectionItem | null>(null);
   const [selectedColId, setSelectedColId] = useState<string | null>(null);
@@ -744,4 +766,17 @@ function CollectionPage() {
 }
 
 export { CollectionPage as CollectionPageContent };
-export default CollectionPage;
+
+/**
+ * Default export — wrapped in Suspense because CollectionPage uses
+ * useSearchParams() to honor the ?tab= query param on standalone
+ * `/collection` deep links. The named CollectionPageContent export
+ * stays unwrapped so the analyze shell composes it as before.
+ */
+export default function CollectionPageRoute() {
+  return (
+    <Suspense fallback={null}>
+      <CollectionPage />
+    </Suspense>
+  );
+}

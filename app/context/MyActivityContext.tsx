@@ -3,10 +3,15 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback } 
 
 export interface SavedArtwork {
   artwork_id: string;
+  /** Latest report id if this artwork came from an ARTENA analysis. */
+  report_id?: string;
   image_url: string | null;
   artist_name: string;
   title: string;
   year: string | number;
+  /** Optional metadata extras for archive cards. */
+  medium?: string;
+  period?: string;
   gallery_name: string;
   source: "gallery" | "analysis";
   listing_id?: string;
@@ -192,7 +197,7 @@ function Toast({ data, onDismiss }: { data: ToastData; onDismiss: () => void }) 
       <style>{`@keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
       {data.message}
       {data.actionLabel && (
-        <button onClick={() => { data.onAction?.(); onDismiss(); }} style={{ background: "none", border: "none", color: "#9B8FFF", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "0 0 0 2px", fontFamily: FONT }}>
+        <button onClick={() => { data.onAction?.(); onDismiss(); }} style={{ background: "none", border: "none", color: "#C8B68A", fontSize: 12, fontWeight: 700, cursor: "pointer", padding: "0 0 0 2px", fontFamily: FONT }}>
           {data.actionLabel} →
         </button>
       )}

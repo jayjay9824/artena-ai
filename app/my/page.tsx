@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useMyActivity, SavedArtwork, Collection } from "../context/MyActivityContext";
 import { BottomNav } from "../components/BottomNav";
 import { useTabNav } from "../context/TabContext";
@@ -68,6 +69,26 @@ interface MiniCardProps {
 
 function ArtworkMiniCard({ artwork, meta, onAction, actionLabel, actionIcon, secondaryAction, onView }: MiniCardProps) {
   const { goTo } = useTabNav();
+  const router = useRouter();
+
+  // Spec routing: reportId → /report/{reportId}
+  // else artworkId → /analyze?artworkId={artworkId}
+  const onViewAnalysis = () => {
+    if (artwork.report_id) {
+      router.push(`/report/${artwork.report_id}`);
+    } else if (artwork.artwork_id) {
+      router.push(`/analyze?artworkId=${encodeURIComponent(artwork.artwork_id)}`);
+    } else {
+      goTo("scan");
+    }
+  };
+
+  // Build the secondary metadata line: medium and/or period if present.
+  const metaParts: string[] = [];
+  if (artwork.medium) metaParts.push(artwork.medium);
+  if (artwork.period) metaParts.push(artwork.period);
+  const mediumPeriod = metaParts.join(" · ");
+
   return (
     <div style={{ display: "flex", gap: 14, padding: "16px 0", borderBottom: "0.5px solid #F4F4F4", alignItems: "flex-start" }}>
       <ArtThumb url={artwork.image_url} artist={artwork.artist_name} />
@@ -76,8 +97,22 @@ function ArtworkMiniCard({ artwork, meta, onAction, actionLabel, actionIcon, sec
         <p style={{ fontSize: 12, color: "#555", margin: "0 0 2px", fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           <em>{artwork.title}</em>{artwork.year ? `, ${artwork.year}` : ""}
         </p>
+        {mediumPeriod && (
+          <p style={{ fontSize: 11, color: "#9A9A9A", margin: "0 0 4px", fontFamily: FONT, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {mediumPeriod}
+          </p>
+        )}
         {artwork.gallery_name && (
           <p style={{ fontSize: 11, color: "#AAAAAA", margin: "0 0 6px", fontFamily: FONT }}>{artwork.gallery_name}</p>
+        )}
+        {artwork.source === "analysis" && (
+          <p style={{
+            fontSize: 9, color: "#8A6A3F", letterSpacing: ".18em",
+            textTransform: "uppercase" as const,
+            margin: "2px 0 6px", fontWeight: 600, fontFamily: FONT,
+          }}>
+            Record · ARTENA Analysis
+          </p>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           <StatusBadge status={artwork.status} />
@@ -85,13 +120,13 @@ function ArtworkMiniCard({ artwork, meta, onAction, actionLabel, actionIcon, sec
         </div>
         <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
           {artwork.source === "gallery" && artwork.status === "available" && (
-            <button onClick={() => goTo("gallery")} style={{ fontSize: 10, color: "#5A5AF0", background: "none", border: "0.5px solid #5A5AF0", borderRadius: 20, padding: "4px 10px", cursor: "pointer", fontFamily: FONT, letterSpacing: ".04em" }}>
+            <button onClick={() => goTo("gallery")} style={{ fontSize: 10, color: "#8A6A3F", background: "none", border: "0.5px solid #D9C9A6", borderRadius: 20, padding: "4px 10px", cursor: "pointer", fontFamily: FONT, letterSpacing: ".04em" }}>
               View in Gallery
             </button>
           )}
           {artwork.source === "analysis" && (
-            <button onClick={() => goTo("scan")} style={{ fontSize: 10, color: "#555", background: "none", border: "0.5px solid #D8D8D8", borderRadius: 20, padding: "4px 10px", cursor: "pointer", fontFamily: FONT, letterSpacing: ".04em" }}>
-              View Analysis
+            <button onClick={onViewAnalysis} style={{ fontSize: 10, color: "#1C1A17", background: "none", border: "0.5px solid #D8D8D8", borderRadius: 20, padding: "4px 10px", cursor: "pointer", fontFamily: FONT, letterSpacing: ".04em", fontWeight: 600 }}>
+              View Analysis →
             </button>
           )}
         </div>
@@ -378,6 +413,49 @@ function TabBar({ active, onSelect, counts }: { active: MyTab; onSelect: (t: MyT
   );
 }
 
+/* ── Summary counts row ──────────────────────────────────────────── */
+function SummaryRow({ counts }: { counts: Record<MyTab, number> }) {
+  const cells: { id: MyTab; label: string }[] = [
+    { id: "likes",       label: "Likes"       },
+    { id: "saved",       label: "Saved"       },
+    { id: "collections", label: "Collections" },
+    { id: "recent",      label: "Recent"      },
+  ];
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: "repeat(4, 1fr)",
+      borderTop: "0.5px solid #E7E2D8", borderBottom: "0.5px solid #E7E2D8",
+    }}>
+      {cells.map((c, i) => (
+        <div
+          key={c.id}
+          style={{
+            borderRight: i < cells.length - 1 ? "0.5px solid #E7E2D8" : "none",
+            padding: "16px 8px",
+            textAlign: "center" as const,
+            fontFamily: FONT,
+          }}
+        >
+          <p style={{
+            fontSize: 22, fontWeight: 700, color: "#1C1A17",
+            fontFamily: FONT_HEAD, letterSpacing: "-.02em",
+            margin: "0 0 4px", lineHeight: 1, fontVariantNumeric: "tabular-nums",
+          }}>
+            {counts[c.id]}
+          </p>
+          <p style={{
+            fontSize: 9.5, color: "#8A6A3F", letterSpacing: ".12em",
+            textTransform: "uppercase" as const, margin: 0,
+            fontWeight: 600,
+          }}>
+            {c.label}
+          </p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /* ── Main My Page ────────────────────────────────────────────────── */
 function MyPage() {
   const { state } = useMyActivity();
@@ -392,16 +470,37 @@ function MyPage() {
 
   return (
     <>
-      <div style={{ background: "#FFFFFF", minHeight: "100vh", maxWidth: 640, margin: "0 auto", fontFamily: FONT, paddingBottom: 100 }}>
+      <div style={{ background: "#FFFFFF", minHeight: "100vh", maxWidth: 640, margin: "0 auto", fontFamily: FONT, paddingBottom: 110 }}>
         {/* Header */}
-        <div style={{ padding: "52px 22px 16px", borderBottom: "0.5px solid #EBEBEB" }}>
-          <p style={{ fontSize: 8, color: "#AAAAAA", letterSpacing: ".2em", textTransform: "uppercase", margin: "0 0 6px" }}>ARTENA AI</p>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, fontFamily: FONT_HEAD, letterSpacing: "-.025em", color: "#0D0D0D" }}>My</h1>
-          <p style={{ fontSize: 12, color: "#AAAAAA", margin: "4px 0 0" }}>Personal art archive</p>
+        <div style={{ padding: "52px 22px 22px" }}>
+          <a
+            href="/"
+            style={{
+              display: "inline-block",
+              fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em",
+              textTransform: "uppercase" as const, margin: "0 0 12px",
+              textDecoration: "none", fontFamily: FONT,
+            }}
+          >
+            ARTENA AI
+          </a>
+          <h1 style={{
+            fontSize: 30, fontWeight: 700, margin: "0 0 6px",
+            fontFamily: FONT_HEAD, letterSpacing: "-.03em", color: "#0D0D0D",
+            lineHeight: 1.05,
+          }}>
+            My Archive
+          </h1>
+          <p style={{ fontSize: 13, color: "#6F6F6F", margin: 0, letterSpacing: ".005em" }}>
+            Your personal cultural memory
+          </p>
         </div>
 
+        {/* Summary */}
+        <SummaryRow counts={counts} />
+
         <div style={{ padding: "0 22px" }}>
-          <div style={{ paddingTop: 20 }}>
+          <div style={{ paddingTop: 18 }}>
             <TabBar active={activeTab} onSelect={setActiveTab} counts={counts} />
           </div>
 

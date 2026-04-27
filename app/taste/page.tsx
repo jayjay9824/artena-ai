@@ -1,7 +1,9 @@
 "use client";
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useTasteProfile } from "./hooks/useTasteProfile";
 import { TasteStatement } from "./components/TasteStatement";
+import { TasteClusters } from "./components/TasteClusters";
 import { TasteDimensions } from "./components/TasteDimensions";
 import { VisualPatterns } from "./components/VisualPatterns";
 import { TasteInsight } from "./components/TasteInsight";
@@ -9,6 +11,7 @@ import { BottomNav } from "../components/BottomNav";
 
 function TasteProfilePage() {
   const { profile, isDemo } = useTasteProfile();
+  const router = useRouter();
 
   return (
     <div style={{
@@ -67,6 +70,9 @@ function TasteProfilePage() {
       {/* ── Core Taste Statement ───────────────────────────────── */}
       <TasteStatement profile={profile} isDemo={isDemo} />
 
+      {/* ── Key Taste Clusters (multiple — not a single average) ─ */}
+      <TasteClusters profile={profile} />
+
       {/* ── Taste Dimensions ──────────────────────────────────── */}
       <TasteDimensions dimensions={profile.dimensions} />
 
@@ -75,6 +81,36 @@ function TasteProfilePage() {
 
       {/* ── Taste Insight + CTAs ──────────────────────────────── */}
       <TasteInsight profile={profile} />
+
+      {/* ── Spec CTAs ─────────────────────────────────────────── */}
+      <div style={{ padding: "22px 22px 28px", display: "flex", gap: 10 }}>
+        <button
+          onClick={() => router.push("/recommendations")}
+          style={{
+            flex: 1, padding: "14px 0",
+            background: "#111111", color: "#FFFFFF",
+            border: "none", borderRadius: 12, cursor: "pointer",
+            fontSize: 13, fontWeight: 700, letterSpacing: ".04em",
+            fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+          }}
+        >
+          Explore Recommendations
+        </button>
+        <button
+          onClick={() => router.push("/collection")}
+          style={{
+            flex: 1, padding: "14px 0",
+            background: "#FFFFFF",
+            border: "0.5px solid #E7E2D8",
+            borderRadius: 12, cursor: "pointer",
+            color: "#1C1A17",
+            fontSize: 13, fontWeight: 600, letterSpacing: ".02em",
+            fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+          }}
+        >
+          View Collection
+        </button>
+      </div>
 
       <BottomNav currentTab="taste" />
 
