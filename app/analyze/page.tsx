@@ -12,6 +12,8 @@ import { TastePageContent } from "../taste/page";
 import { RecommendationsPageContent } from "../recommendations/page";
 import { GalleryPageContent } from "../gallery/page";
 import { MyPageContent } from "../my/page";
+import { saveReport } from "../services/reportService";
+import type { SourceType } from "../lib/types";
 
 /* ── Types (kept local for the scan analysis shape) ───────────── */
 
@@ -57,6 +59,7 @@ function ScanScreen() {
   const [reportData,    setReportData]    = useState<MarketIntelligenceData | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [showScanner,   setShowScanner]   = useState(false);
+  const [reportId,      setReportId]      = useState<string | null>(null);
 
   const handleIntroComplete = useCallback(() => setShowIntro(false), []);
 
@@ -72,6 +75,24 @@ function ScanScreen() {
     setPendingFile(file);
     setError(null);
     setScreen("preview");
+  };
+
+  // Fire-and-forget report persistence. Failure just means the share
+  // button has no deep-link target — the rest of the screen still works.
+  const persistReport = async (
+    a: Analysis,
+    imageUrl: string | null,
+    sourceType: SourceType,
+  ) => {
+    const id = await saveReport({
+      artist:          a.artist  ?? "Unknown",
+      title:           a.title   ?? "Untitled",
+      imageUrl:        imageUrl ?? undefined,
+      analysisSummary: a.description ?? "",
+      analysisFull:    a as unknown as Record<string, unknown>,
+      sourceType,
+    });
+    if (id) setReportId(id);
   };
 
   const compressIfNeeded = (file: File): Promise<Blob> => {
@@ -119,6 +140,7 @@ function ScanScreen() {
       if (!json.success) throw new Error(json.error || "분석 실패");
       setAnalysis(json.data);
       setScreen("result");
+      persistReport(json.data, dataUrl, "image");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
       setScreen("upload");
@@ -143,6 +165,7 @@ function ScanScreen() {
       if (!json.success) throw new Error(json.error || "분석 실패");
       setAnalysis(json.data);
       setScreen("result");
+      persistReport(json.data, imagePreview, "image");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
       setScreen("preview");
@@ -169,8 +192,17 @@ function ScanScreen() {
       if (imgQuery.trim()) {
         fetch(`/api/wiki-image?q=${encodeURIComponent(imgQuery)}`)
           .then(r => r.json())
-          .then(img => { if (img.url) setImagePreview(img.url); })
-          .catch(() => {});
+          .then(img => {
+            const url = img.url ?? null;
+            if (url) setImagePreview(url);
+            // Persist after wiki image lands so the saved report has it.
+            persistReport(json.data, url, "text");
+          })
+          .catch(() => {
+            persistReport(json.data, null, "text");
+          });
+      } else {
+        persistReport(json.data, null, "text");
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
@@ -182,6 +214,7 @@ function ScanScreen() {
     setScreen("upload"); setAnalysis(null);
     setImagePreview(null); setPendingFile(null); setError(null);
     setReportType(null); setReportData(null);
+    setReportId(null);
   };
 
   const generateIntelligenceReport = async () => {
@@ -219,10 +252,10 @@ function ScanScreen() {
   if (screen === "preview") {
     return (
       <div style={{ fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18", padding: "52px 22px 100px", maxWidth: 430, margin: "0 auto", background: "#FAF9F6", minHeight: "100vh", boxSizing: "border-box" as const }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22 }}>
+        <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22, textDecoration: "none", color: "inherit" }}>
           <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
           <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase" as const, color: "#CCC" }}>Cultural Intelligence AI</span>
-        </div>
+        </a>
         {imagePreview && (
           <div style={{ width: "100%", borderRadius: 14, overflow: "hidden", marginBottom: 18, background: "#000", boxShadow: "0 4px 24px rgba(0,0,0,0.1)" }}>
             <img src={imagePreview} alt="업로드된 작품" style={{ width: "100%", maxHeight: 420, objectFit: "contain", display: "block" }} />
@@ -251,6 +284,7 @@ function ScanScreen() {
         onFullReport={generateIntelligenceReport}
         reportLoading={reportLoading && reportType === "intelligence"}
         reportData={reportType === "intelligence" && !reportLoading ? (reportData as MarketIntelligenceData | null) : null}
+        reportId={reportId ?? undefined}
       />
     );
   }

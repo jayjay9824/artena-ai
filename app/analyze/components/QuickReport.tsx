@@ -30,6 +30,12 @@ export interface QuickReportProps {
   onFullReport: () => void;
   reportLoading: boolean;
   reportData: MarketIntelligenceData | null;
+  /**
+   * If set, the share button posts /report/<id> instead of just the
+   * artwork title. Pass this once the analysis has been persisted via
+   * saveReport().
+   */
+  reportId?: string;
 }
 
 /* ── Analytics ───────────────────────────────────────────────── */
@@ -39,7 +45,8 @@ type TrackableEvent =
   | "artwork_saved" | "artwork_unsaved"
   | "artwork_added_to_collection"
   | "view_collection_clicked"
-  | "ask_artena_clicked";
+  | "ask_artena_clicked"
+  | "artwork_shared";
 
 function trackEvent(event: TrackableEvent, artworkId: string) {
   track(event, { artworkId });
@@ -296,6 +303,7 @@ export function QuickReport({
   onFullReport,
   reportLoading,
   reportData,
+  reportId,
 }: QuickReportProps) {
   const [actions, setActions] = useState({ liked: false, saved: false, collected: false });
   const [heartAnim, setHeartAnim]     = useState(false);
@@ -469,7 +477,32 @@ export function QuickReport({
               {/* Share button */}
               <button
                 style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,0.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.18)" }}
-                onClick={() => { if (navigator.share) navigator.share({ title: a.artist ?? "", text: a.title ?? "" }); }}
+                onClick={async () => {
+                  // Build share URL only when the report has been persisted.
+                  // Without an id we can't deep-link, so fall back to a
+                  // text-only share or clipboard copy of the title.
+                  const url = reportId && typeof window !== "undefined"
+                    ? `${window.location.origin}/report/${reportId}`
+                    : null;
+                  const shareTitle = a.artist || "ARTENA";
+                  const shareText  = a.title  || "Cultural Intelligence Report";
+                  trackEvent("artwork_shared", itemId);
+                  if (typeof navigator !== "undefined" && navigator.share) {
+                    try {
+                      await navigator.share({ title: shareTitle, text: shareText, ...(url ? { url } : {}) });
+                      return;
+                    } catch {
+                      /* user dismissed — fall through to clipboard */
+                    }
+                  }
+                  if (url && typeof navigator !== "undefined" && navigator.clipboard) {
+                    try {
+                      await navigator.clipboard.writeText(url);
+                      setToast({ message: "링크가 복사되었습니다" });
+                      setTimeout(() => setToast(null), 2400);
+                    } catch { /* noop */ }
+                  }
+                }}
               >
                 <svg width="15" height="15" viewBox="0 0 15 15" fill="none">
                   <path d="M10 2L13.5 5.5L10 9" stroke="#111" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
@@ -481,9 +514,9 @@ export function QuickReport({
 
           {/* Artwork info — bottom of hero */}
           <div style={{ position: "absolute" as const, bottom: 0, left: 0, right: 0, padding: "0 22px 28px" }}>
-            <p style={{ fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: ".22em", textTransform: "uppercase" as const, margin: "0 0 10px" }}>
+            <a href="/" style={{ display: "inline-block", fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: ".22em", textTransform: "uppercase" as const, margin: "0 0 10px", textDecoration: "none" }}>
               ARTENA AI
-            </p>
+            </a>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: "#FFF", margin: "0 0 5px", lineHeight: 1.2, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
               {a.artist || artistFallback(a)}
             </h1>

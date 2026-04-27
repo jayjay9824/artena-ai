@@ -1,11 +1,9 @@
 "use client";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect } from "react";
 import { HomeHero } from "./HomeHero";
 import { PrimaryQRScanCard } from "./PrimaryQRScanCard";
-import { UsageGuide } from "./UsageGuide";
-import { FallbackSection } from "./FallbackSection";
 import { SecondaryInputGrid } from "./SecondaryInputGrid";
-import { ArtenaGraph } from "./ArtenaGraph";
+import { DataLayers } from "./DataLayers";
 
 interface HomeScreenProps {
   /** Opens SmartScanner (QR / artwork / label) */
@@ -63,20 +61,10 @@ export function HomeScreen({
         </div>
       )}
 
-      {/* 2. Primary QR Scan */}
+      {/* 2. Smart Scan CTA (primary) */}
       <PrimaryQRScanCard onScan={onOpenScanner} />
 
-      {/* 3. Usage Guide */}
-      <UsageGuide />
-
-      {/* 4. Fallback UX */}
-      <FallbackSection
-        onCamera={onOpenScanner}
-        onLabel={onOpenScanner}
-        onTextSearch={onTextSubmit}
-      />
-
-      {/* 5. Secondary Inputs */}
+      {/* 3. Alternative Inputs (secondary) */}
       <SecondaryInputGrid
         onFileSelected={onFileSelected}
         onCamera={onOpenScanner}
@@ -85,19 +73,8 @@ export function HomeScreen({
         }}
       />
 
-      {/* 6. Intelligence Graph */}
-      <ArtenaGraph />
-
-      {/* Paste hint */}
-      <p style={{
-        textAlign: "center" as const,
-        fontSize: 10.5, color: "#CCCCCC",
-        letterSpacing: ".04em",
-        fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-        marginTop: -8,
-      }}>
-        이미지를 클립보드에서 Ctrl+V로 붙여넣을 수 있습니다
-      </p>
+      {/* 4. ARTENA reads — minimal data layers row */}
+      <DataLayers />
     </div>
   );
 }

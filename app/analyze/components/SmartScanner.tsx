@@ -576,12 +576,15 @@ export function SmartScanner({
           <IcoArrowLeft size={18} />
         </button>
 
-        <span style={{
-          fontSize: 13, letterSpacing: ".11em", color: "rgba(255,255,255,0.88)",
-          fontWeight: 500,
-        }}>
+        <a
+          href="/"
+          style={{
+            fontSize: 13, letterSpacing: ".11em", color: "rgba(255,255,255,0.88)",
+            fontWeight: 500, textDecoration: "none",
+          }}
+        >
           ARTENA Scanner
-        </span>
+        </a>
 
         <button onClick={toggleFlash} style={{
           width: 38, height: 38,

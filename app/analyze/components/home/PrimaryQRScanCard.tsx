@@ -76,7 +76,7 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
             padding: "4px 11px", borderRadius: 20,
             fontWeight: 600,
           }}>
-            스캔 시작
+            Smart Scan
           </span>
         </div>
 
@@ -86,16 +86,15 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
           fontFamily: "'KakaoBigSans', system-ui, sans-serif",
           letterSpacing: "-.015em",
         }}>
-          작품 QR 스캔
+          Smart Scan
         </h2>
 
         {/* Description */}
         <p style={{
-          fontSize: 13, color: "#555", lineHeight: 1.62, margin: "0 0 18px",
+          fontSize: 13, color: "#6F6F6F", lineHeight: 1.62, margin: "0 0 18px",
           fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
         }}>
-          작품, 작품 옆 설명, QR 코드를 스캔하면<br />
-          작품 정보와 전시 맥락을 자동으로 분석합니다.
+          작품, 설명, QR을 한 번에 인식합니다.
         </p>
 
         {/* CTA button */}
@@ -108,30 +107,14 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
             borderRadius: 12, cursor: "pointer",
             fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
             fontSize: 14, fontWeight: 700, color: "#fff", letterSpacing: ".03em",
-            marginBottom: 16,
             display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
             transition: "opacity 0.15s, transform 0.15s",
             boxShadow: "0 3px 14px rgba(138,106,63,0.32)",
           }}
         >
           <IcoQr size={16} color="#fff" />
-          QR 스캔 시작
+          스캔 시작
         </button>
-
-        {/* Feature pills */}
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const }}>
-          {["작품 정보 자동 추출", "전시 / 갤러리 맥락", "시장 데이터 연결"].map(label => (
-            <span key={label} style={{
-              fontSize: 10, color: "#8A6A3F",
-              background: "rgba(138,106,63,0.08)",
-              padding: "4px 10px", borderRadius: 20,
-              fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-              letterSpacing: ".02em",
-            }}>
-              {label}
-            </span>
-          ))}
-        </div>
       </div>
     </>
   );

@@ -32,6 +32,7 @@ export type EventType =
   | "artwork_unsaved"
   | "artwork_added_to_collection"
   | "view_collection_clicked"
+  | "artwork_shared"
   // Conversation
   | "ask_artena_clicked"
   | "ai_question_asked"
