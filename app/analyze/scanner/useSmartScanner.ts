@@ -8,7 +8,7 @@ import {
   pickPrimary,
   targetToState,
 } from "./types";
-import { DetectionService, MockDetectionService } from "./detectionService";
+import { DetectionService, MockDetectionService, BarcodeDetectionService } from "./detectionService";
 
 /* ── Hook options & return ──────────────────────────────────────────── */
 
@@ -46,6 +46,10 @@ export interface UseSmartScannerReturn {
   primary:      Detection | null;
   analyzeLabel: string;
   flashOn:      boolean;
+  /** True when ambient brightness is below threshold — UI prompts torch. */
+  lowLight:     boolean;
+  /** Whether real QR detection (BarcodeDetector) is wired vs. mock fallback. */
+  realDetection: boolean;
   videoRef:     React.RefObject<HTMLVideoElement | null>;
   retry:        () => void;
   toggleFlash:  () => Promise<void>;
@@ -100,6 +104,8 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
   const [tick,            setTick]            = useState(0);
   const [flashOn,         setFlashOn]         = useState(false);
   const [analyzeLabel,    setAnalyzeLabel]    = useState("Reading visual signals");
+  const [lowLight,        setLowLight]        = useState(false);
+  const [realDetection,   setRealDetection]   = useState(false);
 
   /* ── 1. Camera lifecycle ──────────────────────────────────────────── */
 
@@ -112,12 +118,39 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
         return;
       }
       try {
+        // Higher resolution + frame rate floor → cleaner preview at
+        // night and a sharper canvas frame on capture. Browsers
+        // negotiate down on devices that can't deliver these idealss.
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "environment", width: { ideal: 1280 }, height: { ideal: 720 } },
+          video: {
+            facingMode: "environment",
+            width:     { ideal: 1920 },
+            height:    { ideal: 1080 },
+            frameRate: { ideal: 30 },
+          },
           audio: false,
         });
         if (cancelled) { stream.getTracks().forEach(t => t.stop()); return; }
         streamRef.current = stream;
+
+        // Apply continuous auto-exposure / focus / white-balance where
+        // supported. Materially better in low light because the camera
+        // keeps adjusting instead of locking to the first reading.
+        const track = stream.getVideoTracks()[0];
+        if (track) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const caps: any = track.getCapabilities ? track.getCapabilities() : {};
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const advanced: any[] = [];
+          if (caps.exposureMode     && Array.isArray(caps.exposureMode)     && caps.exposureMode.includes("continuous"))     advanced.push({ exposureMode: "continuous" });
+          if (caps.focusMode        && Array.isArray(caps.focusMode)        && caps.focusMode.includes("continuous"))        advanced.push({ focusMode: "continuous" });
+          if (caps.whiteBalanceMode && Array.isArray(caps.whiteBalanceMode) && caps.whiteBalanceMode.includes("continuous")) advanced.push({ whiteBalanceMode: "continuous" });
+          if (advanced.length > 0) {
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            try { await (track as any).applyConstraints({ advanced }); } catch { /* not all devices honor every constraint */ }
+          }
+        }
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           await videoRef.current.play().catch(() => {});
@@ -142,12 +175,66 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
     if (cameraStatus !== "ready") return;
     if (scanState !== "idle") return;
 
-    const svc: DetectionService | null =
-      service ?? (mockDetectionEnabled ? new MockDetectionService() : null);
+    // Prefer the real BarcodeDetector when the browser supports it —
+    // boxes then sit on the actual QR position instead of the mock's
+    // hardcoded corner. Fall back to MockDetectionService for
+    // browsers without the API (Firefox today).
+    let svc: DetectionService | null = service ?? null;
+    if (!svc) {
+      if (BarcodeDetectionService.isSupported()) {
+        svc = new BarcodeDetectionService(videoRef);
+        setRealDetection(true);
+      } else if (mockDetectionEnabled) {
+        svc = new MockDetectionService();
+        setRealDetection(false);
+      }
+    }
     if (!svc) return;
 
     return svc.subscribe(setRawDetections);
   }, [cameraStatus, scanState, service, mockDetectionEnabled, debugCycleEnabled]);
+
+  /* ── 2b. Low-light sampling (~1 Hz) ───────────────────────────────── */
+  /*
+   * Draws a tiny 24×24 sample of the video into an off-DOM canvas and
+   * computes average luminance (Rec. 601). Below ~55 → we surface a
+   * "Low light — turn on torch" hint in the UI. Cheap; doesn't compete
+   * with the BarcodeDetector loop.
+   */
+  useEffect(() => {
+    if (cameraStatus !== "ready") return;
+    if (scanState !== "idle") return;
+    if (typeof document === "undefined") return;
+
+    const canvas = document.createElement("canvas");
+    canvas.width  = 24;
+    canvas.height = 24;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+
+    const sample = () => {
+      const video = videoRef.current;
+      if (!video || video.readyState < 2 || video.videoWidth === 0) return;
+      try {
+        ctx.drawImage(video, 0, 0, 24, 24);
+        const { data } = ctx.getImageData(0, 0, 24, 24);
+        let sum = 0;
+        for (let i = 0; i < data.length; i += 4) {
+          // Rec. 601 luminance, fast int math
+          sum += (data[i] * 299 + data[i + 1] * 587 + data[i + 2] * 114) / 1000;
+        }
+        const avg = sum / (data.length / 4);     // 0..255
+        // 55 is roughly the threshold where exhibition QR codes start
+        // becoming unreadable in our internal testing. With torch on we
+        // suppress the hint regardless.
+        setLowLight(avg < 55 && !flashOn);
+      } catch { /* ignore sampling errors */ }
+    };
+
+    sample();
+    const id = setInterval(sample, 1100);
+    return () => clearInterval(id);
+  }, [cameraStatus, scanState, flashOn]);
 
   /* ── 3. Confidence jitter tick (only while idle) ──────────────────── */
 
@@ -319,6 +406,8 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
     primary,
     analyzeLabel,
     flashOn,
+    lowLight,
+    realDetection,
     videoRef,
     retry,
     toggleFlash,

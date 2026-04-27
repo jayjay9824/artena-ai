@@ -76,11 +76,123 @@ export class MockDetectionService implements DetectionService {
   }
 }
 
-/* ── Future plug-points ─────────────────────────────────────────────── */
+/* ── Real QR detection — native BarcodeDetector ─────────────────────── */
 /*
- * class WebQRService implements DetectionService { ... }   // jsQR / BarcodeDetector
- * class VisionAPIService implements DetectionService { ... } // server-side inference
+ * Uses the browser's BarcodeDetector API (Chrome / Edge / iOS Safari 17+).
+ * Falls back gracefully — `isSupported()` lets the caller pick the
+ * MockDetectionService when the API is unavailable (Firefox today).
  *
- * The hook accepts any DetectionService, so adding real detection later
- * is a one-line swap at the call site.
+ * Why this exists: with the mock, the QR badge always lands in the
+ * same corner regardless of where the user's actual QR is. Real
+ * detection puts the box on the real QR.
  */
+
+interface BarcodeDetectorBoundingBox {
+  x: number; y: number; width: number; height: number;
+}
+interface DetectedBarcode {
+  boundingBox: BarcodeDetectorBoundingBox;
+  rawValue:    string;
+  format:      string;
+}
+interface BarcodeDetectorCtor {
+  new (opts?: { formats?: string[] }): {
+    detect(source: HTMLVideoElement | HTMLImageElement): Promise<DetectedBarcode[]>;
+  };
+}
+
+export class BarcodeDetectionService implements DetectionService {
+  private videoRef:   { current: HTMLVideoElement | null };
+  private timer:      ReturnType<typeof setInterval> | null = null;
+  private intervalMs: number;
+
+  constructor(videoRef: { current: HTMLVideoElement | null }, intervalMs = 250) {
+    this.videoRef   = videoRef;
+    this.intervalMs = intervalMs;
+  }
+
+  /** True if BarcodeDetector is available in this browser. */
+  static isSupported(): boolean {
+    return typeof window !== "undefined" && "BarcodeDetector" in window;
+  }
+
+  subscribe(listener: DetectionListener): () => void {
+    if (!BarcodeDetectionService.isSupported()) {
+      // Caller should have checked isSupported() — but no-op safely.
+      return () => {};
+    }
+
+    const Ctor = (window as unknown as { BarcodeDetector: BarcodeDetectorCtor }).BarcodeDetector;
+    let detector: { detect(s: HTMLVideoElement | HTMLImageElement): Promise<DetectedBarcode[]> };
+    try {
+      detector = new Ctor({ formats: ["qr_code"] });
+    } catch {
+      return () => {};
+    }
+
+    let lastSerialized = "";
+    let inFlight = false;
+
+    const tick = async () => {
+      if (inFlight) return;
+      const video = this.videoRef.current;
+      if (!video || video.readyState < 2 || video.videoWidth === 0) return;
+
+      inFlight = true;
+      try {
+        const codes = await detector.detect(video);
+        if (codes.length === 0) {
+          if (lastSerialized !== "[]") {
+            lastSerialized = "[]";
+            listener([]);
+          }
+          return;
+        }
+
+        const vw = video.videoWidth;
+        const vh = video.videoHeight;
+        const detections: Detection[] = codes.map((c, i) => {
+          const bb = c.boundingBox;
+          return {
+            id:         `qr-${c.rawValue.slice(0, 24) || i}`,
+            target:     "qr",
+            // Convert pixel bbox to viewport % so the UI overlay scales
+            // with the video's object-fit: cover layout.
+            x:          (bb.x / vw) * 100,
+            y:          (bb.y / vh) * 100,
+            w:          (bb.width  / vw) * 100,
+            h:          (bb.height / vh) * 100,
+            confidence: 0.95,
+          };
+        });
+
+        // Skip listener calls when the detection set hasn't changed —
+        // avoids re-renders during steady tracking.
+        const serialized = detections
+          .map(d => `${d.id}|${d.x.toFixed(1)},${d.y.toFixed(1)}`)
+          .sort()
+          .join(";");
+        if (serialized !== lastSerialized) {
+          lastSerialized = serialized;
+          listener(detections);
+        }
+      } catch {
+        /* one-off frame errors are fine — keep ticking */
+      } finally {
+        inFlight = false;
+      }
+    };
+
+    // Emit initial empty so the UI clears any prior mock state.
+    listener([]);
+    this.timer = setInterval(tick, this.intervalMs);
+    void tick();
+
+    return () => {
+      if (this.timer !== null) {
+        clearInterval(this.timer);
+        this.timer = null;
+      }
+    };
+  }
+}

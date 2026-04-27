@@ -397,6 +397,7 @@ export function SmartScanner({
     primary,
     analyzeLabel,
     flashOn,
+    lowLight,
     videoRef,
     retry,
     toggleFlash,
@@ -655,6 +656,34 @@ export function SmartScanner({
           padding: "0 22px 44px",
           display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
         }}>
+          {/* Low-light hint — surfaces when avg luminance drops; tappable
+              shortcut to the existing flash button. */}
+          <AnimatePresence>
+            {lowLight && scanState === "idle" && !isFailed && (
+              <motion.button
+                key="low-light"
+                onClick={toggleFlash}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.22 }}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 7,
+                  padding: "7px 14px",
+                  background: "rgba(255,215,50,0.14)",
+                  border: "0.5px solid rgba(255,215,50,0.32)",
+                  borderRadius: 18,
+                  color: "#FFD93A", fontSize: 11, fontWeight: 600,
+                  letterSpacing: ".04em",
+                  fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+                  cursor: "pointer",
+                }}
+              >
+                <IcoZap size={12} color="#FFD93A" />
+                Low light — tap to turn on torch
+              </motion.button>
+            )}
+          </AnimatePresence>
           <div style={{ textAlign: "center", marginBottom: 2, minHeight: 44 }}>
             <motion.p
               key={`primary-${scanState}`}
