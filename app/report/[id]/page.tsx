@@ -33,7 +33,7 @@ export default function SharedReportPage() {
   if (state.kind === "loading") {
     return (
       <div style={{
-        minHeight: "100vh", background: "#FAF9F6",
+        minHeight: "100vh", background: "#F8F7F4",
         display: "flex", alignItems: "center", justifyContent: "center",
         fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
       }}>
@@ -59,7 +59,7 @@ export default function SharedReportPage() {
   if (state.kind === "missing") {
     return (
       <div style={{
-        minHeight: "100vh", background: "#FAF9F6",
+        minHeight: "100vh", background: "#F8F7F4",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "0 28px", textAlign: "center" as const,
         fontFamily: "'KakaoSmallSans', system-ui, sans-serif",

@@ -115,6 +115,21 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
           <IcoQr size={16} color="#fff" />
           스캔 시작
         </button>
+
+        {/* Small tags — what Smart Scan reads */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginTop: 14 }}>
+          {["작품", "설명", "QR"].map(label => (
+            <span key={label} style={{
+              fontSize: 10, color: "#8A6A3F",
+              background: "rgba(138,106,63,0.08)",
+              padding: "4px 10px", borderRadius: 20,
+              fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+              letterSpacing: ".04em",
+            }}>
+              {label}
+            </span>
+          ))}
+        </div>
       </div>
     </>
   );

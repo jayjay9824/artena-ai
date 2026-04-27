@@ -406,6 +406,20 @@ export function ArtAssistantScreen({
               ◆ {categoryLabel}
             </span>
           </div>
+
+          {/* ARTENA logo line — clickable, links to home */}
+          <a
+            href="/"
+            style={{
+              display: "block",
+              fontSize: 8, color: "#8A6A3F", letterSpacing: ".22em",
+              textTransform: "uppercase", margin: "10px 0 0 50px",
+              textDecoration: "none",
+              fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+            }}
+          >
+            ARTENA AI · Ask
+          </a>
         </div>
 
         {/* ── Messages scroll area ───────────────────────────────────────── */}

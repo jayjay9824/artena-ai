@@ -654,6 +654,18 @@ function CollectionPage() {
 
         {/* Header */}
         <div style={{ padding: "60px 24px 0" }}>
+          <a
+            href="/"
+            style={{
+              display: "inline-block",
+              fontSize: 9, color: "#8A6A3F",
+              letterSpacing: ".22em", textTransform: "uppercase",
+              margin: "0 0 14px", textDecoration: "none",
+              fontFamily: F,
+            }}
+          >
+            ARTENA AI
+          </a>
           <h1 style={{ fontSize: 32, fontWeight: 700, color: "#0A0A0A", margin: "0 0 4px", fontFamily: FH, letterSpacing: "-.025em", lineHeight: 1 }}>
             Collection
           </h1>

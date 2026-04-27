@@ -43,7 +43,7 @@ export function HomeScreen({
       padding: "52px 22px 120px",
       maxWidth: 430,
       margin: "0 auto",
-      background: "#FAF9F6",
+      background: "#F8F7F4",
       minHeight: "100vh",
       boxSizing: "border-box" as const,
       fontFamily: "'KakaoSmallSans', system-ui, sans-serif",

@@ -21,12 +21,17 @@ function TasteProfilePage() {
       <div style={{ padding: "58px 22px 22px", borderBottom: "0.5px solid #F2F2F2" }}>
         <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between" }}>
           <div>
-            <p style={{
-              fontSize: 8, color: "#D0D0D0", letterSpacing: ".18em", textTransform: "uppercase",
-              margin: "0 0 8px", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-            }}>
+            <a
+              href="/"
+              style={{
+                display: "inline-block",
+                fontSize: 8, color: "#8A6A3F", letterSpacing: ".18em", textTransform: "uppercase",
+                margin: "0 0 8px", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+                textDecoration: "none",
+              }}
+            >
               ARTENA AI · Cultural Intelligence
-            </p>
+            </a>
             <h1 style={{
               fontSize: 26, fontWeight: 700, color: "#0A0A0A", margin: "0 0 4px",
               fontFamily: "'KakaoBigSans', system-ui, sans-serif", letterSpacing: "-.025em", lineHeight: 1,

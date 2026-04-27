@@ -36,7 +36,17 @@ interface Analysis {
 function LoadingSpinner() {
   return (
     <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minHeight: 280, gap: 20 }}>
-      <div style={{ width: 40, height: 40, border: "3px solid #f0ece8", borderTop: "3px solid #1a1a18", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
+      <a
+        href="/"
+        style={{
+          fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em",
+          textTransform: "uppercase", textDecoration: "none",
+          fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+        }}
+      >
+        ARTENA AI
+      </a>
+      <div style={{ width: 40, height: 40, border: "3px solid #EBE6DB", borderTop: "3px solid #8A6A3F", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ textAlign: "center" }}>
         <p style={{ fontSize: 14, color: "#555", marginBottom: 4 }}>작가와 작품을 ARTENA AI가 분석중입니다</p>
@@ -251,7 +261,7 @@ function ScanScreen() {
   // Preview — confirm uploaded image before analysis
   if (screen === "preview") {
     return (
-      <div style={{ fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18", padding: "52px 22px 100px", maxWidth: 430, margin: "0 auto", background: "#FAF9F6", minHeight: "100vh", boxSizing: "border-box" as const }}>
+      <div style={{ fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18", padding: "52px 22px 100px", maxWidth: 430, margin: "0 auto", background: "#F8F7F4", minHeight: "100vh", boxSizing: "border-box" as const }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22, textDecoration: "none", color: "inherit" }}>
           <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
           <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase" as const, color: "#CCC" }}>Cultural Intelligence AI</span>
@@ -295,7 +305,7 @@ function ScanScreen() {
     return (
       <div style={{
         maxWidth: 430, margin: "0 auto", minHeight: "100vh",
-        background: imagePreview ? "#000" : "#FAF9F6",
+        background: imagePreview ? "#000" : "#F8F7F4",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: "0 22px",
         position: "relative" as const, overflow: "hidden",

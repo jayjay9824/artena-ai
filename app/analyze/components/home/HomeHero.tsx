@@ -18,7 +18,7 @@ export function HomeHero() {
           fontFamily: "'KakaoBigSans', system-ui, sans-serif", color: "#111",
           fontWeight: 800,
         }}>
-          ARTENA
+          ARTENA AI
         </span>
         <span style={{
           fontSize: 8.5, letterSpacing: ".18em", textTransform: "uppercase" as const,
