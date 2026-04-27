@@ -11,6 +11,8 @@ import { useMyActivity, SavedArtwork } from "../../context/MyActivityContext";
 import { useTabNav } from "../../context/TabContext";
 import { CollectionPicker } from "../../my/CollectionPicker";
 import { trackEvent as track } from "../lib/analytics";
+import { getQuickReportChips } from "../lib/suggestedQuestions";
+import type { QuestionType } from "../../types/assistant";
 
 /* ── Types ───────────────────────────────────────────────────── */
 
@@ -310,6 +312,8 @@ export function QuickReport({
   const [showAssistant, setShowAssistant] = useState(false);
   const [showCollectionPicker, setShowCollectionPicker] = useState(false);
   const [toast, setToast]             = useState<ToastState | null>(null);
+  const [pendingQuestion, setPendingQuestion] = useState<{ text: string; type: QuestionType } | null>(null);
+  const [analysisExpanded, setAnalysisExpanded] = useState(false);
 
   const { items, upsert, patch }           = useCollection();
   const itemId                              = makeItemId(a.artist, a.title);
@@ -484,8 +488,11 @@ export function QuickReport({
                   const url = reportId && typeof window !== "undefined"
                     ? `${window.location.origin}/report/${reportId}`
                     : null;
-                  const shareTitle = a.artist || "ARTENA";
-                  const shareText  = a.title  || "Cultural Intelligence Report";
+                  // Spec format: "ARTENA AI 분석 리포트: {artist} - {title}"
+                  const artistText = a.artist || artistFallback(a);
+                  const titleText  = a.title  || "Untitled";
+                  const shareTitle = "ARTENA AI 분석 리포트";
+                  const shareText  = `ARTENA AI 분석 리포트: ${artistText} - ${titleText}`;
                   trackEvent("artwork_shared", itemId);
                   if (typeof navigator !== "undefined" && navigator.share) {
                     try {
@@ -536,11 +543,34 @@ export function QuickReport({
           <div style={{ paddingTop: 32, paddingBottom: 28, borderBottom: "0.5px solid #F0F0F0" }}>
             <SectionLabel text="아르테나 인사이트" />
 
-            {a.description && (
-              <p style={{ fontSize: 14, fontWeight: 500, color: "#111", lineHeight: 1.78, margin: "0 0 20px" }}>
-                {a.description.length > 150 ? a.description.slice(0, 150) + "…" : a.description}
-              </p>
-            )}
+            {a.description && (() => {
+              const TRUNC = 150;
+              const isLong = a.description.length > TRUNC;
+              const text = !isLong || analysisExpanded
+                ? a.description
+                : a.description.slice(0, TRUNC) + "…";
+              return (
+                <div style={{ marginBottom: 20 }}>
+                  <p style={{ fontSize: 14, fontWeight: 500, color: "#111", lineHeight: 1.78, margin: 0 }}>
+                    {text}
+                  </p>
+                  {isLong && (
+                    <button
+                      onClick={() => setAnalysisExpanded(v => !v)}
+                      style={{
+                        marginTop: 10,
+                        padding: "6px 0", border: "none", background: "transparent",
+                        color: "#8A6A3F", fontSize: 11.5, fontWeight: 600,
+                        letterSpacing: ".04em", cursor: "pointer",
+                        fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+                      }}
+                    >
+                      {analysisExpanded ? "접기 ↑" : "더 보기 ↓"}
+                    </button>
+                  )}
+                </div>
+              );
+            })()}
 
             <div style={{ display: "flex", flexDirection: "column" as const, gap: 11, marginBottom: 20 }}>
               {bullets.map((b, i) => (
@@ -731,10 +761,51 @@ export function QuickReport({
             </button>
           </div>
 
+          {/* Contextual question chips — tap to open Ask with that question
+              already submitted. Same logic as the chat empty-state, but
+              trimmed to 3 picks for the QuickReport surface. */}
+          {(() => {
+            const chips = getQuickReportChips(a);
+            if (chips.length === 0) return null;
+            return (
+              <div style={{
+                padding: "8px 18px 4px",
+                display: "flex", flexWrap: "wrap" as const, gap: 7,
+              }}>
+                {chips.map(q => (
+                  <button
+                    key={q.text}
+                    onClick={() => {
+                      setPendingQuestion({ text: q.text, type: q.type });
+                      setShowAssistant(true);
+                      trackEvent("ask_artena_clicked", itemId);
+                    }}
+                    style={{
+                      padding: "8px 14px",
+                      background: "#FFFFFF",
+                      border: "0.5px solid #E7E2D8",
+                      borderRadius: 22,
+                      cursor: "pointer",
+                      fontSize: 12, color: "#1C1A17",
+                      fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+                      letterSpacing: "-.005em",
+                      lineHeight: 1.3,
+                      transition: "background .12s, border-color .12s, transform .12s",
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "#F4EFE5"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#D9C9A6"; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "#FFFFFF"; (e.currentTarget as HTMLButtonElement).style.borderColor = "#E7E2D8"; }}
+                  >
+                    {q.text}
+                  </button>
+                ))}
+              </div>
+            );
+          })()}
+
           {/* Secondary: Ask ARTENA */}
-          <div style={{ padding: "2px 18px 24px" }}>
+          <div style={{ padding: "8px 18px 24px" }}>
             <button
-              onClick={() => { setShowAssistant(true); trackEvent("ask_artena_clicked", itemId); }}
+              onClick={() => { setPendingQuestion(null); setShowAssistant(true); trackEvent("ask_artena_clicked", itemId); }}
               className="qr-ask-btn"
               style={{
                 width: "100%", padding: "13px 0",
@@ -772,7 +843,8 @@ export function QuickReport({
           analysis={a}
           imagePreview={imagePreview}
           reportData={reportData}
-          onClose={() => setShowAssistant(false)}
+          onClose={() => { setShowAssistant(false); setPendingQuestion(null); }}
+          initialQuestion={pendingQuestion ?? undefined}
         />
       )}
     </>

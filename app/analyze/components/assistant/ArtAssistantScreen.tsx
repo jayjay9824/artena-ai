@@ -2,120 +2,9 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import type { QRAnalysis } from "../QuickReport";
 import type { MarketIntelligenceData } from "../MarketIntelligenceReport";
-import type { ChatMessage, QuestionType, SuggestedQuestion } from "../../../types/assistant";
+import type { ChatMessage, QuestionType } from "../../../types/assistant";
 import { trackEvent, makeArtworkId } from "../../lib/analytics";
-
-/* ── Signal detection ─────────────────────────────────────────────────────── */
-
-type MarketPosition = "Emerging" | "Established" | "Blue-chip";
-
-function deriveMarketPosition(a: QRAnalysis): MarketPosition {
-  if (a.category === "architecture" || a.category === "artifact" || a.category === "cultural_site") {
-    return "Established";
-  }
-  const note    = (a.marketNote ?? "").toLowerCase();
-  const auCount = a.auctions?.length    ?? 0;
-  const colCount= a.collections?.length ?? 0;
-  if (note.includes("blue-chip") || (auCount >= 6 && colCount >= 5)) return "Blue-chip";
-  if (note.includes("emerging") || note.includes("신진") || (auCount === 0 && colCount <= 1)) return "Emerging";
-  return "Established";
-}
-
-/** Topical signals derived from style + keywords */
-function deriveTopics(a: QRAnalysis): Set<string> {
-  const haystack = [
-    a.style ?? "",
-    ...(a.keywords ?? []),
-    a.description ?? "",
-  ].join(" ").toLowerCase();
-
-  const topics = new Set<string>();
-  if (/(풍경|산수|landscape|scenery)/.test(haystack))           topics.add("landscape");
-  if (/(초상|portrait|figure|얼굴)/.test(haystack))              topics.add("portrait");
-  if (/(추상|abstract)/.test(haystack))                          topics.add("abstract");
-  if (/(정물|still life|still-life)/.test(haystack))             topics.add("still_life");
-  if (/(미니멀|minimal)/.test(haystack))                         topics.add("minimal");
-  if (/(개념|conceptual|conceptualism)/.test(haystack))          topics.add("conceptual");
-  if (/(설치|installation)/.test(haystack))                      topics.add("installation");
-  if (/(사진|photograph)/.test(haystack))                        topics.add("photography");
-  if (/(조각|sculpture)/.test(haystack))                         topics.add("sculpture");
-  return topics;
-}
-
-/* ── Suggested questions — signal-driven ──────────────────────────────────── */
-
-function getSuggestedQuestions(a: QRAnalysis): SuggestedQuestion[] {
-  // Architecture / artifact / cultural site flows stay category-driven.
-  if (a.category === "architecture") {
-    return [
-      { text: "이 건축물의 역사적 의의는 무엇인가요?", type: "interpretation" },
-      { text: "건축 양식의 특징을 설명해줘",         type: "interpretation" },
-      { text: "같은 건축가의 다른 대표작은?",         type: "comparison"     },
-      { text: "왜 세계유산으로 지정됐나요?",          type: "market"         },
-      { text: "비슷한 건축물을 추천해줘",             type: "recommendation" },
-    ];
-  }
-  if (a.category === "artifact" || a.category === "cultural_site") {
-    return [
-      { text: "이 유물의 문화적 의의는?",      type: "interpretation" },
-      { text: "어느 시대 작품인가요?",         type: "interpretation" },
-      { text: "현재 어디서 볼 수 있나요?",      type: "market"         },
-      { text: "비슷한 문화재를 추천해줘",       type: "recommendation" },
-      { text: "이 유물이 중요한 이유는?",      type: "market"         },
-    ];
-  }
-
-  // Artwork — build a 5-chip set tuned to market position + topical signals.
-  const position = deriveMarketPosition(a);
-  const topics   = deriveTopics(a);
-  const out: SuggestedQuestion[] = [];
-
-  // Lead chip — always interpretation, but phrasing depends on position.
-  out.push(
-    position === "Emerging"
-      ? { text: "이 작가의 작업 세계는 어떤 흐름인가요?", type: "interpretation" }
-      : { text: "이 작품 왜 중요한가요?",              type: "interpretation" }
-  );
-
-  // Market chip — phrasing depends on data depth.
-  if (position === "Blue-chip") {
-    out.push({ text: "최근 5년 경매 가격 흐름은 어떤가요?", type: "market" });
-  } else if (position === "Emerging") {
-    out.push({ text: "초기 컬렉터들에게 이 작가는 어떤 의미인가요?", type: "market" });
-  } else {
-    out.push({ text: "시장 가치는 어떻게 보나요?", type: "market" });
-  }
-
-  // Comparison chip — emerging artists need similar-style discovery,
-  // established/blue-chip benefit from "other major works".
-  out.push(
-    position === "Emerging"
-      ? { text: "유사한 스타일로 작업하는 작가는?", type: "comparison" }
-      : { text: "이 작가의 다른 대표작은?",        type: "comparison" }
-  );
-
-  // Topical chip — strongest signal wins.
-  if (topics.has("landscape")) {
-    out.push({ text: "이 장소는 어디인가요?", type: "interpretation" });
-  } else if (topics.has("portrait")) {
-    out.push({ text: "그려진 인물은 누구인가요?", type: "interpretation" });
-  } else if (topics.has("abstract") || topics.has("conceptual")) {
-    out.push({ text: "어떤 개념을 다루는 작품인가요?", type: "interpretation" });
-  } else if (topics.has("installation")) {
-    out.push({ text: "어떤 공간에 설치되었던 작업인가요?", type: "interpretation" });
-  } else {
-    out.push({ text: "비슷한 작가를 추천해줘", type: "recommendation" });
-  }
-
-  // Closing chip — purchase-intent signal (also feeds Data Flywheel later).
-  out.push(
-    position === "Blue-chip"
-      ? { text: "지금 구매하기에 적정한 가격대인가요?",  type: "market" }
-      : { text: "왜 나에게 추천된 작품인가요?",         type: "taste_profile" }
-  );
-
-  return out;
-}
+import { getSuggestedQuestions } from "../../lib/suggestedQuestions";
 
 /* ── Text line renderer ──────────────────────────────────────────────────── */
 
@@ -175,6 +64,13 @@ export interface ArtAssistantScreenProps {
   imagePreview: string | null;
   reportData?: MarketIntelligenceData | null;
   onClose: () => void;
+  /**
+   * If set, the chat opens with this question already submitted (as if
+   * the user had clicked a chip on the QuickReport screen). Tapped
+   * once on QuickReport, sent automatically here — never an empty
+   * chat with a "what would you like to ask?" dead-end.
+   */
+  initialQuestion?: { text: string; type?: QuestionType };
 }
 
 /* ── Main component ──────────────────────────────────────────────────────── */
@@ -184,6 +80,7 @@ export function ArtAssistantScreen({
   imagePreview,
   reportData,
   onClose,
+  initialQuestion,
 }: ArtAssistantScreenProps) {
   const [messages, setMessages]             = useState<ChatMessage[]>([]);
   const [streamingContent, setStreaming]    = useState("");
@@ -304,6 +201,19 @@ export function ArtAssistantScreen({
       setStreaming("");
     }
   }, [messages, isStreaming, analysis, reportData]);
+
+  /* ── Auto-send the chip-tapped question on mount ────────────────────── */
+  // Guarded by a ref so React strict-mode double-mount doesn't double-send.
+  const sentInitialRef = useRef(false);
+  useEffect(() => {
+    if (sentInitialRef.current) return;
+    if (!initialQuestion?.text)  return;
+    sentInitialRef.current = true;
+    void sendMessage(initialQuestion.text, initialQuestion.type ?? "interpretation", true);
+    // sendMessage intentionally omitted from deps — its identity changes
+    // every render and we only ever want this to fire once on mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialQuestion]);
 
   const categoryLabel = analysis.category === "architecture"
     ? "건축 기준"
