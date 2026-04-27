@@ -84,12 +84,29 @@ export function GalleryDashboard({ galleryId, galleryName }: DashboardProps) {
           }}>
             {galleryName}
           </h1>
-          <p style={{
-            fontSize: 13, color: "#6F6F6F", margin: 0,
-            letterSpacing: ".005em",
-          }}>
-            Interest, intent, and lead signals from ARTENA collectors.
-          </p>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 16 }}>
+            <p style={{
+              fontSize: 13, color: "#6F6F6F", margin: 0,
+              letterSpacing: ".005em",
+            }}>
+              Interest, intent, and lead signals from ARTENA collectors.
+            </p>
+            <a
+              href="/console/bulk-upload"
+              style={{
+                flexShrink: 0,
+                padding: "8px 14px",
+                background: "#FFFFFF",
+                border: "0.5px solid #D9C9A6",
+                borderRadius: 10,
+                fontSize: 11, fontWeight: 600, color: "#8A6A3F",
+                letterSpacing: ".04em", textDecoration: "none",
+                fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+              }}
+            >
+              Bulk Upload →
+            </a>
+          </div>
         </header>
 
         {/* Metric cards */}

@@ -36,7 +36,7 @@ const tierGte = (a: UserTier, b: UserTier) => TIERS.indexOf(a) >= TIERS.indexOf(
 
 /* ── Verified badge ─────────────────────────────────────────────── */
 const BADGE: Record<VerifiedTier, { label: string; color: string }> = {
-  approved: { label: "ARTENA Verified", color: "#5A5AF0" },
+  approved: { label: "ARTENA Verified", color: "#8A6A3F" },
   premium:  { label: "Premium Gallery", color: "#0D0D0D" },
   partner:  { label: "Partner Gallery", color: "#B5860A" },
 };
@@ -66,14 +66,17 @@ function StatusPill({ status }: { status: GalleryListing["status"] }) {
 }
 
 /* ── Price line ─────────────────────────────────────────────────── */
+/**
+ * Spec rule: priceVisible (i.e. visibility === "public" | "range_only")
+ * → show the actual figure(s). Otherwise → "Price available upon
+ * inquiry". Non-marketplace tone — never $0K-style placeholders.
+ */
 function PriceLine({ price, style: s }: { price: GalleryListing["price"]; style?: React.CSSProperties }) {
   const fmt = (n: number) => new Intl.NumberFormat("en-US", { style: "currency", currency: price.currency, maximumFractionDigits: 0 }).format(n);
-  const text = {
-    hidden:           "Price unavailable",
-    price_on_request: "Price on request",
-    range_only:       `${fmt(price.range_min!)} – ${fmt(price.range_max!)}`,
-    public:           fmt(price.value!),
-  }[price.visibility];
+  const text =
+    price.visibility === "public"     ? fmt(price.value!)
+  : price.visibility === "range_only" ? `${fmt(price.range_min!)} – ${fmt(price.range_max!)}`
+  :                                     "Price available upon inquiry";
   return <span style={{ fontSize: 12, color: "#666", fontFamily: FONT, ...s }}>{text}</span>;
 }
 
@@ -129,43 +132,64 @@ function HoldModal({ listing, onClose }: { listing: GalleryListing; onClose: () 
 }
 
 /* ── Quick Action Buttons (on card) ─────────────────────────────── */
+/**
+ * Spec actions: View with ARTENA AI / Inquire / Ask Gallery.
+ * Hold + Waitlist remain as tier-gated capabilities — those are
+ * existing features (we don't delete them) but they sit behind the
+ * three primary connection-layer actions.
+ */
 function QuickActions({ listing, userTier, onHold }: {
   listing: GalleryListing; userTier: UserTier; onHold: () => void;
 }) {
-  const { status, price, hold_policy, gallery } = listing;
+  const { status, price, hold_policy, gallery, artwork_id } = listing;
   const primary = gallery.communication_channels.find(c => c.is_primary) ?? gallery.communication_channels[0];
   const canInquire = tierGte(userTier, "verified_collector");
   const canHold    = tierGte(userTier, "trusted_collector") && hold_policy.allow_hold;
 
-  const pill = (label: string, onClick: () => void, disabled?: boolean) => (
+  const pill = (label: string, onClick: () => void, disabled?: boolean, accent: "neutral" | "bronze" = "neutral") => (
     <button
       key={label}
       onClick={e => { e.stopPropagation(); if (!disabled) onClick(); }}
       style={{
-        padding: "7px 14px", border: `0.5px solid ${disabled ? "#EBEBEB" : "#C8C8C8"}`,
-        background: "transparent", borderRadius: 20,
-        fontSize: 11, color: disabled ? "#CCCCCC" : "#444",
+        padding: "7px 14px",
+        border: `0.5px solid ${disabled ? "#EBEBEB" : accent === "bronze" ? "#D9C9A6" : "#C8C8C8"}`,
+        background: accent === "bronze" && !disabled ? "#F4EFE5" : "transparent",
+        borderRadius: 20,
+        fontSize: 11,
+        color: disabled ? "#CCCCCC" : accent === "bronze" ? "#8A6A3F" : "#444",
         fontFamily: FONT, cursor: disabled ? "default" : "pointer",
         letterSpacing: ".02em", transition: "all .12s",
+        fontWeight: accent === "bronze" ? 600 : 400,
       }}
     >{label}</button>
   );
 
   const buttons: React.ReactNode[] = [];
 
-  // Contact — always available
-  if (primary) {
-    buttons.push(pill("Contact", () => window.open(primary.url, "_blank")));
+  // Primary spec action — opens the artwork inside the ARTENA analysis
+  // surface so the collector can read it through ARTENA's lens.
+  buttons.push(pill(
+    "View with ARTENA AI",
+    () => { window.location.href = `/analyze?artworkId=${encodeURIComponent(artwork_id)}`; },
+    false,
+    "bronze",
+  ));
+
+  // Inquire — formerly "Request Price"; broader scope per spec.
+  if (status === "available" && price.visibility !== "hidden") {
+    buttons.push(pill("Inquire", () => alert("Inquiry sent to the gallery."), !canInquire));
   }
 
-  if (status === "available") {
-    if (price.visibility !== "hidden") {
-      buttons.push(pill("Request Price", () => alert("가격 문의가 전송되었습니다."), !canInquire));
-    }
-    if (hold_policy.allow_hold) {
-      buttons.push(pill("Hold", onHold, !canHold));
-    }
-  } else if (status === "held") {
+  // Ask Gallery — opens the gallery's primary channel.
+  if (primary) {
+    buttons.push(pill("Ask Gallery", () => window.open(primary.url, "_blank")));
+  }
+
+  // Existing capabilities (kept — spec: 기존 기능 삭제 금지).
+  if (status === "available" && hold_policy.allow_hold) {
+    buttons.push(pill("Hold", onHold, !canHold));
+  }
+  if (status === "held") {
     buttons.push(pill("Join Waitlist", () => alert("Waitlist 등록 요청이 전송되었습니다."), !tierGte(userTier, "premium")));
   }
 
@@ -337,26 +361,32 @@ function BottomSheet({ listing, userTier, onClose, onViewDetail, onViewGallery, 
 
           <div style={{ height: "0.5px", background: "#F0F0F0", margin: "16px 0" }} />
 
-          {/* Action buttons */}
-          {status === "available" && (
-            <>
-              {price.visibility !== "hidden" && (
-                <BtnFilled
-                  label="Request Price"
-                  disabled={!canInquire}
-                  note={!canInquire ? "Collector verification required" : undefined}
-                  onClick={() => { alert("가격 문의가 전송되었습니다."); }}
-                />
-              )}
-              {hold_policy.allow_hold && (
-                <BtnFilled
-                  label="Hold Request"
-                  disabled={!canHold}
-                  note={!canHold ? "Trusted collector status required for Hold" : undefined}
-                  onClick={() => { dismiss(); setTimeout(onHold, 340); }}
-                />
-              )}
-            </>
+          {/* Action buttons — spec primary: View with ARTENA AI / Inquire / Ask Gallery */}
+          <BtnFilled
+            label="View with ARTENA AI"
+            onClick={() => { window.location.href = `/analyze?artworkId=${encodeURIComponent(listing.artwork_id)}`; }}
+          />
+          {status === "available" && price.visibility !== "hidden" && (
+            <BtnFilled
+              label="Inquire"
+              disabled={!canInquire}
+              note={!canInquire ? "Collector verification required" : undefined}
+              onClick={() => { alert("Inquiry sent to the gallery."); }}
+            />
+          )}
+          {primary && (
+            <BtnFilled
+              label="Ask Gallery"
+              onClick={() => window.open(primary.url, "_blank")}
+            />
+          )}
+          {status === "available" && hold_policy.allow_hold && (
+            <BtnFilled
+              label="Hold Request"
+              disabled={!canHold}
+              note={!canHold ? "Trusted collector status required for Hold" : undefined}
+              onClick={() => { dismiss(); setTimeout(onHold, 340); }}
+            />
           )}
           {status === "held" && (
             <BtnFilled
@@ -425,10 +455,10 @@ function ArtworkActions({ listing, stopProp }: { listing: GalleryListing; stopPr
         <span style={{ color: "#EBEBEB", fontSize: 12, userSelect: "none" }}>|</span>
 
         {/* Save */}
-        <button style={{ ...btnStyle(saved), color: saved ? "#5A5AF0" : "#C8C8C8" }} onClick={wrap(() => saved ? unsave(artwork.artwork_id) : save(artwork, () => goTo("my")))}>
+        <button style={{ ...btnStyle(saved), color: saved ? "#8A6A3F" : "#C8C8C8" }} onClick={wrap(() => saved ? unsave(artwork.artwork_id) : save(artwork, () => goTo("my")))}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none">
             <path d="M4 2h8a1 1 0 0 1 1 1v10.5l-5-3-5 3V3a1 1 0 0 1 1-1Z"
-              fill={saved ? "#5A5AF0" : "none"} stroke={saved ? "#5A5AF0" : "#C8C8C8"} strokeWidth="1.3" strokeLinejoin="round" />
+              fill={saved ? "#8A6A3F" : "none"} stroke={saved ? "#8A6A3F" : "#C8C8C8"} strokeWidth="1.3" strokeLinejoin="round" />
           </svg>
           {saved ? "Saved" : "Save"}
         </button>
@@ -598,7 +628,7 @@ function GalleryPickerModal({ onSelect, onClose }: { onSelect: (id: string) => v
               <p style={{ fontSize: 11, color: "#C8C8C8", margin: 0, fontFamily: FONT }}>{g.description_short}</p>
             </div>
             <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, marginLeft: 12, flexShrink: 0 }}>
-              {g.verified_status && <span style={{ fontSize: 8, color: "#5A5AF0", letterSpacing: ".1em", fontFamily: FONT }}>◆ VERIFIED</span>}
+              {g.verified_status && <span style={{ fontSize: 8, color: "#8A6A3F", letterSpacing: ".1em", fontFamily: FONT }}>◆ VERIFIED</span>}
               <svg width="12" height="12" viewBox="0 0 14 14" fill="none">
                 <path d="M5 2L10 7L5 12" stroke="#CCCCCC" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
@@ -704,16 +734,24 @@ function GalleryPage() {
       }}>
         {/* Header */}
         <div style={{ padding: "52px 22px 20px", borderBottom: "0.5px solid #EBEBEB", marginBottom: 20 }}>
-          <p style={{ fontSize: 8, color: "#AAAAAA", letterSpacing: ".2em", textTransform: "uppercase", margin: "0 0 6px", fontFamily: FONT }}>
-            Powered by ARTENA AI
-          </p>
+          <a
+            href="/"
+            style={{
+              display: "inline-block",
+              fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em",
+              textTransform: "uppercase", margin: "0 0 8px",
+              textDecoration: "none", fontFamily: FONT,
+            }}
+          >
+            ARTENA AI
+          </a>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div>
-              <h1 style={{ fontSize: 24, fontWeight: 700, margin: "0 0 4px", fontFamily: FONT_HEAD, letterSpacing: "-.025em", color: "#0D0D0D" }}>
+              <h1 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 4px", fontFamily: FONT_HEAD, letterSpacing: "-.03em", color: "#0D0D0D", lineHeight: 1.1 }}>
                 ARTENA Gallery
               </h1>
-              <p style={{ fontSize: 12, color: "#AAAAAA", margin: 0, fontFamily: FONT }}>
-                Available works from verified galleries
+              <p style={{ fontSize: 13, color: "#6F6F6F", margin: 0, fontFamily: FONT }}>
+                Verified galleries and curated available works
               </p>
             </div>
             <DemoTierBadge tier={userTier} onCycle={() => setTierIdx(i => (i + 1) % TIERS.length)} />

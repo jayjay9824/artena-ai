@@ -54,7 +54,7 @@ function CoverArea({ gallery }: { gallery: Gallery }) {
 const BADGE_META: Record<VerifiedTier, { label: string; color: string; desc: string }> = {
   approved: {
     label: "ARTENA Verified Gallery",
-    color: "#5A5AF0",
+    color: "#8A6A3F",
     desc: "ARTENA에서 검증된 갤러리입니다.\n작가, 전시, 거래 이력을 기반으로 승인되었습니다.",
   },
   premium: {

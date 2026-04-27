@@ -27,7 +27,7 @@ function ArtworkImage({ url, title, artist }: { url: string | null; title: strin
 
 /* ── Verified badge (in gallery block) ─────────────────────────── */
 const BADGE_META: Record<VerifiedTier, { label: string; color: string }> = {
-  approved: { label: "ARTENA Verified Gallery", color: "#5A5AF0" },
+  approved: { label: "ARTENA Verified Gallery", color: "#8A6A3F" },
   premium:  { label: "Premium Gallery",         color: "#0D0D0D" },
   partner:  { label: "ARTENA Partner Gallery",  color: "#B5860A" },
 };
