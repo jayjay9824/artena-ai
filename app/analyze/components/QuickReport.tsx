@@ -1,5 +1,6 @@
 "use client";
 import React, { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { MarketIntelligenceReport, MarketIntelligenceData } from "./MarketIntelligenceReport";
 import { ArtAssistantScreen } from "./assistant/ArtAssistantScreen";
 import {
@@ -326,6 +327,7 @@ export function QuickReport({
   const itemId                              = makeItemId(a.artist, a.title);
   const { isLiked, isSaved, like, unlike, save, unsave, addRecentlyViewed } = useMyActivity();
   const { goTo }                            = useTabNav();
+  const router                              = useRouter();
 
   const artwork: SavedArtwork = {
     artwork_id: itemId,
@@ -386,7 +388,11 @@ export function QuickReport({
       if (next) {
         save(artwork, undefined);
         trackEvent("artwork_saved", itemId);
-        showToast("저장되었습니다", "컬렉션 보기", () => { trackEvent("view_collection_clicked", itemId); goTo("collection"); });
+        showToast("저장되었습니다", "컬렉션 보기", () => {
+          trackEvent("view_collection_clicked", itemId);
+          // Spec STEP 5: View Saved → /collection?tab=saved (deep-link)
+          router.push("/collection?tab=saved");
+        });
       } else {
         unsave(artwork.artwork_id);
         trackEvent("artwork_unsaved", itemId);
@@ -394,7 +400,7 @@ export function QuickReport({
       return { ...prev, saved: next };
     });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemId, items, a, imagePreview, showToast, goTo]);
+  }, [itemId, items, a, imagePreview, showToast, router]);
 
   // Collection — opens picker
   const openCollectionPicker = useCallback(() => {
@@ -409,9 +415,13 @@ export function QuickReport({
   const onCollectionDone = useCallback(() => {
     setShowCollectionPicker(false);
     trackEvent("artwork_added_to_collection", itemId);
-    showToast("컬렉션에 추가되었습니다", "컬렉션 보기", () => { trackEvent("view_collection_clicked", itemId); goTo("collection"); });
+    showToast("컬렉션에 추가되었습니다", "컬렉션 보기", () => {
+      trackEvent("view_collection_clicked", itemId);
+      // Spec STEP 5: View Collection → /collection?tab=collections
+      router.push("/collection?tab=collections");
+    });
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itemId, showToast, goTo]);
+  }, [itemId, showToast, router]);
 
   const position   = deriveMarketPosition(a);
   const confidence = deriveConfidence(a);

@@ -35,9 +35,12 @@ export interface ToastData {
 }
 
 interface State {
+  /** Spec STEP 5: defaults to "guest" until auth lands. */
+  userId: string;
   likes: SavedArtwork[];
   saved: SavedArtwork[];
   collections: Collection[];
+  /** Spec name maps to "recent". */
   recentlyViewed: RecentlyViewedItem[];
   toast: ToastData | null;
 }
@@ -56,7 +59,7 @@ type Action =
   | { type: "SHOW_TOAST"; data: ToastData }
   | { type: "HIDE_TOAST" };
 
-const INITIAL: State = { likes: [], saved: [], collections: [], recentlyViewed: [], toast: null };
+const INITIAL: State = { userId: "guest", likes: [], saved: [], collections: [], recentlyViewed: [], toast: null };
 let _tid = 0;
 
 function reducer(state: State, action: Action): State {
