@@ -2,6 +2,7 @@
 import { useMemo } from "react";
 import { TasteProfile, TasteDimension, VisualPattern, SignalStrength } from "../types/taste";
 import { useCollection, CollectionItem } from "../../collection/hooks/useCollection";
+import { useMyActivity, SavedArtwork } from "../../context/MyActivityContext";
 
 /* ── Demo profile (shown when collection is empty) ────────────── */
 
@@ -193,20 +194,142 @@ function computeProfile(items: CollectionItem[]): TasteProfile {
   };
 }
 
+/* ── MyActivity bridge ───────────────────────────────────────────
+ * Spec STEP 7: profile is built from likes / saved / collections.
+ * Recent is a viewing log, not affinity, so it's excluded from the
+ * count + cluster signal. Items that lack a full analysis (came
+ * from gallery / onboarding rather than the analyze flow) still
+ * contribute via title / period / medium / artist token scanning
+ * + an artist-cluster hint table for the canonical seed roster.
+ */
+
+/** Lowercased artist name → cluster keywords seeded from canonical. */
+const ARTIST_CLUSTER_HINTS: Record<string, string[]> = {
+  "kim whanki":     ["korean", "modernism"],
+  "김환기":          ["korean", "modernism"],
+  "lee ufan":       ["mono-ha", "minimal", "korean"],
+  "이우환":          ["mono-ha", "minimal", "korean"],
+  "park seo-bo":    ["dansaekhwa", "단색화", "minimal", "korean"],
+  "박서보":          ["dansaekhwa", "단색화", "minimal", "korean"],
+  "yayoi kusama":   ["infinity", "pattern", "repetition"],
+  "쿠사마 야요이":   ["infinity", "pattern", "repetition"],
+  "mark rothko":    ["color", "abstract"],
+  "마크 로스코":     ["color", "abstract"],
+  "gerhard richter":["abstract", "gestural"],
+};
+
+const TEXT_CLUSTER_TERMS: { term: string; category: VisualPattern["category"] }[] = [
+  { term: "minimal",      category: "style"    },
+  { term: "abstract",     category: "style"    },
+  { term: "abstraction",  category: "style"    },
+  { term: "infinity",     category: "style"    },
+  { term: "pattern",      category: "style"    },
+  { term: "repetition",   category: "style"    },
+  { term: "korean",       category: "style"    },
+  { term: "modernism",    category: "style"    },
+  { term: "dansaek",      category: "style"    },
+  { term: "단색",          category: "style"    },
+  { term: "단색화",        category: "style"    },
+  { term: "mono-ha",      category: "style"    },
+  { term: "ecriture",     category: "concept"  },
+  { term: "묘법",          category: "concept"  },
+  { term: "conceptual",   category: "concept"  },
+  { term: "concept",      category: "concept"  },
+  { term: "identity",     category: "concept"  },
+  { term: "정체성",        category: "concept"  },
+  { term: "color",        category: "concept"  },
+  { term: "material",     category: "material" },
+  { term: "installation", category: "material" },
+  { term: "sculpture",    category: "material" },
+  { term: "restrain",     category: "concept"  },
+  { term: "silence",      category: "emotion"  },
+];
+
+function patternsFromSaved(s: SavedArtwork): VisualPattern[] {
+  const out: VisualPattern[] = [];
+  const blob = `${s.title ?? ""} ${s.artist_name ?? ""} ${s.period ?? ""} ${s.medium ?? ""}`.toLowerCase();
+
+  // Artist-anchored hints — high confidence for our canonical roster.
+  const artistKey = (s.artist_name ?? "").toLowerCase();
+  const hints     = ARTIST_CLUSTER_HINTS[artistKey] ?? [];
+  for (const term of hints) {
+    out.push({ keyword: term, weight: 0.65, category: "style" });
+  }
+
+  // Free-text term scan — catches non-roster artworks.
+  for (const t of TEXT_CLUSTER_TERMS) {
+    if (blob.includes(t.term)) {
+      out.push({ keyword: t.term, weight: 0.45, category: t.category });
+    }
+  }
+  return out;
+}
+
+/** Merge analysis-collection items + MyActivity items, deduped by id. */
+function gatherSignalSources(
+  analysisItems: CollectionItem[],
+  my: ReturnType<typeof useMyActivity>["state"],
+): { items: CollectionItem[]; extraPatterns: VisualPattern[]; size: number } {
+  const seen = new Set(analysisItems.map(i => i.id));
+  const collectionArtworks = my.collections.flatMap(c => c.items.map(ci => ci.artwork));
+  const fromMy: SavedArtwork[] = [...my.likes, ...my.saved, ...collectionArtworks]
+    .filter(a => !seen.has(a.artwork_id));
+
+  // Dedupe my-side too — same artwork in likes + saved should count once.
+  const dedupedMy = Array.from(new Map(fromMy.map(a => [a.artwork_id, a])).values());
+
+  const extraPatterns = dedupedMy.flatMap(patternsFromSaved);
+  return {
+    items: analysisItems,
+    extraPatterns,
+    size:  analysisItems.length + dedupedMy.length,
+  };
+}
+
 /* ── Hook ─────────────────────────────────────────────────────── */
 
 export function useTasteProfile(): { profile: TasteProfile; isDemo: boolean; hydrated: boolean } {
-  const { items, hydrated } = useCollection();
+  const { items: analysisItems, hydrated } = useCollection();
+  const { state: my }                       = useMyActivity();
 
   const profile = useMemo(() => {
     if (!hydrated) return DEMO_PROFILE;
-    if (items.length === 0) return DEMO_PROFILE;
-    return computeProfile(items);
-  }, [items, hydrated]);
+
+    const signals = gatherSignalSources(analysisItems, my);
+
+    // Both stores empty → demo profile (unchanged behavior).
+    if (signals.size === 0) return DEMO_PROFILE;
+
+    // Compute the rich profile from analysis items, then bolt on the
+    // MyActivity-derived patterns + size. computeProfile handles the
+    // empty analysisItems case too — extra patterns still drive
+    // clusters even when there's no analyze-flow data.
+    const base = computeProfile(signals.items);
+
+    const mergedPatterns = [...base.patterns, ...signals.extraPatterns]
+      .sort((a, b) => b.weight - a.weight)
+      .slice(0, 24);
+
+    const signalStrength: SignalStrength =
+      signals.size >= 7 ? "defined" :
+      signals.size >= 3 ? "emerging" : "forming";
+
+    return {
+      ...base,
+      patterns:        mergedPatterns,
+      collectionSize:  signals.size,
+      signalStrength,
+    };
+  }, [analysisItems, hydrated, my]);
+
+  const totalEmpty = analysisItems.length === 0
+    && my.likes.length === 0
+    && my.saved.length === 0
+    && my.collections.length === 0;
 
   return {
     profile,
-    isDemo: hydrated && items.length === 0,
+    isDemo: hydrated && totalEmpty,
     hydrated,
   };
 }

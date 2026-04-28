@@ -30,7 +30,7 @@ const RULES: ClusterRule[] = [
     match: ["color", "chromatic", "saturat", "field", "abstract", "추상", "색"],
   },
   {
-    name:  "Conceptual Inquiry",
+    name:  "Conceptual Sensibility",
     blurb: "Ideas as material, identity as structure",
     match: ["conceptual", "identity", "정체성", "concept", "language"],
   },
