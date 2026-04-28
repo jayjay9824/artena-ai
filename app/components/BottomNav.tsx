@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { useTabNav, AppTab } from "../context/TabContext";
+import { useLanguage } from "../i18n/useLanguage";
 
 const ROUTES: Record<AppTab, string> = {
   scan: "/analyze",
@@ -17,6 +18,7 @@ interface BottomNavProps {
 
 export function BottomNav({ currentTab }: BottomNavProps) {
   const { goTo, inShell } = useTabNav();
+  const { t } = useLanguage();
 
   const navigate = (tab: AppTab) => {
     if (inShell) {
@@ -58,14 +60,14 @@ export function BottomNav({ currentTab }: BottomNavProps) {
       padding: "10px 22px 22px",
       boxSizing: "border-box" as const, zIndex: 100,
     }}>
-      <Item tab="scan" label="스캔">
+      <Item tab="scan" label={t("nav.scan")}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <circle cx="10" cy="10" r="8.2" stroke="currentColor" strokeWidth="1.3" />
           <path d="M7 10h6M10 7v6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
         </svg>
       </Item>
 
-      <Item tab="collection" label="컬렉션">
+      <Item tab="collection" label={t("nav.collection")}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           {currentTab === "collection" ? (
             <>
@@ -85,7 +87,7 @@ export function BottomNav({ currentTab }: BottomNavProps) {
         </svg>
       </Item>
 
-      <Item tab="taste" label="취향">
+      <Item tab="taste" label={t("nav.taste")}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <circle cx="10" cy="10" r="3.5" stroke="currentColor" strokeWidth="1.3"
             fill={currentTab === "taste" ? "currentColor" : "none"}
@@ -94,7 +96,7 @@ export function BottomNav({ currentTab }: BottomNavProps) {
         </svg>
       </Item>
 
-      <Item tab="recommendations" label="추천">
+      <Item tab="recommendations" label={t("nav.recommendations")}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <path
             d="M10 2.5L12.2 8H18L13.4 11.5L15.2 17L10 13.8L4.8 17L6.6 11.5L2 8H7.8L10 2.5Z"
@@ -104,7 +106,7 @@ export function BottomNav({ currentTab }: BottomNavProps) {
         </svg>
       </Item>
 
-      <Item tab="my" label="My">
+      <Item tab="my" label={t("nav.my")}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           <circle cx="10" cy="7" r="3" stroke="currentColor" strokeWidth="1.3"
             fill={currentTab === "my" ? "currentColor" : "none"} fillOpacity={currentTab === "my" ? 0.2 : 0} />
@@ -112,7 +114,7 @@ export function BottomNav({ currentTab }: BottomNavProps) {
         </svg>
       </Item>
 
-      <Item tab="gallery" label="갤러리">
+      <Item tab="gallery" label={t("nav.gallery")}>
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
           {currentTab === "gallery" ? (
             <>

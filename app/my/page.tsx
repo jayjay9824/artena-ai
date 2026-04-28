@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useMyActivity, SavedArtwork, Collection } from "../context/MyActivityContext";
 import { BottomNav } from "../components/BottomNav";
 import { useTabNav } from "../context/TabContext";
+import { useLanguage } from "../i18n/useLanguage";
 
 const FONT = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif";
 const FONT_HEAD = "'KakaoBigSans', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif";
@@ -423,26 +424,27 @@ function RecentlyViewedTab() {
 
 /* ── Tab bar ─────────────────────────────────────────────────────── */
 function TabBar({ active, onSelect, counts }: { active: MyTab; onSelect: (t: MyTab) => void; counts: Record<MyTab, number> }) {
+  const { t } = useLanguage();
   const tabs: { id: MyTab; label: string }[] = [
-    { id: "likes", label: "Likes" },
-    { id: "saved", label: "Saved" },
-    { id: "collections", label: "Collections" },
-    { id: "recent", label: "Recent" },
+    { id: "likes",       label: t("my.tab_likes")       },
+    { id: "saved",       label: t("my.tab_saved")       },
+    { id: "collections", label: t("my.tab_collections") },
+    { id: "recent",      label: t("my.tab_recent")      },
   ];
   return (
     <div style={{ display: "flex", borderBottom: "0.5px solid #EBEBEB", marginBottom: 4 }}>
-      {tabs.map(t => (
-        <button key={t.id} onClick={() => onSelect(t.id)} style={{
+      {tabs.map(tb => (
+        <button key={tb.id} onClick={() => onSelect(tb.id)} style={{
           flex: 1, padding: "10px 4px", background: "none", border: "none", cursor: "pointer",
-          borderBottom: active === t.id ? "1.5px solid #0D0D0D" : "1.5px solid transparent",
-          fontFamily: FONT, fontSize: 11, fontWeight: active === t.id ? 700 : 400,
-          color: active === t.id ? "#0D0D0D" : "#AAAAAA", letterSpacing: ".04em",
+          borderBottom: active === tb.id ? "1.5px solid #0D0D0D" : "1.5px solid transparent",
+          fontFamily: FONT, fontSize: 11, fontWeight: active === tb.id ? 700 : 400,
+          color: active === tb.id ? "#0D0D0D" : "#AAAAAA", letterSpacing: ".04em",
           display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
         }}>
-          {t.label}
-          {counts[t.id] > 0 && (
-            <span style={{ fontSize: 9, color: active === t.id ? "#0D0D0D" : "#C8C8C8", fontFamily: FONT }}>
-              {counts[t.id]}
+          {tb.label}
+          {counts[tb.id] > 0 && (
+            <span style={{ fontSize: 9, color: active === tb.id ? "#0D0D0D" : "#C8C8C8", fontFamily: FONT }}>
+              {counts[tb.id]}
             </span>
           )}
         </button>
@@ -453,11 +455,12 @@ function TabBar({ active, onSelect, counts }: { active: MyTab; onSelect: (t: MyT
 
 /* ── Summary counts row ──────────────────────────────────────────── */
 function SummaryRow({ counts }: { counts: Record<MyTab, number> }) {
+  const { t } = useLanguage();
   const cells: { id: MyTab; label: string }[] = [
-    { id: "likes",       label: "Likes"       },
-    { id: "saved",       label: "Saved"       },
-    { id: "collections", label: "Collections" },
-    { id: "recent",      label: "Recent"      },
+    { id: "likes",       label: t("my.tab_likes")       },
+    { id: "saved",       label: t("my.tab_saved")       },
+    { id: "collections", label: t("my.tab_collections") },
+    { id: "recent",      label: t("my.tab_recent")      },
   ];
   return (
     <div style={{
@@ -497,6 +500,7 @@ function SummaryRow({ counts }: { counts: Record<MyTab, number> }) {
 /* ── Main My Page ────────────────────────────────────────────────── */
 function MyPage() {
   const { state } = useMyActivity();
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState<MyTab>("likes");
 
   const counts: Record<MyTab, number> = {
@@ -520,17 +524,17 @@ function MyPage() {
               textDecoration: "none", fontFamily: FONT,
             }}
           >
-            ARTENA AI
+            {t("common.app_name")}
           </a>
           <h1 style={{
             fontSize: 30, fontWeight: 700, margin: "0 0 6px",
             fontFamily: FONT_HEAD, letterSpacing: "-.03em", color: "#0D0D0D",
             lineHeight: 1.05,
           }}>
-            My Archive
+            {t("my.title")}
           </h1>
           <p style={{ fontSize: 13, color: "#6F6F6F", margin: 0, letterSpacing: ".005em" }}>
-            Your personal cultural memory
+            {t("my.tagline")}
           </p>
         </div>
 

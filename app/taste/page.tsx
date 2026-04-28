@@ -2,6 +2,7 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { useTasteProfile } from "./hooks/useTasteProfile";
+import { useLanguage } from "../i18n/useLanguage";
 import { TasteStatement } from "./components/TasteStatement";
 import { TasteClusters } from "./components/TasteClusters";
 import { TasteDimensions } from "./components/TasteDimensions";
@@ -12,6 +13,7 @@ import { BottomNav } from "../components/BottomNav";
 function TasteProfilePage() {
   const { profile, isDemo } = useTasteProfile();
   const router = useRouter();
+  const { t } = useLanguage();
 
   return (
     <div style={{
@@ -33,16 +35,16 @@ function TasteProfilePage() {
                 textDecoration: "none",
               }}
             >
-              ARTENA AI · Cultural Intelligence
+              {t("common.app_name")} · {t("common.tagline")}
             </a>
             <h1 style={{
               fontSize: 26, fontWeight: 700, color: "#0A0A0A", margin: "0 0 4px",
               fontFamily: "'KakaoBigSans', system-ui, sans-serif", letterSpacing: "-.025em", lineHeight: 1,
             }}>
-              Taste Profile
+              {t("taste.title")}
             </h1>
             <p style={{ fontSize: 12, color: "#ABABAB", margin: 0, letterSpacing: ".01em" }}>
-              Your cultural intelligence signature
+              {t("taste.tagline")}
             </p>
           </div>
 

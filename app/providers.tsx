@@ -3,6 +3,7 @@ import React from "react";
 import { MyActivityProvider } from "./context/MyActivityContext";
 import { TabProvider } from "./context/TabContext";
 import { LanguageProvider } from "./i18n/LanguageProvider";
+import { LanguageToggle } from "./i18n/LanguageToggle";
 
 /**
  * Client-side providers mounted once at the root layout so every route
@@ -17,7 +18,13 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <LanguageProvider>
       <MyActivityProvider>
-        <TabProvider>{children}</TabProvider>
+        <TabProvider>
+          {children}
+          {/* Global language toggle — fixed top-right, visible app-wide
+              including SmartScanner / IntroSplash / Loading / Shared
+              Report / all in-shell tabs. */}
+          <LanguageToggle />
+        </TabProvider>
       </MyActivityProvider>
     </LanguageProvider>
   );

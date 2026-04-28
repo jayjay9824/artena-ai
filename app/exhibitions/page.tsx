@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Bell, BellRing, Bookmark, BookmarkCheck, Calendar, ExternalLink, MapPin, Ticket, X, Plus } from "lucide-react";
 import { useMyActivity } from "../context/MyActivityContext";
 import { useCollection } from "../collection/hooks/useCollection";
+import { useLanguage } from "../i18n/useLanguage";
 import {
   Exhibition, City, TimeKey, CITIES,
   getExhibitions, getMustSeeByCity, withinWindow, formatDateRange,
@@ -496,6 +497,7 @@ function ExternalRow({ href, label }: { href: string; label: string }) {
 export default function ExhibitionsPage() {
   const { state: my }    = useMyActivity();
   const { items: items } = useCollection();
+  const { t }            = useLanguage();
 
   const [tab, setTab]               = useState<TabKey>("near");
 
@@ -710,16 +712,16 @@ export default function ExhibitionsPage() {
             textDecoration: "none",
           }}
         >
-          ARTENA AI
+          {t("common.app_name")}
         </a>
 
-        {/* Page name (spec: Exhibitions & Travel) */}
+        {/* Page name */}
         <p style={{
           fontSize: 11, color: "#1C1A17",
           letterSpacing: ".18em", textTransform: "uppercase" as const,
           margin: "0 0 16px", fontWeight: 600,
         }}>
-          Exhibitions &amp; Travel
+          {t("ex.page_name")}
         </p>
 
         {/* Header copy */}
@@ -728,10 +730,10 @@ export default function ExhibitionsPage() {
           margin: "0 0 10px",
           fontFamily: FONT_HEAD, letterSpacing: "-.025em", lineHeight: 1.2,
         }}>
-          Find exhibitions and cultural places that match your taste.
+          {t("ex.headline")}
         </h1>
         <p style={{ fontSize: 13, color: "#6F6F6F", margin: "0 0 24px", lineHeight: 1.6 }}>
-          From your city to your next trip, ARTENA recommends what to see.
+          {t("ex.sub")}
         </p>
 
         {/* Tabs */}
@@ -871,11 +873,12 @@ export default function ExhibitionsPage() {
 /* ── Sub-components ──────────────────────────────────────────────── */
 
 function Tabs({ value, onChange }: { value: TabKey; onChange: (t: TabKey) => void }) {
+  const { t } = useLanguage();
   const tabs: { id: TabKey; label: string }[] = [
-    { id: "near",   label: "Near You" },
-    { id: "travel", label: "Travel" },
-    { id: "alerts", label: "Artist Alerts" },
-    { id: "must",   label: "Must-See" },
+    { id: "near",   label: t("ex.tab_near")   },
+    { id: "travel", label: t("ex.tab_travel") },
+    { id: "alerts", label: t("ex.tab_alerts") },
+    { id: "must",   label: t("ex.tab_must")   },
   ];
   return (
     <div style={{ display: "flex", gap: 6, marginBottom: 14, overflowX: "auto" as const }}>
