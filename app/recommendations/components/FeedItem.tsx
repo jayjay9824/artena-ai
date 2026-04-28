@@ -100,8 +100,8 @@ export function FeedItem({ rec, imageUrl, variant, flip = false, onTap, onLike, 
 
           {/* Actions */}
           <div style={{ display: "flex", gap: 14, marginTop: 20, alignItems: "center" }}>
-            <MiniActionBtn active={rec.liked} activeColor="#E04848" icon={rec.liked ? "♥" : "♡"} label="좋아요" onClick={(e) => { e.stopPropagation(); onLike(); }} />
-            <MiniActionBtn active={rec.saved} activeColor="#8A6A3F" icon={rec.saved ? "◆" : "◇"} label="저장" onClick={(e) => { e.stopPropagation(); onSave(); }} />
+            <MiniActionBtn active={rec.liked} activeColor="#E04848" icon={rec.liked ? "♥" : "♡"} label="Like" onClick={(e) => { e.stopPropagation(); onLike(); }} />
+            <MiniActionBtn active={rec.saved} activeColor="#8A6A3F" icon={rec.saved ? "◆" : "◇"} label="Save" onClick={(e) => { e.stopPropagation(); onSave(); }} />
             <button
               onClick={onTap}
               style={{ marginLeft: "auto", background: "none", border: "0.5px solid #E4E4E4", cursor: "pointer", padding: "5px 11px", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}

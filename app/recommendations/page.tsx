@@ -9,6 +9,8 @@ import { QuickReport } from "../analyze/components/QuickReport";
 import { MarketIntelligenceData } from "../analyze/components/MarketIntelligenceReport";
 import { Recommendation } from "./types/recommendation";
 import { useCollection } from "../collection/hooks/useCollection";
+import { useMyActivity } from "../context/MyActivityContext";
+import { useTasteProfile } from "../taste/hooks/useTasteProfile";
 import { BottomNav } from "../components/BottomNav";
 
 const PAGE_STYLES = `
@@ -44,17 +46,59 @@ function BackBtn({ onClick }: { onClick: () => void }) {
 function RecommendationsPage() {
   const { recs, images, activeFilter, setFilter, toggleAction } = useRecommendations();
   const { items } = useCollection();
+  const { state: my } = useMyActivity();
+  const { profile } = useTasteProfile();
   const [selectedRec, setSelectedRec] = useState<Recommendation | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportData, setReportData] = useState<MarketIntelligenceData | null>(null);
 
-  // Derive taste keywords from saved collection items
+  // Derive taste keywords from BOTH analyze-flow collection items AND
+  // MyActivity (likes / saved / collection items). Same affinity surface
+  // the Taste Profile reads from — Curator Insight stays in sync.
   const tasteKeywords = (() => {
     const freq: Record<string, number> = {};
     items.forEach(item => {
       (item.analysis.keywords ?? []).forEach(k => { freq[k] = (freq[k] ?? 0) + 1; });
     });
+    // Pull synthetic keywords from MyActivity (title / period / medium tokens).
+    const myArt = [
+      ...my.likes,
+      ...my.saved,
+      ...my.collections.flatMap(c => c.items.map(ci => ci.artwork)),
+    ];
+    for (const a of myArt) {
+      const blob = `${a.period ?? ""} ${a.medium ?? ""}`.toLowerCase().trim();
+      if (!blob) continue;
+      blob.split(/\s+/).filter(t => t.length >= 4).forEach(t => {
+        freq[t] = (freq[t] ?? 0) + 0.5;
+      });
+    }
     return Object.entries(freq).sort((a, b) => b[1] - a[1]).map(([k]) => k).slice(0, 5);
+  })();
+
+  // Derive top Key Taste Clusters for personalised Curator Insight.
+  // Same rules TasteClusters uses — match cluster keywords against the
+  // profile's pattern weights.
+  const topClusters = (() => {
+    const RULES: { name: string; match: string[] }[] = [
+      { name: "Quiet Minimalism",          match: ["minimal", "restrain", "reduction", "silence", "고요", "단색", "여백", "mono"] },
+      { name: "Color-driven Abstraction",  match: ["color", "chromatic", "saturat", "field", "abstract", "추상", "색"] },
+      { name: "Conceptual Sensibility",    match: ["conceptual", "identity", "정체성", "concept", "language"] },
+      { name: "Korean Modernism",          match: ["dansaek", "단색화", "korean", "한국", "wuhan"] },
+      { name: "Material Experimentation",  match: ["material", "texture", "process", "experimental", "재료", "물성"] },
+      { name: "Atmospheric Impressionism", match: ["impression", "atmospher", "light", "weather", "monet", "water"] },
+      { name: "Pattern & Repetition",      match: ["pattern", "repetition", "infinity", "polka", "grid", "반복"] },
+      { name: "Gestural Abstraction",      match: ["gestural", "expressive", "action", "richter", "fluid"] },
+    ];
+    const scored = RULES.map(r => {
+      let score = 0;
+      for (const p of profile.patterns) {
+        const k = p.keyword.toLowerCase();
+        if (r.match.some(m => k.includes(m))) score += p.weight;
+      }
+      return { name: r.name, score };
+    }).filter(r => r.score > 0).sort((a, b) => b.score - a.score);
+    return scored.slice(0, 3).map(r => r.name);
   })();
 
   const handleFullReport = async () => {
@@ -207,7 +251,7 @@ function RecommendationsPage() {
         )}
 
         {/* ── Curator Message ────────────────────────────────────── */}
-        <CuratorMessage tasteKeywords={tasteKeywords} />
+        <CuratorMessage tasteKeywords={tasteKeywords} clusters={topClusters} />
 
         {/* ── Filter Bar ─────────────────────────────────────────── */}
         <div id="rec-filter-bar">
