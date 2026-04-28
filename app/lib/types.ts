@@ -37,11 +37,15 @@ export type AvailabilityStatus = "available" | "reserved" | "sold" | "not_for_sa
 
 /**
  * Trust hierarchy — how reliable a record is.
- *   axid_verified    AXID-stamped + registry-confirmed (highest)
+ *   axid_verified    AXID-stamped + registry-confirmed (highest, internal)
  *   verified         gallery-uploaded with full provenance
  *   gallery_provided gallery-uploaded, partial metadata
  *   user_input       user-submitted, unverified
  *   ai_inferred      Claude-inferred from image/text only (lowest)
+ *
+ * Spec V1 lists the four public tiers; axid_verified is kept as a
+ * private super-tier for registry-confirmed records and never
+ * downgrades existing data.
  */
 export type TrustLevel =
   | "axid_verified"
@@ -50,21 +54,54 @@ export type TrustLevel =
   | "user_input"
   | "ai_inferred";
 
+/**
+ * Where the canonical Artwork record originally came from. Used by
+ * the matching pipeline to weight one record against another when
+ * multiple write paths describe the same work.
+ */
+export type ArtworkSource =
+  | "gallery_upload"   // posted from Gallery Console
+  | "axid_registry"    // pulled from the AXID registry
+  | "user_scan"        // promoted from a user's analysis
+  | "manual_entry"     // hand-entered (admin / fallback)
+  | "ai_inferred";     // lowest — generated from image/text only
+
 /** Append-only lifecycle. Records are not deleted, only archived. */
 export type ArtworkStatus = "draft" | "live" | "archived";
 
+/* ── Market signal enums (shared by Artwork + Report) ──────────── */
+
+export type MarketPosition  = "Emerging" | "Established" | "Blue-chip";
+export type DataDepth       = "thin" | "moderate" | "deep";
+export type MarketStability = "low" | "moderate" | "high";
+
+/**
+ * Canonical Artwork record. Same artworkId → same result everywhere.
+ *
+ * Image / text / QR / NFC / Report inputs all resolve to a single
+ * row in this table when they describe the same work. The matching
+ * pipeline (matchingService) is the only writer of new records;
+ * subsequent encounters with the same work *update* this record
+ * rather than fork a duplicate.
+ *
+ * Field semantics align with the STEP 1 spec; persisted column names
+ * for the eventual Postgres schema mirror the property names here.
+ */
 export interface Artwork {
+  /** artworkId — primary key. */
   id:                  ArtworkId;
+
   /**
    * Artwork eXchange ID — globally unique registry id. Highest-trust
    * identifier; QR / NFC / explicit AXID lookups all key on this.
    */
   axid?:               string;
+
   galleryId:           GalleryId;
   artistId:            ArtistId;
 
-  /* Display */
-  artistName?:         string;     // denormalized for fast read
+  /* Display — denormalised for fast read */
+  artistName?:         string;
   artistNameKo?:       string;
   title:               string;
   titleKo?:            string;
@@ -72,15 +109,17 @@ export interface Artwork {
   aliases?:            string[];
 
   year?:               string;
-  period?:             string;     // "Late period", "Dansaekhwa era"
+  period?:             string;
   medium?:             string;
-  dimensions?:         string;     // "200 × 150 cm"
+  dimensions?:         string;
 
   /* Imagery */
-  imageUrl?:           string;     // legacy field — kept for back-compat
+  imageUrl?:           string;     // legacy field — back-compat
   primaryImageUrl?:    string;
-  perceptualImageHash?: string;    // pHash for image-based matching
-  visualEmbeddingId?:  string;     // vector store id for semantic match
+  /** pHash hex string for image-based matching — spec name. */
+  imageHash?:          string;
+  /** Vector store id for semantic image matching. */
+  visualEmbeddingId?:  string;
 
   /* Editorial */
   description?:        string;
@@ -88,8 +127,18 @@ export interface Artwork {
   shortSummary?:       string;
 
   /* Trust + lifecycle */
+  source?:             ArtworkSource;
   trustLevel?:         TrustLevel;
   status?:             ArtworkStatus;
+
+  /* Canonical market signal — same artwork → same numbers.
+   * Reports take a snapshot of these at share time so they freeze
+   * even if the canonical record is later refined. */
+  marketPosition?:     MarketPosition;
+  marketConfidence?:   number;       // 0 – 100
+  dataDepth?:          DataDepth;
+  comparableMatches?:  number;
+  marketStability?:    MarketStability;
 
   /* Commerce */
   priceVisibility:     PriceVisibility;
@@ -154,17 +203,18 @@ export interface Report {
   /** Full structured analysis (varies by category). */
   analysisFull:      Record<string, unknown>;
 
-  /* Market snapshot — frozen at share time */
+  /* Market snapshot — frozen at share time. Mirrors the Artwork
+   * canonical fields so the viewer renders without recomputing. */
   marketSnapshotJson?:   Record<string, unknown>;
-  marketPosition?:       "Emerging" | "Established" | "Blue-chip";
+  marketPosition?:       MarketPosition;
   marketConfidence?:     number;   // 0-100
   estimatedRangeStatus?: EstimatedRangeStatus;
   estimatedLow?:         number;   // omitted unless status === "available"
   estimatedHigh?:        number;
   currency?:             string;   // "USD" / "KRW"
-  dataDepth?:            "thin" | "moderate" | "deep";
+  dataDepth?:            DataDepth;
   comparableMatches?:    number;
-  marketStability?:      "low" | "moderate" | "high";
+  marketStability?:      MarketStability;
 
   /* Source + lifecycle */
   sourceType:   SourceType;
