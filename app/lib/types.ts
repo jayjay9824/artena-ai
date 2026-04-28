@@ -180,6 +180,18 @@ export type SourceType = "axid" | "nfc" | "qr" | "image" | "label" | "text";
 /** Three-state for any price/range field. Never display $0K-$0K. */
 export type EstimatedRangeStatus = "available" | "insufficient_data" | "unavailable";
 
+/**
+ * Lifecycle of a Report record.
+ *
+ *   processing  — stub created, background generation in flight
+ *   ready       — fully populated; safe to render
+ *   error       — generation failed; errorMessage is human-readable
+ *
+ * Absence of `status` on legacy records is treated as `"ready"` by
+ * callers (back-compat for reports created before STEP 2).
+ */
+export type ReportStatus = "processing" | "ready" | "error";
+
 export interface Report {
   id:                ReportId;
   /** Canonical artwork id this report snapshots (renamed from
@@ -224,6 +236,13 @@ export interface Report {
   trustLevel?:  TrustLevel;
   isShareable?: boolean;        // default true
   createdAt:    string;         // ISO timestamp
+
+  /* Background generation + 24h cache (STEP 2) */
+  status?:        ReportStatus;
+  /** ISO; absence means no cache window — treat as expired. */
+  cachedUntil?:   string;
+  /** Populated when status === "error". */
+  errorMessage?:  string;
 }
 
 /* ── User interactions (write-heavy, consumed by analytics) ────── */

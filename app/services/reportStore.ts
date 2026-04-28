@@ -15,6 +15,19 @@ import type { Report, ReportId } from "../lib/types";
 export interface ReportStore {
   put(report: Report): Promise<void>;
   get(id: ReportId): Promise<Report | null>;
+  /**
+   * Most-recent (by createdAt) report carrying this artworkId. Used as
+   * the 24h cache lookup keyed off the canonical artwork — STEP 2.
+   * Returns null when no report exists for the artwork.
+   */
+  findByArtworkId(artworkId: string): Promise<Report | null>;
+  /**
+   * Partial update used by the background generation pipeline to
+   * promote a stub from status:"processing" → "ready" / "error" once
+   * Claude completes. Returns the merged record, or null when id is
+   * unknown.
+   */
+  patch(id: ReportId, partial: Partial<Report>): Promise<Report | null>;
 }
 
 /* ── In-memory default (MVP) ───────────────────────────────────── */
@@ -33,6 +46,21 @@ class MemoryReportStore implements ReportStore {
   }
   async get(id: ReportId): Promise<Report | null> {
     return memory.get(id) ?? null;
+  }
+  async findByArtworkId(artworkId: string): Promise<Report | null> {
+    let best: Report | null = null;
+    for (const r of memory.values()) {
+      if (r.artworkId !== artworkId) continue;
+      if (!best || r.createdAt > best.createdAt) best = r;
+    }
+    return best;
+  }
+  async patch(id: ReportId, partial: Partial<Report>): Promise<Report | null> {
+    const cur = memory.get(id);
+    if (!cur) return null;
+    const next = { ...cur, ...partial, id: cur.id };
+    memory.set(id, next);
+    return next;
   }
 }
 

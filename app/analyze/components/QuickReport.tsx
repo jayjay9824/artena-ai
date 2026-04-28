@@ -14,6 +14,8 @@ import { CollectionPicker } from "../../my/CollectionPicker";
 import { trackEvent as track } from "../lib/analytics";
 import { getQuickReportChips } from "../lib/suggestedQuestions";
 import type { QuestionType } from "../../types/assistant";
+import { shareReport } from "../../services/reportShareService";
+import { useLanguage } from "../../i18n/useLanguage";
 
 /* ── Types ───────────────────────────────────────────────────── */
 
@@ -328,6 +330,7 @@ export function QuickReport({
   const { isLiked, isSaved, like, unlike, save, unsave, addRecentlyViewed } = useMyActivity();
   const { goTo }                            = useTabNav();
   const router                              = useRouter();
+  const { t }                               = useLanguage();
 
   const artwork: SavedArtwork = {
     artwork_id: itemId,
@@ -501,36 +504,31 @@ export function QuickReport({
                 <IcoHeart filled={actions.liked} size={18} color={actions.liked ? "#D94040" : "#111"} />
               </button>
 
-              {/* Share button */}
+              {/* Share button — STEP 5: routes through shareReport()
+                  helper. Native share sheet → 1080x1920 share-card OG
+                  preview rendered by Instagram / KakaoTalk / X via
+                  /api/reports/{id}/share-card. Clipboard fallback when
+                  Web Share is unavailable. */}
               <button
+                title={t("common.share")}
+                aria-label={t("common.share")}
                 style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(255,255,255,0.92)", backdropFilter: "blur(14px)", WebkitBackdropFilter: "blur(14px)", border: "none", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.18)" }}
                 onClick={async () => {
-                  // Build share URL only when the report has been persisted.
-                  // Without an id we can't deep-link, so fall back to a
-                  // text-only share or clipboard copy of the title.
-                  const url = reportId && typeof window !== "undefined"
-                    ? `${window.location.origin}/report/${reportId}`
-                    : null;
-                  // Spec format: "ARTENA AI 분석 리포트: {artist} - {title}"
+                  trackEvent("artwork_shared", itemId);
+                  if (!reportId) {
+                    // No persisted reportId yet — nothing meaningful to
+                    // share. Bail rather than copy a half-formed URL.
+                    return;
+                  }
                   const artistText = a.artist || artistFallback(a);
                   const titleText  = a.title  || "Untitled";
-                  const shareTitle = "ARTENA AI 분석 리포트";
-                  const shareText  = `ARTENA AI 분석 리포트: ${artistText} - ${titleText}`;
-                  trackEvent("artwork_shared", itemId);
-                  if (typeof navigator !== "undefined" && navigator.share) {
-                    try {
-                      await navigator.share({ title: shareTitle, text: shareText, ...(url ? { url } : {}) });
-                      return;
-                    } catch {
-                      /* user dismissed — fall through to clipboard */
-                    }
-                  }
-                  if (url && typeof navigator !== "undefined" && navigator.clipboard) {
-                    try {
-                      await navigator.clipboard.writeText(url);
-                      setToast({ message: "링크가 복사되었습니다" });
-                      setTimeout(() => setToast(null), 2400);
-                    } catch { /* noop */ }
+                  const result = await shareReport(reportId, {
+                    title: "ARTENA AI",
+                    text:  `ARTENA AI: ${artistText} - ${titleText}`,
+                  });
+                  if (result === "copied") {
+                    setToast({ message: t("report.share_link_copied") });
+                    setTimeout(() => setToast(null), 2400);
                   }
                 }}
               >

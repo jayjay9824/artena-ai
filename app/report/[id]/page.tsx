@@ -10,6 +10,19 @@ import { notFound } from "next/navigation";
 import { getReportStore } from "../../services/reportStore";
 import { SharedReportView } from "./SharedReportView";
 
+/**
+ * STEP 5 — Build an absolute URL for the share-card image.
+ * Crawlers don't run client JS, so OG/Twitter metadata must point at
+ * a fully-qualified URL. We resolve it from VERCEL_URL (production /
+ * preview) or fall back to a relative path during local dev.
+ */
+function shareCardOgUrl(id: string): string {
+  const path = `/api/reports/${encodeURIComponent(id)}/share-card`;
+  const vercel = process.env.VERCEL_URL;
+  if (vercel) return `https://${vercel}${path}`;
+  return path;
+}
+
 interface RouteProps {
   params: Promise<{ id: string }>;
 }
@@ -30,7 +43,11 @@ export async function generateMetadata({ params }: RouteProps): Promise<Metadata
     || (report.analysisSummary
         ? report.analysisSummary.slice(0, 180) + (report.analysisSummary.length > 180 ? "…" : "")
         : "ARTENA AI cultural intelligence report");
-  const image = report.representativeImageUrl || report.imageUrl;
+
+  // STEP 5 — point OG/Twitter at the rendered 1080x1920 share card so
+  // crawlers see the editorial card with title + artist + insight +
+  // brand mark instead of the raw artwork crop.
+  const cardUrl = shareCardOgUrl(id);
 
   return {
     title:       `${title} · ARTENA AI`,
@@ -39,13 +56,13 @@ export async function generateMetadata({ params }: RouteProps): Promise<Metadata
       title,
       description,
       type: "article",
-      images: image ? [{ url: image }] : undefined,
+      images: [{ url: cardUrl, width: 1080, height: 1920 }],
     },
     twitter: {
-      card: image ? "summary_large_image" : "summary",
+      card: "summary_large_image",
       title,
       description,
-      images: image ? [image] : undefined,
+      images: [cardUrl],
     },
   };
 }

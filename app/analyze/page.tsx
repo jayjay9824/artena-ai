@@ -5,7 +5,13 @@ import { MarketIntelligenceData } from "./components/MarketIntelligenceReport";
 import { QuickReport } from "./components/QuickReport";
 import { IntroSplash } from "./components/IntroSplash";
 import { SmartScanner } from "./components/SmartScanner";
+import { SmartScannerScreen } from "../components/scanner/SmartScannerScreen";
+import type { ScanSuccessPayload } from "../types/scanner";
 import { HomeScreen } from "./components/home/HomeScreen";
+import { MinimalHomeScreen } from "../components/home/MinimalHomeScreen";
+import { StagedAnalysisScreen } from "./components/StagedAnalysisScreen";
+import { useStagedAnalysis } from "./hooks/useStagedAnalysis";
+import { useOfflineQueue } from "./hooks/useOfflineQueue";
 import { useTabNav, AppTab } from "../context/TabContext";
 import { BottomNav } from "../components/BottomNav";
 import { CollectionPageContent } from "../collection/page";
@@ -13,7 +19,7 @@ import { TastePageContent } from "../taste/page";
 import { RecommendationsPageContent } from "../recommendations/page";
 import { GalleryPageContent } from "../gallery/page";
 import { MyPageContent } from "../my/page";
-import { saveReport } from "../services/reportService";
+import { saveReport, generateReport } from "../services/reportService";
 import { matchArtwork } from "../services/matchingService";
 import { findArtworkById } from "../services/canonicalCatalogue";
 import { useCollection } from "../collection/hooks/useCollection";
@@ -65,6 +71,7 @@ function LoadingSpinner() {
 /* ── Scan screen ──────────────────────────────────────────────── */
 
 function ScanScreen() {
+  const { goTo } = useTabNav();
   const [showIntro,     setShowIntro]     = useState(true);
   const [screen,        setScreen]        = useState("upload");
   const [error,         setError]         = useState<string | null>(null);
@@ -77,6 +84,23 @@ function ScanScreen() {
   const [showScanner,   setShowScanner]   = useState(false);
   const [reportId,      setReportId]      = useState<string | null>(null);
   const [candidates,    setCandidates]    = useState<MatchedArtwork[]>([]);
+
+  // STEP 1 — staged analysis (Quick View + Progressive Loading) for
+  // image uploads. Runs the quick + full endpoints concurrently and
+  // exposes per-stage status to the loading UI. Text/canonical paths
+  // skip this — they're already instant.
+  const staged             = useStagedAnalysis();
+  const persistedRef       = useRef(false);
+  const imagePreviewRef    = useRef<string | null>(null);
+  imagePreviewRef.current  = imagePreview;
+
+  // STEP 3 — offline queue. analyzeImage / analyzeTextQuery check
+  // navigator.onLine before firing the API call; if offline, the scan
+  // is persisted to IndexedDB and the global OfflineBanner surfaces
+  // the "Saved locally" pill. Auto-sync on reconnect lives in
+  // OfflineBanner so it works even if the user has navigated to a
+  // non-Scan tab.
+  const offline = useOfflineQueue();
 
   const handleIntroComplete = useCallback(() => setShowIntro(false), []);
 
@@ -95,6 +119,31 @@ function ScanScreen() {
     setImagePreview(item.imagePreview ?? null);
     setScreen("result");
   }, [searchParams, collectionItems]);
+
+  // STEP 1 — When the staged hook completes (full analysis in hand
+  // and all four stages "ready"), promote into the result screen and
+  // persist exactly once. The persistedRef guard survives the staged
+  // reducer's async revealStage cascade. persistReport is defined
+  // later in the function body — captured via closure (resolves when
+  // the effect fires post-render).
+  useEffect(() => {
+    if (!staged.fullAnalysis) return;
+    if (staged.stages.comparables !== "ready") return;
+    if (persistedRef.current) return;
+    persistedRef.current = true;
+    setAnalysis(staged.fullAnalysis as Analysis);
+    setScreen("result");
+    persistReport(staged.fullAnalysis as Analysis, imagePreviewRef.current, "image");
+    // persistReport / setAnalysis intentionally omitted — fires once per run.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staged.fullAnalysis, staged.stages.comparables]);
+
+  useEffect(() => {
+    if (!staged.error) return;
+    setError(staged.error);
+    setScreen(pendingFile ? "preview" : "upload");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [staged.error]);
 
   // All hooks above run unconditionally
   if (showIntro) return <IntroSplash onComplete={handleIntroComplete} />;
@@ -153,7 +202,11 @@ function ScanScreen() {
     const hasRange = auctionPrices.length >= 1;
     const sortedPrices = [...auctionPrices].sort((x, y) => x - y);
 
-    const id = await saveReport({
+    // STEP 2 — route through the cache-aware /api/reports/generate
+    // endpoint. Cache hit by artworkId returns the existing reportId
+    // immediately; cache miss persists synchronously because we already
+    // have analysisFull in hand (no background Claude call needed).
+    const result = await generateReport({
       // Identity (spec STEP 4 names) — populated when this report
       // snapshots a canonical Artwork.
       artworkId:    canonical?.id,
@@ -195,7 +248,7 @@ function ScanScreen() {
       trustLevel:  canonical?.trustLevel ?? "ai_inferred",
       isShareable: true,
     });
-    if (id) setReportId(id);
+    if (result?.reportId) setReportId(result.reportId);
   };
 
   /** Parse "$28,000" / "$1.2M" / "$25K–$35K" into a USD number, or null. */
@@ -236,27 +289,28 @@ function ScanScreen() {
   };
 
   // SmartScanner frame capture → skip preview, go straight to analysis
+  // Routes through the staged hook so QuickView paints in ~2-3s while
+  // the full Opus analysis runs in parallel.
   const analyzeWithFile = async (file: File, dataUrl: string) => {
     setShowScanner(false);
     setImagePreview(dataUrl);
     setPendingFile(file);
     setError(null);
-    setScreen("loading");
+    persistedRef.current = false;
     try {
       const blob = await compressIfNeeded(file);
-      const fd   = new FormData();
-      fd.append("image", blob, "scan.jpg");
-      const res  = await fetch("/api/analyze", { method: "POST", body: fd });
-      const ct   = res.headers.get("content-type") ?? "";
-      if (!ct.includes("application/json")) {
-        if (res.status === 413) throw new Error("이미지가 너무 큽니다.");
-        throw new Error(`서버 오류 (${res.status})`);
+      // STEP 3 — offline guard. Queue locally, reset to home; the
+      // OfflineBanner picks up the pending count and auto-syncs on
+      // reconnect.
+      if (!navigator.onLine) {
+        await offline.enqueue({ imageBlob: blob });
+        setScreen("upload");
+        setPendingFile(null);
+        setImagePreview(null);
+        return;
       }
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || "분석 실패");
-      setAnalysis(json.data);
-      setScreen("result");
-      persistReport(json.data, dataUrl, "image");
+      setScreen("loading");
+      staged.runImage(blob);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
       setScreen("upload");
@@ -266,22 +320,19 @@ function ScanScreen() {
   const analyzeImage = async () => {
     if (!pendingFile) return;
     setError(null);
-    setScreen("loading");
+    persistedRef.current = false;
     try {
       const blob = await compressIfNeeded(pendingFile);
-      const fd   = new FormData();
-      fd.append("image", blob, "image.jpg");
-      const res  = await fetch("/api/analyze", { method: "POST", body: fd });
-      const ct   = res.headers.get("content-type") ?? "";
-      if (!ct.includes("application/json")) {
-        if (res.status === 413) throw new Error("이미지가 너무 큽니다.");
-        throw new Error(`서버 오류 (${res.status})`);
+      // STEP 3 — offline guard.
+      if (!navigator.onLine) {
+        await offline.enqueue({ imageBlob: blob });
+        setScreen("upload");
+        setPendingFile(null);
+        setImagePreview(null);
+        return;
       }
-      const json = await res.json();
-      if (!json.success) throw new Error(json.error || "분석 실패");
-      setAnalysis(json.data);
-      setScreen("result");
-      persistReport(json.data, imagePreview, "image");
+      setScreen("loading");
+      staged.runImage(blob);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "알 수 없는 오류");
       setScreen("preview");
@@ -293,6 +344,14 @@ function ScanScreen() {
     if (!query.trim()) return;
     setImagePreview(null);
     setError(null);
+    // STEP 3 — offline guard for text scans. Canonical lookup runs
+    // entirely client-side, but matchArtwork falls back to /api/analyze
+    // for unmatched queries; queue the raw query and bail.
+    if (!navigator.onLine) {
+      await offline.enqueue({ extractedText: query });
+      setScreen("upload");
+      return;
+    }
     setScreen("loading");
     try {
       // Trust-first text path. Routing per matchArtwork outcome:
@@ -381,17 +440,35 @@ function ScanScreen() {
 
   /* ── Conditional screens ────────────────────────────────────── */
 
-  // SmartScanner — full-screen overlay
+  // Camera Intelligence Layer — new SmartScannerScreen (mock cycle +
+  // FocusFrame + spatial exit). Legacy SmartScanner import kept for
+  // back-compat; not rendered. onScanSuccess routes the captured frame
+  // straight into the staged-analysis pipeline (analyzeWithFile).
   if (showScanner) {
+    const handleScanSuccess = (payload: ScanSuccessPayload) => {
+      if (!payload.imageBlob || !payload.imageURI) {
+        setShowScanner(false);
+        return;
+      }
+      const file = payload.imageBlob instanceof File
+        ? payload.imageBlob
+        : new File([payload.imageBlob], "scan.jpg", {
+            type: payload.imageBlob.type || "image/jpeg",
+          });
+      analyzeWithFile(file, payload.imageURI);
+    };
     return (
-      <SmartScanner
+      <SmartScannerScreen
         onClose={() => setShowScanner(false)}
-        onCapture={analyzeWithFile}
-        onUpload={() => setShowScanner(false)}
-        onManualSearch={() => setShowScanner(false)}
+        onUploadImage={() => setShowScanner(false)}
+        onSearchByText={() => setShowScanner(false)}
+        onScanSuccess={handleScanSuccess}
       />
     );
   }
+  // Suppress "unused" warning while we keep SmartScanner imported
+  // for any future fallback compose.
+  void SmartScanner;
 
   // Preview — confirm uploaded image before analysis
   if (screen === "preview") {
@@ -479,55 +556,29 @@ function ScanScreen() {
     );
   }
 
-  // Loading — when we have an image, keep it as backdrop so the
-  // scanner→loading→QuickReport flow feels visually continuous.
+  // Loading — STEP 1 staged Quick View + Progressive Loading. The
+  // QuickView card paints in ~2-3s and never disappears; the four
+  // stage rows tick to "ready" as data arrives.
   if (screen === "loading") {
     return (
-      <div style={{
-        maxWidth: 430, margin: "0 auto", minHeight: "100vh",
-        background: imagePreview ? "#000" : "#F8F7F4",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "0 22px",
-        position: "relative" as const, overflow: "hidden",
-      }}>
-        {imagePreview && (
-          <img
-            src={imagePreview}
-            alt=""
-            style={{
-              position: "absolute", inset: 0,
-              width: "100%", height: "100%", objectFit: "cover",
-              filter: "blur(14px) brightness(0.55)",
-              transform: "scale(1.06)",
-            }}
-          />
-        )}
-        <div style={{
-          position: "relative" as const, zIndex: 1,
-          background: imagePreview ? "rgba(255,255,255,0.92)" : "transparent",
-          backdropFilter: imagePreview ? "blur(14px)" : undefined,
-          WebkitBackdropFilter: imagePreview ? "blur(14px)" : undefined,
-          borderRadius: 20,
-          padding: imagePreview ? "28px 36px" : 0,
-          boxShadow: imagePreview ? "0 8px 40px rgba(0,0,0,0.18)" : undefined,
-        }}>
-          <LoadingSpinner />
-        </div>
-      </div>
+      <StagedAnalysisScreen
+        quickView={staged.quickView}
+        stages={staged.stages}
+        imagePreview={imagePreview}
+      />
     );
   }
 
-  // Home (upload) — new Cultural Intelligence UI
+  // Home — full replacement: ultra-minimal scan-first surface.
+  // Legacy HomeScreen import kept for back-compat with code paths
+  // that may compose it elsewhere; not rendered here.
   return (
-    <>
-      <HomeScreen
-        onOpenScanner={() => setShowScanner(true)}
-        onFileSelected={loadPreview}
-        onTextSubmit={analyzeTextQuery}
-        error={error}
-      />
-      <BottomNav currentTab="scan" />
-    </>
+    <MinimalHomeScreen
+      onOpenScanner={() => setShowScanner(true)}
+      onCollection={() => goTo("collection")}
+      onProfile={() => goTo("my")}
+      onFileSelected={loadPreview}
+    />
   );
 }
 

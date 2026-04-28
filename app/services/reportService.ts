@@ -81,3 +81,48 @@ export function buildShareUrl(id: string): string {
   if (typeof window === "undefined") return `/report/${id}`;
   return `${window.location.origin}/report/${id}`;
 }
+
+/* ── STEP 2 — cache-aware generate path ────────────────────────── */
+
+export interface GenerateReportInput extends CreateReportInput {
+  /** Source URI for bg generation when analysisFull is absent. */
+  imageURI?:      string;
+  extractedText?: string;
+  userLanguage?:  string;
+}
+
+export interface GenerateReportResult {
+  reportId: string;
+  status:   "processing" | "ready" | "error";
+  cached:   boolean;
+  stale:    boolean;
+}
+
+/**
+ * Cache-aware report writer. Routes through /api/reports/generate
+ * which handles 24h cache lookup by artworkId, stale refresh, and
+ * stub-then-background generation when no pre-computed analysis is
+ * supplied.
+ *
+ * Returns null on transport / parse failure; never throws.
+ */
+export async function generateReport(input: GenerateReportInput): Promise<GenerateReportResult | null> {
+  try {
+    const res = await fetch("/api/reports/generate", {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(input),
+    });
+    if (!res.ok) return null;
+    const json = await res.json();
+    if (!json.success || typeof json.reportId !== "string") return null;
+    return {
+      reportId: json.reportId,
+      status:   json.status ?? "processing",
+      cached:   !!json.cached,
+      stale:    !!json.stale,
+    };
+  } catch {
+    return null;
+  }
+}

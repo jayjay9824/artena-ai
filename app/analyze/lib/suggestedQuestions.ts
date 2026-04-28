@@ -138,5 +138,103 @@ export function getQuickReportChips(a: Analysis): SuggestedQuestion[] {
   return [all[0], all[1], all[all.length - 1]].filter(Boolean) as SuggestedQuestion[];
 }
 
+/* ── STEP 6 — Ask ARTENA fixed chips ─────────────────────────────── */
+
+/**
+ * STEP 6 baseline — three canonical chips for the Ask ARTENA empty
+ * state when no analysis context is available. BLOCK B's
+ * `pickAskChips()` overrides this when the analysis has enough
+ * signal to pick a more contextual set.
+ */
+export const ASK_CHIPS: { key: string; type: QuestionType }[] = [
+  { key: "ask.chip_price_range",     type: "market"         },
+  { key: "ask.chip_similar_artists", type: "comparison"     },
+  { key: "ask.chip_importance",      type: "interpretation" },
+];
+
+/* ── BLOCK B — dynamic chip selection ────────────────────────────── */
+
+export interface AskChip {
+  key:  string;
+  type: QuestionType;
+}
+
+/**
+ * BLOCK B — pick exactly three contextual chips for the Ask surface.
+ *
+ * Selection signals:
+ *   1. category         architecture / artifact / cultural_site
+ *      vs. fine art (the default branch)
+ *   2. market position  Blue-chip vs. Established vs. Emerging,
+ *      derived from marketNote text + auction / collection counts
+ *   3. topical signal   abstract / minimal / conceptual lift the
+ *      interpretation set
+ *
+ * Returns translations.ts keys so the chip text tracks the active
+ * UI language. Spec rule: max 40 chars, single line — every key
+ * surfaced here resolves to a short interrogative.
+ */
+export function pickAskChips(a: Analysis): AskChip[] {
+  // Architecture / heritage paths first — different vocabulary.
+  if (a.category === "architecture") {
+    return [
+      { key: "ask.chip_history",        type: "interpretation" },
+      { key: "ask.chip_importance",     type: "interpretation" },
+      { key: "ask.chip_similar_works",  type: "comparison"     },
+    ];
+  }
+  if (a.category === "artifact" || a.category === "cultural_site") {
+    return [
+      { key: "ask.chip_period",         type: "interpretation" },
+      { key: "ask.chip_importance",     type: "interpretation" },
+      { key: "ask.chip_where_visible",  type: "market"         },
+    ];
+  }
+
+  // Position signals
+  const note     = (a.marketNote ?? "").toLowerCase();
+  const auCount  = a.auctions?.length    ?? 0;
+  const colCount = a.collections?.length ?? 0;
+  const isBlueChip = note.includes("blue-chip") || (auCount >= 6 && colCount >= 5);
+  const isEmerging =
+    note.includes("emerging") ||
+    note.includes("신진") ||
+    (auCount === 0 && colCount <= 1);
+
+  // Topical signal — abstract / minimal / conceptual works lean
+  // interpretation over price.
+  const haystack = [
+    a.style ?? "",
+    ...(a.keywords ?? []),
+    a.description ?? "",
+  ].join(" ").toLowerCase();
+  const isAbstract = /(abstract|추상|conceptual|개념|minimal|미니멀)/.test(haystack);
+
+  if (isBlueChip) {
+    return [
+      { key: "ask.chip_price_range",     type: "market"     },
+      { key: "ask.chip_market_trend",    type: "market"     },
+      { key: "ask.chip_similar_artists", type: "comparison" },
+    ];
+  }
+  if (isAbstract) {
+    return [
+      { key: "ask.chip_concept",         type: "interpretation" },
+      { key: "ask.chip_importance",      type: "interpretation" },
+      { key: "ask.chip_similar_artists", type: "comparison"     },
+    ];
+  }
+  if (isEmerging) {
+    return [
+      { key: "ask.chip_importance",       type: "interpretation" },
+      { key: "ask.chip_similar_artists",  type: "comparison"     },
+      { key: "ask.chip_market_position",  type: "market"         },
+    ];
+  }
+
+  // Default fallback — same three as the static ASK_CHIPS.
+  return ASK_CHIPS;
+}
+
 /** Re-export for consumers that want the type. */
 export type { QuestionType };

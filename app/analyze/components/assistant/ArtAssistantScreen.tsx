@@ -1,10 +1,13 @@
 "use client";
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import type { QRAnalysis } from "../QuickReport";
 import type { MarketIntelligenceData } from "../MarketIntelligenceReport";
 import type { ChatMessage, QuestionType } from "../../../types/assistant";
 import { trackEvent, makeArtworkId } from "../../lib/analytics";
-import { getSuggestedQuestions } from "../../lib/suggestedQuestions";
+import { pickAskChips } from "../../lib/suggestedQuestions";
+import { trackEvent as trackArtena } from "../../../services/tracking/trackEvent";
+import { useAskHistory } from "../../hooks/useAskHistory";
+import { useLanguage } from "../../../i18n/useLanguage";
 
 /* ── Text line renderer ──────────────────────────────────────────────────── */
 
@@ -89,8 +92,83 @@ export function ArtAssistantScreen({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef    = useRef<HTMLTextAreaElement>(null);
+  const { t }          = useLanguage();
 
-  const suggestedQuestions = getSuggestedQuestions(analysis);
+  // BLOCK B — three contextual chips picked from the artwork's
+  // category / position / topical signals. Falls back to the static
+  // STEP 6 set when nothing notable is detected.
+  const suggestedQuestions = pickAskChips(analysis).map(c => ({
+    text: t(c.key),
+    type: c.type,
+  }));
+
+  /* BLOCK B — every Ask is tied to artwork_id. Used for both the
+     legacy analytics surface and the PART 5 ARTENA tracker. */
+  const artworkId = useMemo(
+    () => makeArtworkId({
+      title:  analysis.title,
+      artist: analysis.artist,
+      year:   analysis.year,
+    }),
+    [analysis.title, analysis.artist, analysis.year],
+  );
+
+  /* BLOCK C — past Q/A for this artwork (frozen at mount). New
+     exchanges from this session persist via append() but stay out of
+     `past` so the surface doesn't double-render the current thread. */
+  const { past, append } = useAskHistory(artworkId);
+
+  /* BLOCK D — HISTORY_VIEW_EXPANDED fires once when past is present
+     at mount (the user landed on a surface that contains history). */
+  const historyExpandedRef = useRef(false);
+  useEffect(() => {
+    if (historyExpandedRef.current) return;
+    if (past.length === 0) return;
+    historyExpandedRef.current = true;
+    trackArtena("HISTORY_VIEW_EXPANDED", { artwork_id: artworkId });
+  }, [past.length, artworkId]);
+
+  /* BLOCK D — HISTORY_SCROLL_DEPTH fires once when the past header
+     enters the viewport (user scrolled into past thinking). */
+  const pastHeaderRef = useRef<HTMLDivElement | null>(null);
+  const scrollLoggedRef = useRef(false);
+  useEffect(() => {
+    if (past.length === 0) return;
+    if (typeof IntersectionObserver === "undefined") return;
+    const node = pastHeaderRef.current;
+    if (!node) return;
+    const obs = new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (entry.isIntersecting && !scrollLoggedRef.current) {
+          scrollLoggedRef.current = true;
+          trackArtena("HISTORY_SCROLL_DEPTH", { artwork_id: artworkId });
+          obs.disconnect();
+          break;
+        }
+      }
+    }, { threshold: 0.4 });
+    obs.observe(node);
+    return () => obs.disconnect();
+  }, [past.length, artworkId]);
+
+  /* BLOCK B — ASK_OPEN fires once per session mount. */
+  const askOpenedRef = useRef(false);
+  useEffect(() => {
+    if (askOpenedRef.current) return;
+    askOpenedRef.current = true;
+    trackArtena("ASK_OPEN", { artwork_id: artworkId });
+  }, [artworkId]);
+
+  /* BLOCK B — ASK_RESPONSE_VIEWED whenever an assistant message is
+     newly mounted in the conversation. */
+  const lastAssistantSeenRef = useRef<string | null>(null);
+  useEffect(() => {
+    const lastAssistant = [...messages].reverse().find(m => m.role === "assistant");
+    if (!lastAssistant) return;
+    if (lastAssistantSeenRef.current === lastAssistant.id) return;
+    lastAssistantSeenRef.current = lastAssistant.id;
+    trackArtena("ASK_RESPONSE_VIEWED", { artwork_id: artworkId });
+  }, [messages, artworkId]);
 
   // Lock body scroll while open
   useEffect(() => {
@@ -131,11 +209,6 @@ export function ArtAssistantScreen({
 
     // Data Flywheel — every question is tracked. trackEvent() auto-detects
     // purchase intent and emits a follow-on intent_signal event when matched.
-    const artworkId = makeArtworkId({
-      title:  analysis.title,
-      artist: analysis.artist,
-      year:   analysis.year,
-    });
     trackEvent("ai_question_asked", {
       artworkId,
       text: trimmed,
@@ -146,6 +219,21 @@ export function ArtAssistantScreen({
     if (fromSuggested) {
       trackEvent("ai_suggested_chip_used", { artworkId, text: trimmed, questionType: type });
     }
+
+    /* BLOCK B — ARTENA tracker (PART 5 schema). Carries artwork_id +
+       question_text on every Ask edge so intent rolls up by canonical
+       work. FOLLOW_UP_ASK detection counts existing user messages —
+       if there's already at least one, this is a follow-up. */
+    const userMessagesSoFar = messages.filter(m => m.role === "user").length;
+    const isFollowUp        = userMessagesSoFar >= 1;
+    if (isFollowUp) {
+      trackArtena("FOLLOW_UP_ASK", { artwork_id: artworkId, question_text: trimmed });
+    } else if (fromSuggested) {
+      trackArtena("SUGGESTED_QUESTION_CLICKED", { artwork_id: artworkId, question_text: trimmed });
+    } else {
+      trackArtena("CUSTOM_QUESTION_SUBMITTED", { artwork_id: artworkId, question_text: trimmed });
+    }
+    trackArtena("ASK", { artwork_id: artworkId, question_text: trimmed });
 
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
@@ -177,15 +265,19 @@ export function ArtAssistantScreen({
         setStreaming(accumulated);
       }
 
-      setMessages(prev => [
-        ...prev,
-        {
-          id: `a-${Date.now()}`,
-          role: "assistant",
-          content: accumulated || "답변을 생성하지 못했습니다.",
-          timestamp: new Date().toISOString(),
-        },
-      ]);
+      const finalAssistant: ChatMessage = {
+        id:        `a-${Date.now()}`,
+        role:      "assistant",
+        content:   accumulated || "답변을 생성하지 못했습니다.",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages(prev => [...prev, finalAssistant]);
+
+      /* BLOCK C — persist this exchange (user + assistant) to past
+         history. Doesn't touch the current `past` state — just
+         writes through, so this surface stays uncluttered until
+         the user reopens the artwork later. */
+      append([userMsg, finalAssistant]);
     } catch {
       setMessages(prev => [
         ...prev,
@@ -200,7 +292,7 @@ export function ArtAssistantScreen({
       setIsStreaming(false);
       setStreaming("");
     }
-  }, [messages, isStreaming, analysis, reportData]);
+  }, [messages, isStreaming, analysis, reportData, artworkId, append]);
 
   /* ── Auto-send the chip-tapped question on mount ────────────────────── */
   // Guarded by a ref so React strict-mode double-mount doesn't double-send.
@@ -335,36 +427,39 @@ export function ArtAssistantScreen({
         {/* ── Messages scroll area ───────────────────────────────────────── */}
         <div style={{ flex: 1, overflowY: "auto", padding: "22px 20px 12px" }}>
 
-          {/* Intro + Suggested Questions */}
+          {/* BLOCK B — chips-only empty state. Welcome paragraph
+              removed so the surface reads as continuation of thought
+              rather than a chat-bot greeting. */}
           {messages.length === 0 && (
             <div style={{ marginBottom: 30 }}>
-              <div style={{ display: "flex", alignItems: "flex-start", gap: 9, marginBottom: 22 }}>
-                <span style={{ fontSize: 8, color: "#8A6A3F", marginTop: 5, flexShrink: 0 }}>◆</span>
-                <p style={{ fontSize: 13, color: "#444", lineHeight: 1.75, margin: 0 }}>
-                  이 {analysis.category === "architecture" ? "건축물" : (analysis.category === "artifact" || analysis.category === "cultural_site") ? "유물" : "작품"}에
-                  대해 더 깊이 알아보세요. 아래 질문을 선택하거나 직접 입력해 주세요.
-                </p>
-              </div>
-
-              {/* Suggested chips */}
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 9 }}>
+              {/* Suggested chips — horizontal scroll, minimal pill */}
+              <div style={{
+                display: "flex",
+                flexWrap: "nowrap",
+                gap: 8,
+                overflowX: "auto",
+                scrollbarWidth: "none",
+                margin: "0 -20px",
+                padding: "2px 20px",
+              }}>
                 {suggestedQuestions.map((q) => (
                   <button
                     key={q.text}
                     onClick={() => sendMessage(q.text, q.type, true)}
                     className="aa-chip"
                     style={{
-                      padding: "9px 16px",
+                      flexShrink: 0,
+                      padding: "8px 14px",
                       background: "#FFFFFF",
                       border: "0.5px solid #E2E2E2",
-                      borderRadius: 22,
+                      borderRadius: 999,
                       cursor: "pointer",
                       fontSize: 12, color: "#333",
                       fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
                       letterSpacing: "-.01em",
                       lineHeight: 1.4,
+                      whiteSpace: "nowrap" as const,
                       transition: "background .12s, border-color .12s",
-                      textAlign: "left" as const,
                     }}
                   >
                     {q.text}
@@ -437,10 +532,84 @@ export function ArtAssistantScreen({
             </div>
           )}
 
+          {/* BLOCK C — inline history. Past Q/A from prior sessions
+              renders dimmed at the bottom of the scroll area. The user
+              "scrolls into their own past thinking"; nothing is
+              "opened" or "loaded" — it's just there. */}
+          {past.length > 0 && (
+            <div
+              ref={pastHeaderRef}
+              style={{
+                marginTop:  messages.length > 0 ? 28 : 56,
+                paddingTop: 22,
+                borderTop:  "0.5px dashed #ECECEC",
+              }}
+            >
+              <p style={{
+                fontSize:      9,
+                color:         "#9A9A9A",
+                letterSpacing: ".22em",
+                textTransform: "uppercase" as const,
+                margin:        "0 0 18px",
+                fontWeight:    600,
+                fontFamily:    "'KakaoSmallSans', system-ui, sans-serif",
+              }}>
+                {t("ask.previously_explored")}
+              </p>
+              {past.map(msg => (
+                msg.role === "user" ? (
+                  <div
+                    key={msg.id}
+                    style={{
+                      display:        "flex",
+                      justifyContent: "flex-end",
+                      marginBottom:   14,
+                    }}
+                  >
+                    <div style={{
+                      maxWidth:    "78%",
+                      padding:     "10px 16px",
+                      background:  "#F2F2F2",
+                      borderRadius:"18px 18px 4px 18px",
+                      color:       "#8E8E93",
+                      fontSize:    12.5,
+                      lineHeight:  1.6,
+                    }}>
+                      {msg.content}
+                    </div>
+                  </div>
+                ) : (
+                  <div key={msg.id} style={{ marginBottom: 18 }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <span style={{
+                        fontSize:  8,
+                        color:     "#C8B89A",
+                        marginTop: 6,
+                        flexShrink: 0,
+                      }}>◆</span>
+                      <div style={{
+                        flex:       1,
+                        fontSize:   12.5,
+                        color:      "#8E8E93",
+                        lineHeight: 1.7,
+                      }}>
+                        <Lines text={msg.content} />
+                      </div>
+                    </div>
+                  </div>
+                )
+              ))}
+            </div>
+          )}
+
           <div ref={messagesEndRef} />
         </div>
 
-        {/* ── Input bar ─────────────────────────────────────────────────── */}
+        {/* BLOCK B — input bar hidden until the user has at least one
+            exchange. Empty state surfaces chips only; the textarea is
+            secondary and emerges as a follow-up affordance once the
+            conversation begins. */}
+        {messages.length > 0 && (
         <div style={{
           background: "rgba(255,255,255,0.98)",
           backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
@@ -449,14 +618,12 @@ export function ArtAssistantScreen({
           flexShrink: 0,
         }}>
           {/* Context reminder */}
-          {messages.length > 0 && (
-            <p style={{
-              fontSize: 9, color: "#CCCCCC", letterSpacing: ".06em",
-              margin: "0 0 8px 4px",
-            }}>
-              ◆ {analysis.artist || "작가"} · {analysis.title || "작품"} 기준으로 답변 중
-            </p>
-          )}
+          <p style={{
+            fontSize: 9, color: "#CCCCCC", letterSpacing: ".06em",
+            margin: "0 0 8px 4px",
+          }}>
+            ◆ {analysis.artist || "작가"} · {analysis.title || "작품"} 기준으로 답변 중
+          </p>
 
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <textarea
@@ -469,7 +636,7 @@ export function ArtAssistantScreen({
                   sendMessage(inputText);
                 }
               }}
-              placeholder="이 작품에 대해 더 물어보세요"
+              placeholder={t("ask.placeholder")}
               rows={1}
               disabled={isStreaming}
               style={{
@@ -511,6 +678,7 @@ export function ArtAssistantScreen({
             </button>
           </div>
         </div>
+        )}
 
       </div>
     </>
