@@ -14,6 +14,8 @@ import { RecommendationsPageContent } from "../recommendations/page";
 import { GalleryPageContent } from "../gallery/page";
 import { MyPageContent } from "../my/page";
 import { saveReport } from "../services/reportService";
+import { matchArtwork } from "../services/matchingService";
+import { findArtworkById } from "../services/canonicalCatalogue";
 import { useCollection } from "../collection/hooks/useCollection";
 import type { SourceType } from "../lib/types";
 
@@ -103,6 +105,27 @@ function ScanScreen() {
     setPendingFile(file);
     setError(null);
     setScreen("preview");
+  };
+
+  /**
+   * Project a canonical Artwork record into the loose Analysis shape
+   * the QuickReport screen expects. Only fields we actually have
+   * verified data for are populated — unknown fields stay undefined
+   * (Trust over Fancy: no fabrication for missing values).
+   */
+  const canonicalToAnalysis = (aw: import("../lib/types").Artwork): Analysis => {
+    return {
+      title:       aw.title,
+      artist:      aw.artistName ?? "",
+      year:        aw.year,
+      style:       aw.period,
+      description: aw.artenaInsight ?? aw.shortSummary ?? aw.description,
+      marketNote:  aw.artenaInsight,
+      keywords:    aw.aliases,
+      // Emotions / auctions / collections / works / critics / exhibitions
+      // intentionally left undefined — those are derivable signals the
+      // canonical record doesn't carry directly.
+    };
   };
 
   // Fire-and-forget report persistence. Failure just means the share
@@ -243,6 +266,25 @@ function ScanScreen() {
     setError(null);
     setScreen("loading");
     try {
+      // Trust-first: consult the canonical catalogue before Claude.
+      // If the query maps to a known Artwork (Kim Whanki "귀로" /
+      // "Kim Whanki Gwi-ro" / "Whanki Kim 귀로" all converge), serve
+      // the canonical record directly — no AI fabrication.
+      const outcome = await matchArtwork({ matchedBy: "text", query });
+      if (outcome.kind === "confident") {
+        const aw = findArtworkById(outcome.match.artworkId);
+        if (aw) {
+          const canonical = canonicalToAnalysis(aw);
+          setAnalysis(canonical);
+          if (aw.primaryImageUrl) setImagePreview(aw.primaryImageUrl);
+          setScreen("result");
+          persistReport(canonical, aw.primaryImageUrl ?? null, "text");
+          return;
+        }
+      }
+
+      // No canonical hit — fall back to Claude analysis. The persisted
+      // report carries trustLevel: "ai_inferred" via persistReport().
       const res  = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }) });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "분석 실패");
@@ -259,7 +301,6 @@ function ScanScreen() {
           .then(img => {
             const url = img.url ?? null;
             if (url) setImagePreview(url);
-            // Persist after wiki image lands so the saved report has it.
             persistReport(json.data, url, "text");
           })
           .catch(() => {
