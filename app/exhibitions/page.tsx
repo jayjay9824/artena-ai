@@ -234,7 +234,14 @@ function BtnGhost({ label, icon, onClick, active = false }: {
 
 /* ── Detail panel ────────────────────────────────────────────────── */
 
-function DetailPanel({ ex, onClose }: { ex: Exhibition; onClose: () => void }) {
+interface DetailPanelProps {
+  ex:     Exhibition;
+  score:  number;
+  reason: string;
+  onClose: () => void;
+}
+
+function DetailPanel({ ex, score, reason, onClose }: DetailPanelProps) {
   // Add-to-Calendar: opens the universal Google Calendar template URL.
   const calendarUrl = useMemo(() => {
     const dt = (iso: string) => iso.replace(/-/g, "");
@@ -300,6 +307,36 @@ function DetailPanel({ ex, onClose }: { ex: Exhibition; onClose: () => void }) {
           {formatDateRange(ex)} · {ex.city}
         </p>
 
+        {/* ARTENA Match Reason — surfaces the score + signal in detail
+            (the card already shows it, but the detail panel is where
+            users decide whether to book). */}
+        <div style={{
+          marginBottom: 16,
+          padding: "12px 14px",
+          background: "#F4EFE5",
+          border: "0.5px solid #D9C9A6",
+          borderRadius: 12,
+        }}>
+          <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 4 }}>
+            <span style={{
+              fontSize: 9, color: "#8A6A3F", letterSpacing: ".18em",
+              textTransform: "uppercase" as const, fontWeight: 600,
+            }}>
+              ARTENA Match
+            </span>
+            <span style={{
+              fontSize: 14, fontWeight: 700, color: "#8A6A3F",
+              fontFamily: FONT_HEAD,
+              fontVariantNumeric: "tabular-nums",
+            }}>
+              {score}
+            </span>
+          </div>
+          <p style={{ fontSize: 12, color: "#1C1A17", margin: 0, lineHeight: 1.5 }}>
+            {reason}
+          </p>
+        </div>
+
         {/* Why it matters */}
         <p style={{
           fontSize: 13, color: "#1C1A17", lineHeight: 1.7,
@@ -317,9 +354,20 @@ function DetailPanel({ ex, onClose }: { ex: Exhibition; onClose: () => void }) {
           marginBottom: 16,
           display: "flex", flexDirection: "column", gap: 10,
         }}>
-          {ex.address  && <DetailRow icon={<MapPin size={13} strokeWidth={1.5} />} label="Address" value={ex.address} />}
-          {ex.hours    && <DetailRow icon={<Calendar size={13} strokeWidth={1.5} />} label="Hours"   value={ex.hours} />}
-          {ex.ticketInfo && <DetailRow icon={<Ticket size={13} strokeWidth={1.5} />} label="Tickets" value={ex.ticketInfo} />}
+          {ex.address && <DetailRow icon={<MapPin size={13} strokeWidth={1.5} />}   label="Address" value={ex.address} />}
+          {ex.hours   && <DetailRow icon={<Calendar size={13} strokeWidth={1.5} />} label="Hours"   value={ex.hours}   />}
+          {/* Ticket fallback — spec: when no ticket info, point to the
+              official site instead of leaving the row empty. */}
+          <DetailRow
+            icon={<Ticket size={13} strokeWidth={1.5} />}
+            label="Tickets"
+            value={ex.ticketInfo ?? "Visit official website for ticket information."}
+          />
+          <DetailRow
+            icon={<Calendar size={13} strokeWidth={1.5} />}
+            label="Reservation required"
+            value={ex.reservationUrl ? "Yes — advance booking" : "No"}
+          />
         </div>
 
         {/* External links */}
@@ -635,7 +683,19 @@ export default function ExhibitionsPage() {
         )}
       </div>
 
-      {detail && <DetailPanel ex={detail} onClose={() => setDetail(null)} />}
+      {detail && (() => {
+        // Recompute against the same scoring fn so the detail panel
+        // shows the exact same number/reason the card surfaced.
+        const { score, reason } = scoreExhibition(detail, knownArtists, patternKeywords);
+        return (
+          <DetailPanel
+            ex={detail}
+            score={score}
+            reason={reason}
+            onClose={() => setDetail(null)}
+          />
+        );
+      })()}
     </div>
   );
 }
