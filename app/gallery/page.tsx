@@ -8,6 +8,7 @@ import { BottomNav } from "../components/BottomNav";
 import { useMyActivity, SavedArtwork } from "../context/MyActivityContext";
 import { useTabNav } from "../context/TabContext";
 import { CollectionPicker } from "../my/CollectionPicker";
+import { useLanguage } from "../i18n/useLanguage";
 
 function listingToArtwork(l: GalleryListing): SavedArtwork {
   return {
@@ -141,6 +142,7 @@ function HoldModal({ listing, onClose }: { listing: GalleryListing; onClose: () 
 function QuickActions({ listing, userTier, onHold }: {
   listing: GalleryListing; userTier: UserTier; onHold: () => void;
 }) {
+  const { t } = useLanguage();
   const { status, price, hold_policy, gallery, artwork_id } = listing;
   const primary = gallery.communication_channels.find(c => c.is_primary) ?? gallery.communication_channels[0];
   const canInquire = tierGte(userTier, "verified_collector");
@@ -169,7 +171,7 @@ function QuickActions({ listing, userTier, onHold }: {
   // Primary spec action — opens the artwork inside the ARTENA analysis
   // surface so the collector can read it through ARTENA's lens.
   buttons.push(pill(
-    "View with ARTENA AI",
+    t("gallery.view_with"),
     () => { window.location.href = `/analyze?artworkId=${encodeURIComponent(artwork_id)}`; },
     false,
     "bronze",
@@ -177,12 +179,12 @@ function QuickActions({ listing, userTier, onHold }: {
 
   // Inquire — formerly "Request Price"; broader scope per spec.
   if (status === "available" && price.visibility !== "hidden") {
-    buttons.push(pill("Inquire", () => alert("Inquiry sent to the gallery."), !canInquire));
+    buttons.push(pill(t("gallery.inquire"), () => alert("Inquiry sent to the gallery."), !canInquire));
   }
 
   // Ask Gallery — opens the gallery's primary channel.
   if (primary) {
-    buttons.push(pill("Ask Gallery", () => window.open(primary.url, "_blank")));
+    buttons.push(pill(t("gallery.ask"), () => window.open(primary.url, "_blank")));
   }
 
   // Existing capabilities (kept — spec: 기존 기능 삭제 금지).
@@ -211,6 +213,7 @@ interface BottomSheetProps {
 }
 
 function BottomSheet({ listing, userTier, onClose, onViewDetail, onViewGallery, onHold }: BottomSheetProps) {
+  const { t } = useLanguage();
   const [visible, setVisible] = useState(false);
   const { gallery, price, status, market_signal, hold_policy } = listing;
   const primary = gallery.communication_channels.find(c => c.is_primary) ?? gallery.communication_channels[0];
@@ -363,12 +366,12 @@ function BottomSheet({ listing, userTier, onClose, onViewDetail, onViewGallery, 
 
           {/* Action buttons — spec primary: View with ARTENA AI / Inquire / Ask Gallery */}
           <BtnFilled
-            label="View with ARTENA AI"
+            label={t("gallery.view_with")}
             onClick={() => { window.location.href = `/analyze?artworkId=${encodeURIComponent(listing.artwork_id)}`; }}
           />
           {status === "available" && price.visibility !== "hidden" && (
             <BtnFilled
-              label="Inquire"
+              label={t("gallery.inquire")}
               disabled={!canInquire}
               note={!canInquire ? "Collector verification required" : undefined}
               onClick={() => { alert("Inquiry sent to the gallery."); }}
@@ -376,7 +379,7 @@ function BottomSheet({ listing, userTier, onClose, onViewDetail, onViewGallery, 
           )}
           {primary && (
             <BtnFilled
-              label="Ask Gallery"
+              label={t("gallery.ask")}
               onClick={() => window.open(primary.url, "_blank")}
             />
           )}
@@ -580,15 +583,15 @@ function DemoTierBadge({ tier, onCycle }: { tier: UserTier; onCycle: () => void 
 }
 
 /* ── Filter bar ─────────────────────────────────────────────────── */
-const FILTERS: { id: GalleryFilter; label: string }[] = [
-  { id: "all",            label: "All" },
-  { id: "hold_available", label: "Hold Available" },
-  { id: "price_visible",  label: "Price Visible" },
-];
-
 function FilterBar({ active, onSelect, onGallery }: {
   active: GalleryFilter | "gallery"; onSelect: (f: GalleryFilter) => void; onGallery: () => void;
 }) {
+  const { t } = useLanguage();
+  const filters: { id: GalleryFilter; label: string }[] = [
+    { id: "all",            label: t("gallery.filter_all")   },
+    { id: "hold_available", label: t("gallery.filter_hold")  },
+    { id: "price_visible",  label: t("gallery.filter_price") },
+  ];
   const pill = (label: string, isActive: boolean, onClick: () => void) => (
     <button key={label} onClick={onClick} style={{
       flexShrink: 0, padding: "7px 16px",
@@ -601,8 +604,8 @@ function FilterBar({ active, onSelect, onGallery }: {
   );
   return (
     <div style={{ overflowX: "auto", display: "flex", gap: 8, padding: "0 22px", scrollbarWidth: "none" }}>
-      {FILTERS.map(f => pill(f.label, active === f.id, () => onSelect(f.id)))}
-      {pill("Galleries", active === "gallery", onGallery)}
+      {filters.map(f => pill(f.label, active === f.id, () => onSelect(f.id)))}
+      {pill(t("gallery.galleries"), active === "gallery", onGallery)}
     </div>
   );
 }
@@ -642,6 +645,7 @@ function GalleryPickerModal({ onSelect, onClose }: { onSelect: (id: string) => v
 
 /* ── Main Gallery Page ──────────────────────────────────────────── */
 function GalleryPage() {
+  const { t } = useLanguage();
   const [view,        setView]       = useState<GalleryView>({ type: "list" });
   const [filter,      setFilter]     = useState<GalleryFilter | "gallery">("all");
   const [showPicker,  setShowPicker] = useState(false);
@@ -743,15 +747,15 @@ function GalleryPage() {
               textDecoration: "none", fontFamily: FONT,
             }}
           >
-            ARTENA AI
+            {t("common.app_name")}
           </a>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
             <div>
               <h1 style={{ fontSize: 28, fontWeight: 700, margin: "0 0 4px", fontFamily: FONT_HEAD, letterSpacing: "-.03em", color: "#0D0D0D", lineHeight: 1.1 }}>
-                ARTENA Gallery
+                {t("gallery.title")}
               </h1>
               <p style={{ fontSize: 13, color: "#6F6F6F", margin: 0, fontFamily: FONT }}>
-                Verified galleries and curated available works
+                {t("gallery.subtitle")}
               </p>
             </div>
             <DemoTierBadge tier={userTier} onCycle={() => setTierIdx(i => (i + 1) % TIERS.length)} />

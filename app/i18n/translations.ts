@@ -49,7 +49,7 @@ const ko: Dictionary = {
   "nav.taste":           "취향",
   "nav.recommendations": "추천",
   "nav.gallery":         "갤러리",
-  "nav.my":              "나의 아카이브",
+  "nav.my":              "My",
   "nav.exhibitions":     "전시 & 여행",
 
   /* ── home ──────────────────────────────────────────────── */
@@ -141,11 +141,15 @@ const ko: Dictionary = {
   "ex.tickets_fallback":    "티켓 정보는 공식 웹사이트를 방문해주세요.",
 
   /* ── gallery ───────────────────────────────────────────── */
-  "gallery.title":              "ARTENA Gallery",
-  "gallery.subtitle":           "검증된 갤러리와 큐레이션된 작품",
+  "gallery.title":              "ARTENA 갤러리",
+  "gallery.subtitle":           "검증된 갤러리와 큐레이션 작품",
+  "gallery.filter_all":         "전체",
+  "gallery.filter_hold":        "홀드 가능",
+  "gallery.filter_price":       "가격 공개",
+  "gallery.galleries":          "갤러리",
   "gallery.view_with":          "ARTENA AI로 보기",
   "gallery.inquire":            "문의하기",
-  "gallery.ask":                "갤러리에 묻기",
+  "gallery.ask":                "갤러리에 질문하기",
   "gallery.price_on_inquiry":   "가격은 문의 시 확인 가능",
 };
 
@@ -171,9 +175,9 @@ const en: Dictionary = {
   "nav.scan":            "Scan",
   "nav.collection":      "Collection",
   "nav.taste":           "Taste",
-  "nav.recommendations": "Recommended",
+  "nav.recommendations": "For You",
   "nav.gallery":         "Gallery",
-  "nav.my":              "My Archive",
+  "nav.my":              "My",
   "nav.exhibitions":     "Exhibitions & Travel",
 
   /* ── home ──────────────────────────────────────────────── */
@@ -267,6 +271,10 @@ const en: Dictionary = {
   /* ── gallery ───────────────────────────────────────────── */
   "gallery.title":              "ARTENA Gallery",
   "gallery.subtitle":           "Verified galleries and curated available works",
+  "gallery.filter_all":         "All",
+  "gallery.filter_hold":        "Hold Available",
+  "gallery.filter_price":       "Price Visible",
+  "gallery.galleries":          "Galleries",
   "gallery.view_with":          "View with ARTENA AI",
   "gallery.inquire":            "Inquire",
   "gallery.ask":                "Ask Gallery",
