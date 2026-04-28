@@ -1,6 +1,7 @@
 "use client";
 import React, { useRef, useState } from "react";
 import { IcoUpload, IcoCamera, IcoSearch } from "./icons";
+import { useLanguage } from "../../../i18n/useLanguage";
 
 interface SecondaryInputGridProps {
   onFileSelected: (file: File) => void;
@@ -19,6 +20,7 @@ const GRID_STYLES = `
 export function SecondaryInputGrid({ onFileSelected, onCamera, onTextSearch }: SecondaryInputGridProps) {
   const fileRef  = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t }    = useLanguage();
 
   const [showSearch, setShowSearch] = useState(false);
   const [query,      setQuery]      = useState("");
@@ -39,24 +41,24 @@ export function SecondaryInputGrid({ onFileSelected, onCamera, onTextSearch }: S
     {
       key: "upload",
       icon: <IcoUpload size={18} color="#666" />,
-      label: "이미지 업로드",
-      sub: "JPG / PNG / WEBP",
+      label: t("home.upload"),
+      sub:   t("home.upload_sub"),
       onClick: () => fileRef.current?.click(),
       active: false,
     },
     {
       key: "camera",
       icon: <IcoCamera size={18} color="#666" />,
-      label: "카메라 촬영",
-      sub: "직접 찍기",
+      label: t("home.camera"),
+      sub:   t("home.camera_sub"),
       onClick: onCamera,
       active: false,
     },
     {
       key: "search",
       icon: <IcoSearch size={18} color={showSearch ? "#8A6A3F" : "#666"} />,
-      label: "텍스트 검색",
-      sub: "작가·작품 검색",
+      label: t("home.text_search"),
+      sub:   t("home.text_search_sub"),
       onClick: handleSearchToggle,
       active: showSearch,
     },
@@ -73,7 +75,7 @@ export function SecondaryInputGrid({ onFileSelected, onCamera, onTextSearch }: S
         margin: "0 0 10px",
         fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
       }}>
-        추가 입력 방법
+        {t("home.alt_inputs_title")}
       </p>
 
       <div style={{ display: "flex", gap: 8, marginBottom: showSearch ? 10 : 28 }}>
@@ -131,7 +133,7 @@ export function SecondaryInputGrid({ onFileSelected, onCamera, onTextSearch }: S
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") handleSubmit(); }}
-            placeholder="작가명 또는 작품명 입력"
+            placeholder={t("home.search_placeholder")}
             style={{
               flex: 1,
               border: "0.5px solid #D8D8D8",
@@ -158,7 +160,7 @@ export function SecondaryInputGrid({ onFileSelected, onCamera, onTextSearch }: S
               flexShrink: 0,
             }}
           >
-            검색
+            {t("home.search_button")}
           </button>
         </div>
       </div>

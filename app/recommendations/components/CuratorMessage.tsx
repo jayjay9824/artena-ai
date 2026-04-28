@@ -1,5 +1,6 @@
 "use client";
 import React, { useState } from "react";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface CuratorMessageProps {
   tasteKeywords: string[];
@@ -56,12 +57,13 @@ function deriveInsight(clusters: string[]): { preview: string; full: string } {
 export function CuratorMessage({ tasteKeywords, clusters = [] }: CuratorMessageProps) {
   const [expanded, setExpanded] = useState(false);
   const { preview, full } = deriveInsight(clusters);
+  const { t } = useLanguage();
 
   return (
     <div style={{ padding: "30px 22px 26px", borderBottom: "0.5px solid #F0F0F0" }}>
       {/* Section label */}
       <p style={{ fontSize: 9, color: "#BABABA", letterSpacing: ".22em", textTransform: "uppercase", margin: "0 0 16px", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>
-        Curator Insight
+        {t("rec.curator_insight")}
       </p>
 
       {/* Cluster pills (preferred) — fall back to keyword pills when clusters unavailable */}

@@ -96,7 +96,7 @@ function TasteProfilePage() {
             fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
           }}
         >
-          Explore Recommendations
+          {t("taste.explore_recs_cta")}
         </button>
         <button
           onClick={() => router.push("/collection")}
@@ -110,7 +110,7 @@ function TasteProfilePage() {
             fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
           }}
         >
-          View Collection
+          {t("taste.view_collection_cta")}
         </button>
       </div>
 
@@ -129,7 +129,7 @@ function TasteProfilePage() {
             fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
           }}
         >
-          Exhibitions &amp; Travel →
+          {t("taste.exhibitions_cta")}
         </button>
       </div>
 

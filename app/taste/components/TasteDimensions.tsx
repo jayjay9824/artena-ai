@@ -1,6 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { TasteDimension } from "../types/taste";
+import { useLanguage } from "../../i18n/useLanguage";
 
 const DIMENSION_STYLES = `
   @keyframes dim-grow { from { width: 0% } }
@@ -76,6 +77,7 @@ interface TasteDimensionsProps {
 }
 
 export function TasteDimensions({ dimensions }: TasteDimensionsProps) {
+  const { t } = useLanguage();
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: DIMENSION_STYLES }} />
@@ -84,7 +86,7 @@ export function TasteDimensions({ dimensions }: TasteDimensionsProps) {
           fontSize: 9, color: "#BBBBBB", letterSpacing: ".22em", textTransform: "uppercase",
           margin: "0 0 28px", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
         }}>
-          Taste Dimensions
+          {t("taste.dimensions_title")}
         </p>
 
         {dimensions.map((dim, i) => (

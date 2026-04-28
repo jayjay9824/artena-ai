@@ -2,6 +2,7 @@
 import React from "react";
 import { TasteProfile } from "../types/taste";
 import { useTabNav } from "../../context/TabContext";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface TasteInsightProps {
   profile: TasteProfile;
@@ -9,13 +10,14 @@ interface TasteInsightProps {
 
 export function TasteInsight({ profile }: TasteInsightProps) {
   const { goTo } = useTabNav();
+  const { t } = useLanguage();
   return (
     <div style={{ padding: "30px 22px 36px" }}>
       <p style={{
         fontSize: 9, color: "#BBBBBB", letterSpacing: ".22em", textTransform: "uppercase",
         margin: "0 0 22px", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
       }}>
-        Taste Insight
+        {t("taste.insight_title")}
       </p>
 
       {/* Dominant axes summary */}
@@ -52,7 +54,7 @@ export function TasteInsight({ profile }: TasteInsightProps) {
           }}
         >
           <span style={{ fontSize: 9, color: "#8A6A3F" }}>◆</span>
-          Explore Recommendations
+          {t("taste.explore_recs_cta")}
           <span style={{ fontSize: 10, color: "#666" }}>→</span>
         </button>
         <button
@@ -65,7 +67,7 @@ export function TasteInsight({ profile }: TasteInsightProps) {
             letterSpacing: ".06em", cursor: "pointer", width: "100%",
           }}
         >
-          View Collection
+          {t("taste.view_collection_cta")}
         </button>
       </div>
     </div>

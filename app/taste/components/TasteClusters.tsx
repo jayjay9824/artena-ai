@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import type { TasteProfile, VisualPattern } from "../types/taste";
+import { useLanguage } from "../../i18n/useLanguage";
 
 /**
  * Key Taste Clusters — surfaces 2–4 named clusters instead of
@@ -85,6 +86,7 @@ function deriveClusters(patterns: VisualPattern[]): DerivedCluster[] {
 
 export function TasteClusters({ profile }: { profile: TasteProfile }) {
   const clusters = deriveClusters(profile.patterns);
+  const { t } = useLanguage();
 
   if (clusters.length === 0) {
     return (
@@ -95,7 +97,7 @@ export function TasteClusters({ profile }: { profile: TasteProfile }) {
           fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
           fontWeight: 600,
         }}>
-          Key Taste Clusters
+          {t("taste.key_clusters")}
         </p>
         <p style={{ fontSize: 13, color: "#9A9A9A", margin: 0, lineHeight: 1.5 }}>
           Save more works to surface your distinct directions.
@@ -112,7 +114,7 @@ export function TasteClusters({ profile }: { profile: TasteProfile }) {
         fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
         fontWeight: 600,
       }}>
-        Key Taste Clusters
+        {t("taste.key_clusters")}
       </p>
 
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

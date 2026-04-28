@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { TasteProfile } from "../types/taste";
+import { useLanguage } from "../../i18n/useLanguage";
 
 const STRENGTH_CONFIG = {
   forming:  { label: "Profile Forming",  color: "#BBBBBB", bg: "#F6F6F6"    },
@@ -14,7 +15,8 @@ interface TasteStatementProps {
 }
 
 export function TasteStatement({ profile, isDemo }: TasteStatementProps) {
-  const cfg = STRENGTH_CONFIG[profile.signalStrength];
+  const cfg   = STRENGTH_CONFIG[profile.signalStrength];
+  const { t } = useLanguage();
 
   return (
     <div style={{ padding: "32px 22px 36px", borderBottom: "0.5px solid #F2F2F2" }}>
@@ -28,7 +30,9 @@ export function TasteStatement({ profile, isDemo }: TasteStatementProps) {
           {cfg.label.toUpperCase()}
         </span>
         <span style={{ fontSize: 9, color: "#D0D0D0", letterSpacing: ".04em" }}>
-          {isDemo ? "DEMO · 4 works" : `Based on ${profile.collectionSize} work${profile.collectionSize !== 1 ? "s" : ""}`}
+          {isDemo
+            ? `DEMO · ${t("taste.based_on", { n: 4 })}`
+            : t("taste.based_on", { n: profile.collectionSize })}
         </span>
       </div>
 

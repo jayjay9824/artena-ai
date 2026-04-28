@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { IcoQr } from "./icons";
+import { useLanguage } from "../../../i18n/useLanguage";
 
 const STYLES = `
   @keyframes shimmerQR {
@@ -19,6 +20,7 @@ const STYLES = `
 `;
 
 export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
+  const { t } = useLanguage();
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: STYLES }} />
@@ -76,7 +78,7 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
             padding: "4px 11px", borderRadius: 20,
             fontWeight: 600,
           }}>
-            Smart Scan
+            {t("home.smart_scan_badge")}
           </span>
         </div>
 
@@ -86,7 +88,7 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
           fontFamily: "'KakaoBigSans', system-ui, sans-serif",
           letterSpacing: "-.015em",
         }}>
-          Smart Scan
+          {t("home.smart_scan")}
         </h2>
 
         {/* Description */}
@@ -94,7 +96,7 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
           fontSize: 13, color: "#6F6F6F", lineHeight: 1.62, margin: "0 0 18px",
           fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
         }}>
-          작품, 설명, QR을 한 번에 인식합니다.
+          {t("home.smart_scan_desc")}
         </p>
 
         {/* CTA button */}
@@ -113,12 +115,12 @@ export function PrimaryQRScanCard({ onScan }: { onScan: () => void }) {
           }}
         >
           <IcoQr size={16} color="#fff" />
-          스캔 시작
+          {t("home.scan_cta")}
         </button>
 
         {/* Small tags — what Smart Scan reads */}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" as const, marginTop: 14 }}>
-          {["작품", "설명", "QR"].map(label => (
+          {[t("home.tag_artwork"), t("home.tag_label"), t("home.tag_qr")].map(label => (
             <span key={label} style={{
               fontSize: 10, color: "#8A6A3F",
               background: "rgba(138,106,63,0.08)",

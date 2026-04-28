@@ -12,6 +12,7 @@ import { useCollection } from "../collection/hooks/useCollection";
 import { useMyActivity } from "../context/MyActivityContext";
 import { useTasteProfile } from "../taste/hooks/useTasteProfile";
 import { BottomNav } from "../components/BottomNav";
+import { useLanguage } from "../i18n/useLanguage";
 
 const PAGE_STYLES = `
   .rec-back-btn:hover { opacity: 0.85; }
@@ -47,7 +48,8 @@ function RecommendationsPage() {
   const { recs, images, activeFilter, setFilter, toggleAction } = useRecommendations();
   const { items } = useCollection();
   const { state: my } = useMyActivity();
-  const { profile } = useTasteProfile();
+  const { profile }   = useTasteProfile();
+  const { t }         = useLanguage();
   const [selectedRec, setSelectedRec] = useState<Recommendation | null>(null);
   const [reportLoading, setReportLoading] = useState(false);
   const [reportData, setReportData] = useState<MarketIntelligenceData | null>(null);
@@ -212,16 +214,16 @@ function RecommendationsPage() {
                   fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
                 }}
               >
-                Powered by ARTENA AI
+                Powered by {t("common.app_name")}
               </a>
               <h1 style={{
                 fontSize: 24, fontWeight: 700, color: "#0D0D0D", margin: "0 0 4px",
                 fontFamily: "'KakaoBigSans', system-ui, sans-serif", letterSpacing: "-.025em",
               }}>
-                Recommended
+                {t("rec.title")}
               </h1>
               <p style={{ fontSize: 12, color: "#B0B0B0", margin: 0, letterSpacing: ".01em" }}>
-                Based on your taste profile
+                {t("rec.subtitle")}
               </p>
             </div>
 

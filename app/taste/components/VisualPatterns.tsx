@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { VisualPattern } from "../types/taste";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface VisualPatternsProps {
   patterns: VisualPattern[];
@@ -8,13 +9,14 @@ interface VisualPatternsProps {
 }
 
 export function VisualPatterns({ patterns, summary }: VisualPatternsProps) {
+  const { t } = useLanguage();
   return (
     <div style={{ padding: "30px 22px 30px", borderBottom: "0.5px solid #F2F2F2" }}>
       <p style={{
         fontSize: 9, color: "#BBBBBB", letterSpacing: ".22em", textTransform: "uppercase",
         margin: "0 0 24px", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
       }}>
-        Visual Patterns
+        {t("taste.visual_patterns_title")}
       </p>
 
       {/* Organic tag cloud */}

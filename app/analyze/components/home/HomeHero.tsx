@@ -1,8 +1,14 @@
 "use client";
 import React from "react";
 import Link from "next/link";
+import { useLanguage } from "../../../i18n/useLanguage";
 
 export function HomeHero() {
+  const { t } = useLanguage();
+  // Sub copy may carry "\n" from translations — render as <br /> rather
+  // than display literal escape characters.
+  const subLines = t("home.sub").split("\n");
+
   return (
     <div style={{ paddingBottom: 28 }}>
       {/* Brand line — logo navigates to marketing landing per spec */}
@@ -18,14 +24,14 @@ export function HomeHero() {
           fontFamily: "'KakaoBigSans', system-ui, sans-serif", color: "#111",
           fontWeight: 800,
         }}>
-          ARTENA AI
+          {t("common.app_name")}
         </span>
         <span style={{
           fontSize: 8.5, letterSpacing: ".18em", textTransform: "uppercase" as const,
           color: "#AAAAAA", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
           paddingTop: 1,
         }}>
-          Cultural Intelligence AI
+          {t("common.tagline")}
         </span>
       </Link>
 
@@ -37,7 +43,7 @@ export function HomeHero() {
         letterSpacing: "-.03em",
         fontStyle: "italic",
       }}>
-        Just Show It.
+        {t("home.headline")}
       </h1>
 
       {/* Sub */}
@@ -46,8 +52,12 @@ export function HomeHero() {
         margin: "0 0 4px",
         fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
       }}>
-        작품, 라벨, QR을 보여주면<br />
-        ARTENA가 맥락과 시장을 읽습니다.
+        {subLines.map((line, i) => (
+          <React.Fragment key={i}>
+            {i > 0 && <br />}
+            {line}
+          </React.Fragment>
+        ))}
       </p>
     </div>
   );

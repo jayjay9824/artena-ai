@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Recommendation } from "../types/recommendation";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface FeedItemProps {
   rec: Recommendation;
@@ -47,6 +48,7 @@ function MiniActionBtn({ active, activeColor, icon, label, onClick }: {
 
 export function FeedItem({ rec, imageUrl, variant, flip = false, onTap, onLike, onSave }: FeedItemProps) {
   const initials = rec.artist.split(" ").map(w => w[0]).slice(0, 2).join("");
+  const { t } = useLanguage();
 
   if (variant === "large") {
     return (
@@ -100,13 +102,13 @@ export function FeedItem({ rec, imageUrl, variant, flip = false, onTap, onLike, 
 
           {/* Actions */}
           <div style={{ display: "flex", gap: 14, marginTop: 20, alignItems: "center" }}>
-            <MiniActionBtn active={rec.liked} activeColor="#E04848" icon={rec.liked ? "♥" : "♡"} label="Like" onClick={(e) => { e.stopPropagation(); onLike(); }} />
-            <MiniActionBtn active={rec.saved} activeColor="#8A6A3F" icon={rec.saved ? "◆" : "◇"} label="Save" onClick={(e) => { e.stopPropagation(); onSave(); }} />
+            <MiniActionBtn active={rec.liked} activeColor="#E04848" icon={rec.liked ? "♥" : "♡"} label={t("rec.like")} onClick={(e) => { e.stopPropagation(); onLike(); }} />
+            <MiniActionBtn active={rec.saved} activeColor="#8A6A3F" icon={rec.saved ? "◆" : "◇"} label={t("rec.save")} onClick={(e) => { e.stopPropagation(); onSave(); }} />
             <button
               onClick={onTap}
               style={{ marginLeft: "auto", background: "none", border: "0.5px solid #E4E4E4", cursor: "pointer", padding: "5px 11px", display: "flex", alignItems: "center", gap: 5, flexShrink: 0 }}
             >
-              <span style={{ fontSize: 9, color: "#777", letterSpacing: ".06em" }}>Report</span>
+              <span style={{ fontSize: 9, color: "#777", letterSpacing: ".06em" }}>{t("rec.report")}</span>
               <span style={{ fontSize: 9, color: "#C4C4C4" }}>→</span>
             </button>
           </div>

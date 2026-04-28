@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { Recommendation } from "../types/recommendation";
+import { useLanguage } from "../../i18n/useLanguage";
 
 interface FeaturedCardProps {
   rec: Recommendation;
@@ -10,6 +11,7 @@ interface FeaturedCardProps {
 
 export function FeaturedCard({ rec, imageUrl, onTap }: FeaturedCardProps) {
   const initials = rec.artist.split(" ").map(w => w[0]).slice(0, 2).join("");
+  const { t } = useLanguage();
 
   return (
     <div
@@ -55,7 +57,7 @@ export function FeaturedCard({ rec, imageUrl, onTap }: FeaturedCardProps) {
           backdropFilter: "blur(12px)", WebkitBackdropFilter: "blur(12px)",
           padding: "5px 11px", borderRadius: 20,
         }}>
-          Curated for you
+          {t("rec.curated_for_you")}
         </span>
       </div>
 
@@ -65,7 +67,7 @@ export function FeaturedCard({ rec, imageUrl, onTap }: FeaturedCardProps) {
           fontSize: 8, letterSpacing: ".24em", textTransform: "uppercase",
           color: rec.accentColor, margin: "0 0 12px", opacity: 0.75,
         }}>
-          Featured Recommendation
+          {t("rec.featured")}
         </p>
         <h2 style={{
           fontSize: 30, fontWeight: 700, color: "#FFFFFF",
