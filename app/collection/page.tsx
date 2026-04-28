@@ -7,6 +7,7 @@ import { useTabNav } from "../context/TabContext";
 import { QuickReport } from "../analyze/components/QuickReport";
 import { MarketIntelligenceData } from "../analyze/components/MarketIntelligenceReport";
 import { BottomNav } from "../components/BottomNav";
+import { useLanguage } from "../i18n/useLanguage";
 
 /* ─────────────────────────────────────────────────────────────────
    FONTS & CONSTANTS
@@ -162,15 +163,16 @@ const FolderIcon = ({ active }: { active?: boolean }) => (
 function TasteSignalSummary({ signal, likedCount, savedCount, colCount }: {
   signal: TasteSignal | null; likedCount: number; savedCount: number; colCount: number;
 }) {
+  const { t } = useLanguage();
   const hasAny = likedCount + savedCount + colCount > 0;
   return (
     <div style={{ padding: "24px 0 28px", borderBottom: "0.5px solid #F0F0F0" }}>
       {/* Counts row */}
       <div style={{ display: "flex", gap: 0, marginBottom: signal ? 20 : 0 }}>
         {[
-          { icon: <HeartIcon filled />, value: likedCount, label: "좋아요" },
-          { icon: <BookmarkIcon filled />, value: savedCount, label: "저장" },
-          { icon: <FolderIcon active />, value: colCount, label: "컬렉션" },
+          { icon: <HeartIcon filled />, value: likedCount, label: t("my.tab_likes")       },
+          { icon: <BookmarkIcon filled />, value: savedCount, label: t("my.tab_saved")    },
+          { icon: <FolderIcon active />, value: colCount,    label: t("my.tab_collections") },
         ].map(({ icon, value, label }, i) => (
           <div key={label} style={{ flex: 1, textAlign: "center", padding: "14px 0", borderRight: i < 2 ? "0.5px solid #F0F0F0" : "none" }}>
             <div style={{ display: "flex", justifyContent: "center", marginBottom: 6 }}>{icon}</div>
@@ -435,25 +437,26 @@ function MainTabBar({ active, onSelect, counts }: {
   onSelect: (t: MainTab) => void;
   counts: Record<MainTab, number>;
 }) {
+  const { t } = useLanguage();
   const tabs: { id: MainTab; label: string }[] = [
-    { id: "saved",       label: "저장" },
-    { id: "liked",       label: "좋아요" },
-    { id: "collections", label: "컬렉션" },
+    { id: "saved",       label: t("my.tab_saved")       },
+    { id: "liked",       label: t("my.tab_likes")       },
+    { id: "collections", label: t("my.tab_collections") },
   ];
   return (
     <div style={{ display: "flex", borderBottom: "0.5px solid #EBEBEB", marginBottom: 0 }}>
-      {tabs.map(t => (
-        <button key={t.id} onClick={() => onSelect(t.id)} style={{
+      {tabs.map(tb => (
+        <button key={tb.id} onClick={() => onSelect(tb.id)} style={{
           flex: 1, padding: "13px 4px 12px", background: "none", border: "none", cursor: "pointer",
-          borderBottom: `2px solid ${active === t.id ? "#0D0D0D" : "transparent"}`,
-          fontFamily: F, fontSize: 13, fontWeight: active === t.id ? 700 : 400,
-          color: active === t.id ? "#0D0D0D" : "#AAAAAA", letterSpacing: ".02em",
+          borderBottom: `2px solid ${active === tb.id ? "#0D0D0D" : "transparent"}`,
+          fontFamily: F, fontSize: 13, fontWeight: active === tb.id ? 700 : 400,
+          color: active === tb.id ? "#0D0D0D" : "#AAAAAA", letterSpacing: ".02em",
           transition: "all .15s",
         }}>
-          {t.label}
-          {counts[t.id] > 0 && (
-            <span style={{ marginLeft: 5, fontSize: 10, color: active === t.id ? "#0D0D0D" : "#C8C8C8", fontFamily: F }}>
-              {counts[t.id]}
+          {tb.label}
+          {counts[tb.id] > 0 && (
+            <span style={{ marginLeft: 5, fontSize: 10, color: active === tb.id ? "#0D0D0D" : "#C8C8C8", fontFamily: F }}>
+              {counts[tb.id]}
             </span>
           )}
         </button>
@@ -557,6 +560,7 @@ function CollectionPage() {
   const { items: analysisItems, hydrated, patch } = useCollection();
   const { state: myState } = useMyActivity();
   const searchParams = useSearchParams();
+  const { t } = useLanguage();
 
   const initialTab = readTabParam(searchParams.get("tab")) ?? "saved";
   const [activeTab, setActiveTab]         = useState<MainTab>(initialTab);
@@ -686,13 +690,13 @@ function CollectionPage() {
               fontFamily: F,
             }}
           >
-            ARTENA AI
+            {t("common.app_name")}
           </a>
           <h1 style={{ fontSize: 32, fontWeight: 700, color: "#0A0A0A", margin: "0 0 4px", fontFamily: FH, letterSpacing: "-.025em", lineHeight: 1 }}>
-            Collection
+            {t("nav.collection")}
           </h1>
           <p style={{ fontSize: 13, color: "#AAAAAA", margin: 0, letterSpacing: ".01em" }}>
-            Your saved artworks, likes, and curated collections
+            {t("collection.subtitle")}
           </p>
           {isDemoMode && (
             <p style={{ fontSize: 10, color: "#C8B87C", margin: "10px 0 0", letterSpacing: ".04em" }}>

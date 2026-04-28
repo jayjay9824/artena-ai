@@ -49,7 +49,7 @@ const ko: Dictionary = {
   "nav.taste":           "취향",
   "nav.recommendations": "추천",
   "nav.gallery":         "갤러리",
-  "nav.my":              "마이 아카이브",
+  "nav.my":              "나의 아카이브",
   "nav.exhibitions":     "전시 & 여행",
 
   /* ── home ──────────────────────────────────────────────── */
@@ -93,14 +93,17 @@ const ko: Dictionary = {
   "match.enter_manually":       "직접 작품 정보 입력",
 
   /* ── my archive ────────────────────────────────────────── */
-  "my.title":           "마이 아카이브",
-  "my.tagline":         "나만의 문화 기록",
+  "my.title":           "나의 아카이브",
+  "my.tagline":         "나의 문화 기록",
   "my.tab_likes":       "좋아요",
   "my.tab_saved":       "저장",
   "my.tab_collections": "컬렉션",
   "my.tab_recent":      "최근",
   "my.view_analysis":   "분석 보기",
   "my.record_label":    "기록 · ARTENA 분석",
+
+  /* ── collection (shared with my archive) ───────────────── */
+  "collection.subtitle":  "저장한 작품과 컬렉션을 한 곳에서",
 
   /* ── taste ─────────────────────────────────────────────── */
   "taste.title":                 "취향 프로필",
@@ -222,6 +225,9 @@ const en: Dictionary = {
   "my.tab_recent":      "Recent",
   "my.view_analysis":   "View Analysis",
   "my.record_label":    "Record · ARTENA Analysis",
+
+  /* ── collection (shared with my archive) ───────────────── */
+  "collection.subtitle":  "Your saved artworks, likes, and curated collections",
 
   /* ── taste ─────────────────────────────────────────────── */
   "taste.title":                 "Taste Profile",

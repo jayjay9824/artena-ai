@@ -109,6 +109,7 @@ interface MiniCardProps {
 function ArtworkMiniCard({ artwork, meta, onAction, actionLabel, actionIcon, secondaryAction, onView }: MiniCardProps) {
   const { goTo } = useTabNav();
   const router = useRouter();
+  const { t } = useLanguage();
 
   // Spec routing: reportId → /report/{reportId}
   // else artworkId → /analyze?artworkId={artworkId}
@@ -150,7 +151,7 @@ function ArtworkMiniCard({ artwork, meta, onAction, actionLabel, actionIcon, sec
             textTransform: "uppercase" as const,
             margin: "2px 0 6px", fontWeight: 600, fontFamily: FONT,
           }}>
-            Record · ARTENA Analysis
+            {t("my.record_label")}
           </p>
         )}
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -165,7 +166,7 @@ function ArtworkMiniCard({ artwork, meta, onAction, actionLabel, actionIcon, sec
           )}
           {artwork.source === "analysis" && (
             <button onClick={onViewAnalysis} style={{ fontSize: 10, color: "#1C1A17", background: "none", border: "0.5px solid #D8D8D8", borderRadius: 20, padding: "4px 10px", cursor: "pointer", fontFamily: FONT, letterSpacing: ".04em", fontWeight: 600 }}>
-              View Analysis →
+              {t("my.view_analysis")} →
             </button>
           )}
         </div>
