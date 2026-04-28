@@ -44,14 +44,52 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 /* ── Artwork thumbnail ───────────────────────────────────────────── */
+/**
+ * Premium placeholder when no image: warm bronze-tinted gradient,
+ * bronze initials in serif weight, tiny ARTENA glyph above. Reads
+ * as a museum archive card rather than a missing-image fallback.
+ * Real images render edge-to-edge as before.
+ */
 function ArtThumb({ url, artist }: { url: string | null; artist: string }) {
   const initials = artist.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  if (url) {
+    return (
+      <div style={{
+        width: 72, height: 72, flexShrink: 0,
+        background: "#F4F4F2", borderRadius: 6, overflow: "hidden",
+      }}>
+        <img
+          src={url}
+          alt=""
+          style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top", display: "block" }}
+        />
+      </div>
+    );
+  }
   return (
-    <div style={{ width: 72, height: 72, flexShrink: 0, background: "#F4F4F2", borderRadius: 6, overflow: "hidden", display: "flex", alignItems: "center", justifyContent: "center" }}>
-      {url
-        ? <img src={url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "top" }} />
-        : <span style={{ fontSize: 18, fontWeight: 200, color: "#C8C8C4", fontFamily: FONT_HEAD }}>{initials}</span>
-      }
+    <div style={{
+      width: 72, height: 72, flexShrink: 0,
+      background: "linear-gradient(140deg, #F8F4EB, #F1ECE0 60%, #ECE6D6)",
+      borderRadius: 6, overflow: "hidden",
+      border: "0.5px solid #E7E2D8",
+      display: "flex", flexDirection: "column" as const,
+      alignItems: "center", justifyContent: "center",
+      gap: 2,
+    }}>
+      <span style={{
+        fontSize: 7, color: "#8A6A3F",
+        letterSpacing: ".22em", textTransform: "uppercase" as const,
+        fontWeight: 600, fontFamily: FONT,
+      }}>
+        ◆
+      </span>
+      <span style={{
+        fontSize: 17, color: "#8A6A3F",
+        fontFamily: FONT_HEAD, fontWeight: 600,
+        letterSpacing: ".02em",
+      }}>
+        {initials}
+      </span>
     </div>
   );
 }

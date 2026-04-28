@@ -336,6 +336,11 @@ export function QuickReport({
     artist_name: a.artist ?? "Unknown",
     title:       a.title  ?? "Untitled",
     year:        a.year   ?? "",
+    // Analysis carries style ≈ period (e.g. "Late period",
+    // "Dansaekhwa era"). My Archive's mini-card renders this on
+    // the metadata line. canonicalToAnalysis fills style from
+    // Artwork.period when matched against the canonical catalogue.
+    period:      a.style  ?? undefined,
     gallery_name: "",
     source: "analysis",
     status: "not_listed",
