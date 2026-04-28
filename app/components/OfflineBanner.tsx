@@ -58,7 +58,13 @@ export function OfflineBanner() {
     }
   }, [isOnline, pendingCount, syncNow]);
 
+  // Only show the "Saved locally" pill when there is actually
+  // something queued to sync — being offline alone isn't enough.
+  // Avoids false positives from flaky navigator.onLine readings on
+  // first paint, and matches the spec semantics ("saved locally"
+  // implies something was in fact saved).
   if (isOnline) return null;
+  if (pendingCount === 0) return null;
 
   return (
     <div

@@ -140,6 +140,19 @@ function ScanScreen() {
 
   useEffect(() => {
     if (!staged.error) return;
+    // Detect network failure (offline / fetch failed) and route to the
+    // queue path; otherwise show the message and reset to preview.
+    const looksLikeNetwork =
+      /Failed to fetch|NetworkError|fetch failed|Load failed/i.test(staged.error) ||
+      (typeof navigator !== "undefined" && !navigator.onLine);
+    if (looksLikeNetwork && pendingFile) {
+      void offline.enqueue({ imageBlob: pendingFile });
+      setError(null);
+      setScreen("upload");
+      setPendingFile(null);
+      setImagePreview(null);
+      return;
+    }
     setError(staged.error);
     setScreen(pendingFile ? "preview" : "upload");
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -290,7 +303,9 @@ function ScanScreen() {
 
   // SmartScanner frame capture → skip preview, go straight to analysis
   // Routes through the staged hook so QuickView paints in ~2-3s while
-  // the full Opus analysis runs in parallel.
+  // the full Opus analysis runs in parallel. Offline detection moved
+  // into the staged-error effect so a flaky navigator.onLine reading
+  // doesn't block legitimate online scans.
   const analyzeWithFile = async (file: File, dataUrl: string) => {
     setShowScanner(false);
     setImagePreview(dataUrl);
@@ -299,16 +314,6 @@ function ScanScreen() {
     persistedRef.current = false;
     try {
       const blob = await compressIfNeeded(file);
-      // STEP 3 — offline guard. Queue locally, reset to home; the
-      // OfflineBanner picks up the pending count and auto-syncs on
-      // reconnect.
-      if (!navigator.onLine) {
-        await offline.enqueue({ imageBlob: blob });
-        setScreen("upload");
-        setPendingFile(null);
-        setImagePreview(null);
-        return;
-      }
       setScreen("loading");
       staged.runImage(blob);
     } catch (err: unknown) {
@@ -323,14 +328,6 @@ function ScanScreen() {
     persistedRef.current = false;
     try {
       const blob = await compressIfNeeded(pendingFile);
-      // STEP 3 — offline guard.
-      if (!navigator.onLine) {
-        await offline.enqueue({ imageBlob: blob });
-        setScreen("upload");
-        setPendingFile(null);
-        setImagePreview(null);
-        return;
-      }
       setScreen("loading");
       staged.runImage(blob);
     } catch (err: unknown) {
@@ -344,14 +341,6 @@ function ScanScreen() {
     if (!query.trim()) return;
     setImagePreview(null);
     setError(null);
-    // STEP 3 — offline guard for text scans. Canonical lookup runs
-    // entirely client-side, but matchArtwork falls back to /api/analyze
-    // for unmatched queries; queue the raw query and bail.
-    if (!navigator.onLine) {
-      await offline.enqueue({ extractedText: query });
-      setScreen("upload");
-      return;
-    }
     setScreen("loading");
     try {
       // Trust-first text path. Routing per matchArtwork outcome:
