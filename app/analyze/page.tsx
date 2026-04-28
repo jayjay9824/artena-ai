@@ -133,10 +133,16 @@ function ScanScreen() {
 
   // Fire-and-forget report persistence. Failure just means the share
   // button has no deep-link target — the rest of the screen still works.
+  // When `canonical` is supplied, the snapshot carries the verified
+  // marketPosition / marketConfidence / dataDepth / comparableMatches /
+  // marketStability + artworkId + axid from the canonical Artwork
+  // (spec STEP 4). Otherwise the report saves with derived values
+  // and trustLevel: "ai_inferred".
   const persistReport = async (
     a: Analysis,
     imageUrl: string | null,
     sourceType: SourceType,
+    canonical?: import("../lib/types").Artwork,
   ) => {
     // Derive a safe estimated range status from the analysis. We never
     // emit $0K-$0K — if low/high aren't available, the field stays
@@ -148,26 +154,46 @@ function ScanScreen() {
     const sortedPrices = [...auctionPrices].sort((x, y) => x - y);
 
     const id = await saveReport({
-      artist:          a.artist  ?? "Unknown",
-      title:           a.title   ?? "Untitled",
-      year:            a.year,
-      imageUrl:        imageUrl ?? undefined,
-      representativeImageUrl: imageUrl ?? undefined,
+      // Identity (spec STEP 4 names) — populated when this report
+      // snapshots a canonical Artwork.
+      artworkId:    canonical?.id,
+      axid:         canonical?.axid,
+      galleryId:    canonical?.galleryId,
+
+      // Display
+      artist:                 canonical?.artistName   ?? a.artist  ?? "Unknown",
+      artistNameKo:           canonical?.artistNameKo,
+      title:                  canonical?.title        ?? a.title   ?? "Untitled",
+      titleKo:                canonical?.titleKo,
+      year:                   canonical?.year         ?? a.year,
+      medium:                 canonical?.medium,
+      dimensions:             canonical?.dimensions,
+      imageUrl:               imageUrl ?? undefined,
+      representativeImageUrl: canonical?.primaryImageUrl ?? imageUrl ?? undefined,
+
       analysisSummary: a.description ?? "",
-      // Insight: prefer marketNote (judgment-style) → description fallback,
-      // capped at 220 chars so the OG description stays clean.
-      artenaInsight: ((a.marketNote ?? a.description ?? "") || "").slice(0, 220) || undefined,
-      analysisFull:    a as unknown as Record<string, unknown>,
+      // Insight: prefer canonical → marketNote → description; cap to keep
+      // the OG description clean.
+      artenaInsight: (canonical?.artenaInsight ?? a.marketNote ?? a.description ?? "").slice(0, 220) || undefined,
+      analysisFull:  a as unknown as Record<string, unknown>,
       sourceType,
-      // Snapshot — these are best-effort derived signals; absence is fine.
+
+      // Market snapshot — canonical signals win when present, else fall
+      // back to derived values. Never $0K-$0K: range status defaults to
+      // insufficient_data when no price data is verified.
+      marketPosition:       canonical?.marketPosition,
+      marketConfidence:     canonical?.marketConfidence,
       estimatedRangeStatus: hasRange ? "available" : "insufficient_data",
       estimatedLow:         hasRange ? sortedPrices[0] : undefined,
       estimatedHigh:        hasRange ? sortedPrices[sortedPrices.length - 1] : undefined,
       currency:             hasRange ? "USD" : undefined,
-      comparableMatches:    auctionPrices.length,
-      // Default trust for now: image/text inputs are AI-inferred.
-      trustLevel:           "ai_inferred",
-      isShareable:          true,
+      dataDepth:            canonical?.dataDepth,
+      comparableMatches:    canonical?.comparableMatches ?? auctionPrices.length,
+      marketStability:      canonical?.marketStability,
+
+      // Trust: canonical → its own trustLevel; else ai_inferred.
+      trustLevel:  canonical?.trustLevel ?? "ai_inferred",
+      isShareable: true,
     });
     if (id) setReportId(id);
   };
@@ -282,7 +308,9 @@ function ScanScreen() {
           setAnalysis(canonical);
           if (aw.primaryImageUrl) setImagePreview(aw.primaryImageUrl);
           setScreen("result");
-          persistReport(canonical, aw.primaryImageUrl ?? null, "text");
+          // Pass the Artwork so the snapshot carries axid + canonical
+          // market signals (spec STEP 4 snapshot freeze).
+          persistReport(canonical, aw.primaryImageUrl ?? null, "text", aw);
           return;
         }
       }
@@ -432,7 +460,7 @@ function ScanScreen() {
           if (aw.primaryImageUrl) setImagePreview(aw.primaryImageUrl);
           setCandidates([]);
           setScreen("result");
-          persistReport(canonical, aw.primaryImageUrl ?? null, "text");
+          persistReport(canonical, aw.primaryImageUrl ?? null, "text", aw);
         }}
         onNoMatch={() => { setCandidates([]); setScreen("no_match"); }}
       />

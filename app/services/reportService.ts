@@ -8,9 +8,10 @@ import type {
 } from "../lib/types";
 
 export interface CreateReportInput {
-  /* Identity */
-  matchedArtworkId?: string;
-  artworkAxid?:      string;
+  /* Identity — spec STEP 4 names; the API also accepts the legacy
+   * matchedArtworkId / artworkAxid aliases. */
+  artworkId?:        string;
+  axid?:             string;
   galleryId?:        string;
 
   /* Display */

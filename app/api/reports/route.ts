@@ -19,7 +19,10 @@ import type {
 export const runtime = "nodejs";
 
 interface CreateReportBody {
-  /* Identity */
+  /* Identity — spec STEP 4 names. matchedArtworkId / artworkAxid
+   * are accepted as back-compat aliases for any in-flight callers. */
+  artworkId?:        string;
+  axid?:             string;
   matchedArtworkId?: string;
   artworkAxid?:      string;
   galleryId?:        string;
@@ -71,9 +74,9 @@ export async function POST(req: NextRequest) {
     const report: Report = {
       id,
 
-      /* Identity */
-      matchedArtworkId: body.matchedArtworkId,
-      artworkAxid:      body.artworkAxid,
+      /* Identity — accept either the spec name or the legacy alias */
+      artworkId: body.artworkId ?? body.matchedArtworkId,
+      axid:      body.axid      ?? body.artworkAxid,
       galleryId:        body.galleryId,
 
       /* Display */
@@ -124,7 +127,7 @@ export async function POST(req: NextRequest) {
         title:            report.title,
         sourceType:       report.sourceType,
         trustLevel:       report.trustLevel,
-        matchedArtworkId: report.matchedArtworkId,
+        artworkId:        report.artworkId,
         galleryId:        report.galleryId,
       },
     });

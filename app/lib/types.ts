@@ -182,8 +182,11 @@ export type EstimatedRangeStatus = "available" | "insufficient_data" | "unavaila
 
 export interface Report {
   id:                ReportId;
-  matchedArtworkId?: ArtworkId;
-  artworkAxid?:      string;       // mirrored from Artwork.axid
+  /** Canonical artwork id this report snapshots (renamed from
+   *  matchedArtworkId for spec parity). */
+  artworkId?:        ArtworkId;
+  /** Spec name `axid` — mirrored from Artwork.axid at save time. */
+  axid?:             string;
   galleryId?:        GalleryId;
 
   /* Display — frozen at share time */
