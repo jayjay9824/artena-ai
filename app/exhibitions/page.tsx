@@ -20,6 +20,7 @@ const SAVED_KEY         = "artena.exhibitions.saved";
 const CITIES_KEY        = "artena.exhibitions.cities";
 const CUSTOM_CITIES_KEY = "artena.exhibitions.customCities";
 const TIME_KEY          = "artena.exhibitions.time";
+const TRIP_KEY          = "artena.exhibitions.trip";
 
 /** Centroid coords for the canonical 4 cities. */
 const CITY_COORDS: Record<City, [number, number]> = {
@@ -27,6 +28,38 @@ const CITY_COORDS: Record<City, [number, number]> = {
   "New York": [40.7128, -74.0060],
   "Tokyo":    [35.6762, 139.6503],
   "London":   [51.5074, -0.1278],
+};
+
+/** True when an exhibition's [start,end] window overlaps a trip [start,end]. */
+function overlapsTrip(ex: Exhibition, tripStart: string, tripEnd: string): boolean {
+  if (!tripStart || !tripEnd) return false;
+  // Plain string compare works because all dates are ISO yyyy-mm-dd.
+  return ex.startDate <= tripEnd && ex.endDate >= tripStart;
+}
+
+/* ── Artist → movement table for Artist Alerts "Related" grouping ──
+ * Same map shape useTasteProfile uses, kept duplicated here to avoid
+ * a circular import. When a real backend ships, both consumers read
+ * from one source. Lowercased keys; values are movement strings that
+ * line up with Exhibition.movement. */
+const ARTIST_MOVEMENT: Record<string, string[]> = {
+  "lee ufan":        ["Mono-ha"],
+  "이우환":           ["Mono-ha"],
+  "park seo-bo":     ["Dansaekhwa", "Korean Modernism"],
+  "박서보":           ["Dansaekhwa", "Korean Modernism"],
+  "kim whanki":      ["Korean Modernism"],
+  "김환기":           ["Korean Modernism"],
+  "yayoi kusama":    ["Pop / Pattern"],
+  "쿠사마 야요이":    ["Pop / Pattern"],
+  "mark rothko":     ["Color Field"],
+  "마크 로스코":      ["Color Field"],
+  "gerhard richter": ["Gestural Abstraction"],
+  "cecily brown":    ["Gestural Abstraction"],
+  "anish kapoor":    ["Material Reflection"],
+  "olafur eliasson": ["Material Reflection"],
+  "lee bul":         ["Post-utopian Sculpture"],
+  "yoshitomo nara":  ["Japanese Neo-Pop"],
+  "simon fujiwara":  ["Conceptual"],
 };
 
 /** Resolve user's lat/lon to the closest known city via squared Euclidean. */
@@ -96,6 +129,8 @@ interface CardProps {
   ex:        Exhibition;
   score:     number;
   reason:    string;
+  /** True when this card is on the Travel tab and overlaps the user's trip dates. */
+  onTripBadge?: boolean;
   saved:     boolean;
   notifying: boolean;
   onSave:    () => void;
@@ -104,7 +139,7 @@ interface CardProps {
   onDetails: () => void;
 }
 
-function ExhibitionCard({ ex, score, reason, saved, notifying, onSave, onNotify, onTickets, onDetails }: CardProps) {
+function ExhibitionCard({ ex, score, reason, onTripBadge, saved, notifying, onSave, onNotify, onTickets, onDetails }: CardProps) {
   return (
     <article style={{
       background: "#FFFFFF",
@@ -171,6 +206,20 @@ function ExhibitionCard({ ex, score, reason, saved, notifying, onSave, onNotify,
         <p style={{ fontSize: 11, color: "#9A9A9A", margin: "0 0 12px", letterSpacing: ".005em" }}>
           {formatDateRange(ex)}
         </p>
+
+        {/* Open during your trip — only visible on Travel tab when the
+            exhibition window overlaps the user's saved trip dates. */}
+        {onTripBadge && (
+          <span style={{
+            display: "inline-block", marginBottom: 12,
+            fontSize: 9, color: "#FFFFFF",
+            background: "#1C1A17", padding: "3px 9px",
+            borderRadius: 12, letterSpacing: ".12em",
+            textTransform: "uppercase" as const, fontWeight: 600,
+          }}>
+            Open during your trip
+          </span>
+        )}
 
         {/* Reason */}
         <p style={{
@@ -461,6 +510,15 @@ export default function ExhibitionsPage() {
   const [notifySet,      setNotifySet]      = useState<Set<string>>(() => readSet(NOTIFY_KEY));
   const [detail,         setDetail]         = useState<Exhibition | null>(null);
 
+  // Travel context — destination + trip dates. Persisted to localStorage.
+  // Empty start/end means "no active trip" — Travel tab still shows
+  // travel-flagged exhibitions with the existing fallback logic.
+  const [trip, setTrip] = useState<{ destination: string; start: string; end: string }>({
+    destination: "Tokyo",
+    start: "",
+    end:   "",
+  });
+
   /* Hydrate filters from localStorage */
   useEffect(() => {
     try {
@@ -470,6 +528,14 @@ export default function ExhibitionsPage() {
       if (Array.isArray(cc)) setCustomCities(cc.filter(x => typeof x === "string"));
       const t = window.localStorage.getItem(TIME_KEY);
       if (t && ["now", "1m", "3m", "6m", "1y"].includes(t)) setTime(t as TimeKey);
+      const tr = JSON.parse(window.localStorage.getItem(TRIP_KEY) ?? "null");
+      if (tr && typeof tr.destination === "string") {
+        setTrip({
+          destination: tr.destination,
+          start: typeof tr.start === "string" ? tr.start : "",
+          end:   typeof tr.end   === "string" ? tr.end   : "",
+        });
+      }
     } catch { /* corrupted store — ignore */ }
     setHydrated(true);
   }, []);
@@ -487,6 +553,10 @@ export default function ExhibitionsPage() {
     if (!hydrated) return;
     try { window.localStorage.setItem(TIME_KEY, time); } catch {}
   }, [time, hydrated]);
+  useEffect(() => {
+    if (!hydrated) return;
+    try { window.localStorage.setItem(TRIP_KEY, JSON.stringify(trip)); } catch {}
+  }, [trip, hydrated]);
 
   /* City toggle — click adds/removes; keep at least one city so the
    * tabs aren't entirely empty. */
@@ -537,7 +607,7 @@ export default function ExhibitionsPage() {
   };
 
   /* User signal extraction (taste match + Artist Alerts feed) */
-  const { knownArtists, patternKeywords } = useMemo(() => {
+  const { knownArtists, patternKeywords, userMovements } = useMemo(() => {
     const artistSet = new Set<string>();
     my.likes.forEach(a => artistSet.add(a.artist_name.toLowerCase()));
     my.saved.forEach(a => artistSet.add(a.artist_name.toLowerCase()));
@@ -545,7 +615,14 @@ export default function ExhibitionsPage() {
 
     const kwSet = new Set<string>();
     items.forEach(i => (i.analysis.keywords ?? []).forEach(k => kwSet.add(k.toLowerCase())));
-    return { knownArtists: artistSet, patternKeywords: kwSet };
+
+    // Movements the user is implicitly "following" via their known artists.
+    const movements = new Set<string>();
+    artistSet.forEach(name => {
+      const ms = ARTIST_MOVEMENT[name];
+      if (ms) ms.forEach(m => movements.add(m));
+    });
+    return { knownArtists: artistSet, patternKeywords: kwSet, userMovements: movements };
   }, [my.likes, my.saved, items]);
 
   const exhibitions = getExhibitions();
@@ -561,7 +638,18 @@ export default function ExhibitionsPage() {
       // any exhibition in those cities (incl. travel-destination ones).
       if (list.length === 0) list = exhibitions.filter(e => inSelected(e) && withinWindow(e, time));
     } else if (tab === "travel") {
-      list = list.filter(e => e.travelDestination && !inSelected(e));
+      // When a trip is active (destination + dates), only show
+      // exhibitions in that destination whose window overlaps the
+      // trip. Otherwise fall back to the original "travel-flagged
+      // exhibitions outside selectedCities" pool.
+      const tripActive = trip.destination && trip.start && trip.end;
+      if (tripActive) {
+        list = exhibitions.filter(e =>
+          e.city === trip.destination && overlapsTrip(e, trip.start, trip.end)
+        );
+      } else {
+        list = list.filter(e => e.travelDestination && !inSelected(e));
+      }
     } else if (tab === "alerts") {
       list = list.filter(e => e.artists.some(a => knownArtists.has(a.toLowerCase())));
     } else if (tab === "must") {
@@ -574,7 +662,19 @@ export default function ExhibitionsPage() {
       .map(e => ({ ex: e, ...scoreExhibition(e, knownArtists, patternKeywords) }))
       .sort((a, b) => b.score - a.score)
       .map(x => x.ex);
-  }, [exhibitions, tab, selectedCities, time, knownArtists, patternKeywords]);
+  }, [exhibitions, tab, selectedCities, time, knownArtists, patternKeywords, trip]);
+
+  /* Artist Alerts → Related (movement-based, exclusive of direct hits). */
+  const relatedAlerts = useMemo<Exhibition[]>(() => {
+    if (tab !== "alerts") return [];
+    return exhibitions
+      .filter(e => withinWindow(e, time))
+      .filter(e => e.movement && userMovements.has(e.movement))
+      .filter(e => !e.artists.some(a => knownArtists.has(a.toLowerCase())))
+      .map(e => ({ ex: e, ...scoreExhibition(e, knownArtists, patternKeywords) }))
+      .sort((a, b) => b.score - a.score)
+      .map(x => x.ex);
+  }, [exhibitions, tab, time, userMovements, knownArtists, patternKeywords]);
 
   const toggleSave = (id: string) => {
     setSavedSet(prev => {
@@ -648,26 +748,30 @@ export default function ExhibitionsPage() {
           setTime={setTime}
         />
 
+        {/* Travel-only: trip controls + saved cities */}
+        {tab === "travel" && (
+          <TravelControls
+            trip={trip}
+            onTrip={setTrip}
+            cityOptions={[...CITIES, ...customCities]}
+            savedCities={customCities}
+          />
+        )}
+
         {/* List */}
-        {visible.length === 0 ? (
-          <div style={{
-            padding: "40px 18px", background: "#FFFFFF",
-            border: "0.5px solid #E7E2D8", borderRadius: 14,
-            textAlign: "center" as const, color: "#9A9A9A", fontSize: 12,
-          }}>
-            {tab === "alerts"
-              ? "Like or save artworks first to surface exhibitions of artists you follow."
-              : "No exhibitions in this window. Try a different time or city."}
-          </div>
-        ) : (
-          visible.map(ex => {
+        {(() => {
+          // Card factory closure — used by every tab + the alerts split.
+          const renderCard = (ex: Exhibition) => {
             const { score, reason } = scoreExhibition(ex, knownArtists, patternKeywords);
+            const tripActive  = !!trip.start && !!trip.end;
+            const onTripBadge = tab === "travel" && tripActive && overlapsTrip(ex, trip.start, trip.end);
             return (
               <ExhibitionCard
                 key={ex.id}
                 ex={ex}
                 score={score}
                 reason={reason}
+                onTripBadge={onTripBadge}
                 saved={savedSet.has(ex.id)}
                 notifying={notifySet.has(ex.id)}
                 onSave={() => toggleSave(ex.id)}
@@ -679,8 +783,72 @@ export default function ExhibitionsPage() {
                 onDetails={() => setDetail(ex)}
               />
             );
-          })
-        )}
+          };
+
+          // Must-See — editorial card variant per spec.
+          if (tab === "must") {
+            if (visible.length === 0) {
+              return (
+                <div style={emptyStateStyle()}>
+                  No must-see places curated for these cities yet.
+                </div>
+              );
+            }
+            return visible.map(ex => (
+              <MustSeeCard
+                key={ex.id}
+                ex={ex}
+                onSave={() => toggleSave(ex.id)}
+                saved={savedSet.has(ex.id)}
+                onDetails={() => setDetail(ex)}
+              />
+            ));
+          }
+
+          // Artist Alerts — two-section editorial split.
+          if (tab === "alerts") {
+            if (visible.length === 0 && relatedAlerts.length === 0) {
+              return (
+                <div style={emptyStateStyle()}>
+                  Like or save artworks first to surface exhibitions of artists you follow.
+                </div>
+              );
+            }
+            return (
+              <>
+                {visible.length > 0 && (
+                  <>
+                    <SectionHeading caption="Following" subtitle="Artists you've engaged with" />
+                    {visible.map(renderCard)}
+                  </>
+                )}
+                {relatedAlerts.length > 0 && (
+                  <>
+                    <SectionHeading
+                      caption="Related artists & movements"
+                      subtitle={
+                        userMovements.size > 0
+                          ? `Same lineage as ${Array.from(userMovements).slice(0, 2).join(" · ")}`
+                          : undefined
+                      }
+                    />
+                    {relatedAlerts.map(renderCard)}
+                  </>
+                )}
+              </>
+            );
+          }
+
+          // Other tabs — single list with the existing fallback copy.
+          if (visible.length === 0) {
+            return (
+              <div style={emptyStateStyle()}>
+                No exhibitions in this window. Try a different time or city.
+              </div>
+            );
+          }
+          return visible.map(renderCard);
+        })()}
       </div>
 
       {detail && (() => {
@@ -811,6 +979,293 @@ function Filters({
       </div>
     </div>
   );
+}
+
+/* ── Travel controls — destination + dates + saved cities ──────── */
+
+function TravelControls({
+  trip, onTrip, cityOptions, savedCities,
+}: {
+  trip:        { destination: string; start: string; end: string };
+  onTrip:      (next: { destination: string; start: string; end: string }) => void;
+  cityOptions: string[];
+  savedCities: string[];
+}) {
+  return (
+    <div style={{
+      background: "#FFFFFF",
+      border: "0.5px solid #E7E2D8",
+      borderRadius: 14,
+      padding: "14px 16px",
+      marginBottom: 18,
+      display: "flex", flexDirection: "column", gap: 14,
+    }}>
+      <p style={{
+        fontSize: 9, color: "#9A9A9A", letterSpacing: ".18em",
+        textTransform: "uppercase" as const, fontWeight: 600,
+        margin: 0,
+      }}>
+        Plan a trip
+      </p>
+
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
+        <label style={fieldLabelStyle()}>
+          <span style={fieldCaptionStyle()}>Destination</span>
+          <select
+            value={trip.destination}
+            onChange={e => onTrip({ ...trip, destination: e.target.value })}
+            style={fieldInputStyle()}
+          >
+            {cityOptions.map(c => <option key={c} value={c}>{c}</option>)}
+          </select>
+        </label>
+        <label style={fieldLabelStyle()}>
+          <span style={fieldCaptionStyle()}>Start</span>
+          <input
+            type="date"
+            value={trip.start}
+            onChange={e => onTrip({ ...trip, start: e.target.value })}
+            style={fieldInputStyle()}
+          />
+        </label>
+        <label style={fieldLabelStyle()}>
+          <span style={fieldCaptionStyle()}>End</span>
+          <input
+            type="date"
+            value={trip.end}
+            onChange={e => onTrip({ ...trip, end: e.target.value })}
+            style={fieldInputStyle()}
+          />
+        </label>
+      </div>
+
+      {savedCities.length > 0 && (
+        <div>
+          <p style={{
+            fontSize: 9, color: "#9A9A9A", letterSpacing: ".18em",
+            textTransform: "uppercase" as const, fontWeight: 600,
+            margin: "0 0 8px",
+          }}>
+            Saved Cities
+          </p>
+          <div style={{ display: "flex", flexWrap: "wrap" as const, gap: 6 }}>
+            {savedCities.map(c => (
+              <button
+                key={c}
+                onClick={() => onTrip({ ...trip, destination: c })}
+                style={{
+                  padding: "5px 11px",
+                  fontSize: 11, fontWeight: 600, letterSpacing: ".02em",
+                  background: trip.destination === c ? "#1C1A17" : "transparent",
+                  color:      trip.destination === c ? "#FFFFFF" : "#6F6F6F",
+                  border:     `0.5px solid ${trip.destination === c ? "#1C1A17" : "#E7E2D8"}`,
+                  borderRadius: 16, cursor: "pointer",
+                  fontFamily: FONT,
+                }}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function fieldLabelStyle(): React.CSSProperties {
+  return { display: "flex", flexDirection: "column", gap: 4, minWidth: 0 };
+}
+function fieldCaptionStyle(): React.CSSProperties {
+  return {
+    fontSize: 8.5, color: "#9A9A9A", letterSpacing: ".14em",
+    textTransform: "uppercase" as const, fontWeight: 600,
+  };
+}
+function fieldInputStyle(): React.CSSProperties {
+  return {
+    width: "100%",
+    padding: "9px 10px",
+    fontSize: 12, color: "#1C1A17",
+    background: "#F8F7F4",
+    border: "0.5px solid #E7E2D8",
+    borderRadius: 8,
+    fontFamily: FONT,
+    outline: "none",
+  };
+}
+
+/* ── Must-See card — editorial / museum-guide tone ──────────────── */
+
+const CATEGORY_LABEL: Record<NonNullable<Exhibition["category"]>, string> = {
+  museum:       "Museum",
+  gallery:      "Gallery",
+  art_district: "Art District",
+  landmark:     "Landmark Exhibition",
+};
+
+function MustSeeCard({
+  ex, saved, onSave, onDetails,
+}: {
+  ex: Exhibition; saved: boolean; onSave: () => void; onDetails: () => void;
+}) {
+  const mapsHref = `https://maps.google.com/?q=${encodeURIComponent(`${ex.venue}, ${ex.address ?? ex.city}`)}`;
+  const ticketCopy = ex.ticketInfo ?? "Visit official website for ticket information.";
+
+  return (
+    <article style={{
+      background: "#FFFFFF",
+      border: "0.5px solid #E7E2D8",
+      borderRadius: 16,
+      padding: "22px 22px 20px",
+      marginBottom: 14,
+    }}>
+      {/* Top caption — category in caps */}
+      <p style={{
+        fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em",
+        textTransform: "uppercase" as const, fontWeight: 600,
+        margin: "0 0 12px",
+      }}>
+        {ex.category ? CATEGORY_LABEL[ex.category] : "Cultural Place"}
+      </p>
+
+      {/* Headline */}
+      <h3
+        onClick={onDetails}
+        style={{
+          fontSize: 20, fontWeight: 700, color: "#1C1A17",
+          margin: "0 0 6px", letterSpacing: "-.02em", lineHeight: 1.2,
+          fontFamily: FONT_HEAD, cursor: "pointer",
+        }}
+      >
+        {ex.title}
+      </h3>
+
+      {/* Why it matters — editorial blockquote */}
+      <p style={{
+        fontSize: 13, color: "#1C1A17", lineHeight: 1.7,
+        margin: "0 0 18px", paddingLeft: 12,
+        borderLeft: "2px solid #8A6A3F",
+        fontStyle: "italic" as const,
+      }}>
+        {ex.whyItMatters}
+      </p>
+
+      {/* Practical info — compact rows, no pricing emphasis */}
+      <div style={{
+        display: "flex", flexDirection: "column" as const, gap: 8,
+        marginBottom: 16,
+      }}>
+        <PracticalRow icon={<MapPin size={12} strokeWidth={1.5} />} label="Location"        value={`${ex.venue} · ${ex.address ?? ex.city}`} />
+        {ex.visitDuration && (
+          <PracticalRow icon={<Calendar size={12} strokeWidth={1.5} />} label="Visit"       value={ex.visitDuration} />
+        )}
+        <PracticalRow icon={<Ticket size={12} strokeWidth={1.5} />}  label="Tickets"        value={ticketCopy} />
+      </div>
+
+      {/* Action row — Save + prominent map link, no shopping CTAs */}
+      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+        <button
+          onClick={onSave}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "8px 14px",
+            background: saved ? "#F4EFE5" : "transparent",
+            border: `0.5px solid ${saved ? "#D9C9A6" : "#E7E2D8"}`,
+            borderRadius: 18, cursor: "pointer",
+            color: saved ? "#8A6A3F" : "#6F6F6F",
+            fontSize: 11, fontWeight: 600, letterSpacing: ".04em",
+            fontFamily: FONT,
+          }}
+        >
+          {saved ? <BookmarkCheck size={12} strokeWidth={1.6} /> : <Bookmark size={12} strokeWidth={1.6} />}
+          {saved ? "Saved" : "Save"}
+        </button>
+
+        <a
+          href={mapsHref}
+          target="_blank"
+          rel="noopener noreferrer"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "8px 14px",
+            background: "transparent",
+            border: "0.5px solid #E7E2D8",
+            borderRadius: 18, cursor: "pointer",
+            color: "#6F6F6F",
+            fontSize: 11, fontWeight: 600, letterSpacing: ".04em",
+            fontFamily: FONT, textDecoration: "none",
+          }}
+        >
+          <MapPin size={12} strokeWidth={1.6} />
+          Open in Maps
+        </a>
+
+        <button
+          onClick={onDetails}
+          style={{
+            marginLeft: "auto",
+            padding: "7px 14px",
+            background: "#111111", color: "#FFFFFF",
+            border: "none", borderRadius: 18, cursor: "pointer",
+            fontSize: 11, fontWeight: 600, letterSpacing: ".04em",
+            fontFamily: FONT,
+          }}
+        >
+          View Details
+        </button>
+      </div>
+    </article>
+  );
+}
+
+function PracticalRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+  return (
+    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+      <span style={{ color: "#8A6A3F", marginTop: 2, flexShrink: 0 }}>{icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <p style={{
+          fontSize: 8.5, color: "#9A9A9A", letterSpacing: ".14em",
+          textTransform: "uppercase" as const, fontWeight: 600,
+          margin: "0 0 2px",
+        }}>
+          {label}
+        </p>
+        <p style={{ fontSize: 12, color: "#1C1A17", margin: 0, lineHeight: 1.5 }}>
+          {value}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/* ── Editorial section heading (used in Artist Alerts split) ────── */
+
+function SectionHeading({ caption, subtitle }: { caption: string; subtitle?: string }) {
+  return (
+    <div style={{ margin: "18px 0 10px" }}>
+      <p style={{
+        fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em",
+        textTransform: "uppercase" as const, fontWeight: 600,
+        margin: "0 0 4px",
+      }}>
+        {caption}
+      </p>
+      {subtitle && (
+        <p style={{ fontSize: 11.5, color: "#6F6F6F", margin: 0, fontStyle: "italic" }}>
+          {subtitle}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function emptyStateStyle(): React.CSSProperties {
+  return {
+    padding: "40px 18px", background: "#FFFFFF",
+    border: "0.5px solid #E7E2D8", borderRadius: 14,
+    textAlign: "center" as const, color: "#9A9A9A", fontSize: 12,
+  };
 }
 
 function pillStyle(active: boolean): React.CSSProperties {

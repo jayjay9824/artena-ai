@@ -9,6 +9,16 @@
 
 export type City = "Seoul" | "New York" | "Tokyo" | "London";
 
+/**
+ * Spec STEP 12 categorisation. Drives the Must-See editorial card
+ * top caption and lets the curator filter by venue type later.
+ */
+export type ExhibitionCategory =
+  | "museum"
+  | "gallery"
+  | "art_district"
+  | "landmark";
+
 export interface Exhibition {
   id:           string;
   title:        string;
@@ -20,6 +30,12 @@ export interface Exhibition {
   artists:      string[];
   /** Editorial cluster — used for taste matching. */
   cluster:      string;
+  /** Art-historical movement — drives Artist Alerts "Related" grouping. */
+  movement?:    string;
+  /** Venue type for Must-See / editorial filters. */
+  category?:    ExhibitionCategory;
+  /** Suggested visit length, e.g. "2 hours" / "Half day". */
+  visitDuration?: string;
   imageHint?:   string;            // gradient seed when no real image
   whyItMatters: string;
   address?:     string;
@@ -48,6 +64,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(-30), endDate: dayOff(60),
     artists: ["Lee Ufan"],
     cluster: "Quiet Minimalism",
+    movement: "Mono-ha",
+    category: "museum",
+    visitDuration: "2 hours",
     whyItMatters: "The most comprehensive Lee Ufan retrospective in Korea since 2014, tracing 60 years of the Mono-ha legacy.",
     address: "30 Samcheong-ro, Jongno-gu, Seoul",
     hours: "Tue–Sun 10:00–18:00",
@@ -63,6 +82,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(-7), endDate: dayOff(45),
     artists: ["Park Seo-Bo"],
     cluster: "Quiet Minimalism",
+    movement: "Dansaekhwa",
+    category: "gallery",
+    visitDuration: "1 hour",
     whyItMatters: "Late-period Écriture works that cement Park's place at the centre of Dansaekhwa's continuing dialogue.",
     address: "28 Pyeongchang 30-gil, Jongno-gu, Seoul",
     hours: "Tue–Sun 10:00–19:00",
@@ -77,6 +99,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(-90), endDate: dayOff(120),
     artists: ["Kim Whanki"],
     cluster: "Korean Modernism",
+    movement: "Korean Modernism",
+    category: "museum",
+    visitDuration: "Half day",
     whyItMatters: "The permanent collection re-hung as a single 70-year arc. The Universe canvases anchor a generation of Korean abstraction.",
     address: "63, Jahamun-ro 40-gil, Jongno-gu, Seoul",
     hours: "Tue–Sun 10:00–18:00 (closed Mondays)",
@@ -92,6 +117,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(-60), endDate: dayOff(150),
     artists: ["Yayoi Kusama"],
     cluster: "Pattern & Repetition",
+    movement: "Pop / Pattern",
+    category: "museum",
+    visitDuration: "2 hours",
     whyItMatters: "Two infinity rooms paired with rarely-shown 1960s drawings. Timed-entry tickets routinely sell out four weeks ahead.",
     address: "Bankside, London SE1 9TG",
     hours: "Daily 10:00–18:00 (Fri–Sat to 22:00)",
@@ -109,6 +137,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(10), endDate: dayOff(180),
     artists: ["Mark Rothko"],
     cluster: "Color-driven Abstraction",
+    movement: "Color Field",
+    category: "museum",
+    visitDuration: "2 hours",
     whyItMatters: "The Seagram Murals reunited with seven canvases on loan from the Phillips Collection.",
     address: "Bankside, London SE1 9TG",
     hours: "Daily 10:00–18:00",
@@ -124,6 +155,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(-15), endDate: dayOff(75),
     artists: ["Lee Bul"],
     cluster: "Material Experimentation",
+    movement: "Post-utopian Sculpture",
+    category: "museum",
+    visitDuration: "2 hours",
     whyItMatters: "Korea's most rigorous sculptor of the post-utopian decade, in her largest UK survey.",
     address: "Belvedere Rd, London SE1 8XX",
     hours: "Wed–Mon 11:00–19:00",
@@ -139,6 +173,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(-2), endDate: dayOff(48),
     artists: ["Anish Kapoor"],
     cluster: "Material Reflection",
+    movement: "Material Reflection",
+    category: "gallery",
+    visitDuration: "1 hour",
     whyItMatters: "Stainless-steel works at scale, including a new mirrored disc commissioned for the Chelsea space.",
     address: "540 W 25th Street, New York, NY",
     hours: "Tue–Sat 10:00–18:00",
@@ -154,6 +191,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(-20), endDate: dayOff(40),
     artists: ["Cecily Brown"],
     cluster: "Gestural Abstraction",
+    movement: "Gestural Abstraction",
+    category: "gallery",
+    visitDuration: "1 hour",
     whyItMatters: "Six new large-scale paintings; a step deeper into the figurative wreckage that made her work essential.",
     address: "525 W 19th Street, New York, NY",
     hours: "Tue–Sat 10:00–18:00",
@@ -168,6 +208,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(-120), endDate: dayOff(240),
     artists: ["Lee Ufan", "Nobuo Sekine", "Susumu Koshimizu"],
     cluster: "Quiet Minimalism",
+    movement: "Mono-ha",
+    category: "museum",
+    visitDuration: "Half day",
     whyItMatters: "Permanent rotation of the Mono-ha holdings. The closest you'll come outside Tokyo to the founding gestures of the movement.",
     address: "3 Beekman Street, Beacon, NY",
     hours: "Fri–Mon 10:00–17:00",
@@ -184,6 +227,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(-40), endDate: dayOff(80),
     artists: ["Yoshitomo Nara"],
     cluster: "Pattern & Repetition",
+    movement: "Japanese Neo-Pop",
+    category: "museum",
+    visitDuration: "2 hours",
     whyItMatters: "The first major Tokyo museum survey since 2017. Three decades of solitary girls and the politics behind them.",
     address: "Roppongi Hills Mori Tower 53F, Tokyo",
     hours: "Daily 10:00–22:00 (Tue to 17:00)",
@@ -201,6 +247,9 @@ export const EXHIBITIONS: Exhibition[] = [
     startDate: dayOff(15), endDate: dayOff(105),
     artists: ["Olafur Eliasson"],
     cluster: "Atmospheric Impressionism",
+    movement: "Material Reflection",
+    category: "art_district",
+    visitDuration: "2 hours",
     whyItMatters: "Two newly-built immersive rooms. Eliasson's clearest statement on weather as a public material since 2003.",
     address: "1-2-1 Kiyosumi, Koto-ku, Tokyo",
     hours: "Tue–Sun 11:00–19:00",
@@ -216,7 +265,10 @@ export const EXHIBITIONS: Exhibition[] = [
     city: "London",
     startDate: dayOff(5), endDate: dayOff(60),
     artists: ["Simon Fujiwara"],
-    cluster: "Conceptual Inquiry",
+    cluster: "Conceptual Sensibility",
+    movement: "Conceptual",
+    category: "gallery",
+    visitDuration: "1 hour",
     whyItMatters: "New Spanish Identity series and a film commissioned for Mayfair — Fujiwara at his most institutionally pointed.",
     address: "24 Grafton Street, London W1S 4EZ",
     hours: "Tue–Sat 10:00–18:00",
