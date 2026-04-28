@@ -83,7 +83,7 @@ function TasteProfilePage() {
       <TasteInsight profile={profile} />
 
       {/* ── Spec CTAs ─────────────────────────────────────────── */}
-      <div style={{ padding: "22px 22px 28px", display: "flex", gap: 10 }}>
+      <div style={{ padding: "22px 22px 12px", display: "flex", gap: 10 }}>
         <button
           onClick={() => router.push("/recommendations")}
           style={{
@@ -109,6 +109,25 @@ function TasteProfilePage() {
           }}
         >
           View Collection
+        </button>
+      </div>
+
+      {/* Exhibitions & Travel discoverability — single full-width CTA so the
+          taste signal can extend out into "what to actually go see". */}
+      <div style={{ padding: "0 22px 28px" }}>
+        <button
+          onClick={() => router.push("/exhibitions")}
+          style={{
+            width: "100%", padding: "14px 0",
+            background: "#FFFFFF",
+            border: "0.5px solid #D9C9A6",
+            borderRadius: 12, cursor: "pointer",
+            color: "#8A6A3F",
+            fontSize: 13, fontWeight: 600, letterSpacing: ".02em",
+            fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+          }}
+        >
+          Exhibitions &amp; Travel →
         </button>
       </div>
 

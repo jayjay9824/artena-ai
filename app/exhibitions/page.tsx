@@ -454,12 +454,21 @@ export default function ExhibitionsPage() {
           style={{
             display: "inline-block",
             fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em",
-            textTransform: "uppercase" as const, marginBottom: 14,
+            textTransform: "uppercase" as const, marginBottom: 6,
             textDecoration: "none",
           }}
         >
-          ARTENA AI · Exhibitions
+          ARTENA AI
         </a>
+
+        {/* Page name (spec: Exhibitions & Travel) */}
+        <p style={{
+          fontSize: 11, color: "#1C1A17",
+          letterSpacing: ".18em", textTransform: "uppercase" as const,
+          margin: "0 0 16px", fontWeight: 600,
+        }}>
+          Exhibitions &amp; Travel
+        </p>
 
         {/* Header copy */}
         <h1 style={{
