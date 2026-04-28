@@ -17,7 +17,9 @@ import { saveReport } from "../services/reportService";
 import { matchArtwork } from "../services/matchingService";
 import { findArtworkById } from "../services/canonicalCatalogue";
 import { useCollection } from "../collection/hooks/useCollection";
-import type { SourceType } from "../lib/types";
+import { NoMatch } from "../components/match/NoMatch";
+import { CandidateSelection, CandidateRow } from "../components/match/CandidateSelection";
+import type { SourceType, MatchedArtwork } from "../lib/types";
 
 /* ── Types (kept local for the scan analysis shape) ───────────── */
 
@@ -74,6 +76,7 @@ function ScanScreen() {
   const [reportLoading, setReportLoading] = useState(false);
   const [showScanner,   setShowScanner]   = useState(false);
   const [reportId,      setReportId]      = useState<string | null>(null);
+  const [candidates,    setCandidates]    = useState<MatchedArtwork[]>([]);
 
   const handleIntroComplete = useCallback(() => setShowIntro(false), []);
 
@@ -266,10 +269,11 @@ function ScanScreen() {
     setError(null);
     setScreen("loading");
     try {
-      // Trust-first: consult the canonical catalogue before Claude.
-      // If the query maps to a known Artwork (Kim Whanki "귀로" /
-      // "Kim Whanki Gwi-ro" / "Whanki Kim 귀로" all converge), serve
-      // the canonical record directly — no AI fabrication.
+      // Trust-first text path. Routing per matchArtwork outcome:
+      //   confident → canonical record, no Claude
+      //   ambiguous → user picks from candidates (no fabrication)
+      //   no_match  → NoMatch screen, no fabrication
+      // Spec STEP 3: "틀린 결과보다 결과 없음이 더 신뢰도 높습니다."
       const outcome = await matchArtwork({ matchedBy: "text", query });
       if (outcome.kind === "confident") {
         const aw = findArtworkById(outcome.match.artworkId);
@@ -282,9 +286,17 @@ function ScanScreen() {
           return;
         }
       }
+      if (outcome.kind === "ambiguous") {
+        setCandidates(outcome.candidates);
+        setScreen("candidates");
+        return;
+      }
+      if (outcome.kind === "no_match") {
+        setScreen("no_match");
+        return;
+      }
 
-      // No canonical hit — fall back to Claude analysis. The persisted
-      // report carries trustLevel: "ai_inferred" via persistReport().
+      // Unreachable today — kept for forward-compat with new outcomes.
       const res  = await fetch("/api/analyze", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ query }) });
       const json = await res.json();
       if (!json.success) throw new Error(json.error || "분석 실패");
@@ -390,6 +402,51 @@ function ScanScreen() {
         reportLoading={reportLoading && reportType === "intelligence"}
         reportData={reportType === "intelligence" && !reportLoading ? (reportData as MarketIntelligenceData | null) : null}
         reportId={reportId ?? undefined}
+      />
+    );
+  }
+
+  // Candidate selection — text query matched 2+ records in the
+  // ambiguous confidence band. User picks one or escapes to NoMatch.
+  if (screen === "candidates") {
+    const rows: CandidateRow[] = candidates
+      .map(m => {
+        const aw = findArtworkById(m.artworkId);
+        if (!aw) return null;
+        return {
+          match:      m,
+          artwork:    aw,
+          artistName: aw.artistName ?? "",
+        };
+      })
+      .filter((r): r is CandidateRow => r !== null);
+
+    return (
+      <CandidateSelection
+        candidates={rows}
+        onSelect={artworkId => {
+          const aw = findArtworkById(artworkId);
+          if (!aw) { setScreen("no_match"); return; }
+          const canonical = canonicalToAnalysis(aw);
+          setAnalysis(canonical);
+          if (aw.primaryImageUrl) setImagePreview(aw.primaryImageUrl);
+          setCandidates([]);
+          setScreen("result");
+          persistReport(canonical, aw.primaryImageUrl ?? null, "text");
+        }}
+        onNoMatch={() => { setCandidates([]); setScreen("no_match"); }}
+      />
+    );
+  }
+
+  // No Match — trust-first path. The matcher couldn't reach high
+  // confidence and we refuse to fabricate a result. Spec STEP 3.
+  if (screen === "no_match") {
+    return (
+      <NoMatch
+        onTryAnotherImage={() => { setScreen("upload"); setShowScanner(true); }}
+        onSearchByText={() => setScreen("upload")}
+        onEnterManually={() => setScreen("upload")}
       />
     );
   }
