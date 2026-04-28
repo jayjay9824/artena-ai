@@ -27,12 +27,13 @@ export function ScanOrb({ onClick, label = "SCAN" }: Props) {
       alignItems:     "center",
       justifyContent: "center",
     }}>
-      {/* Dotted guide ring */}
+      {/* Dotted guide ring — pointer-events disabled so the SVG box
+          doesn't intercept the orb's click target. */}
       <svg
         width="100%"
         height="100%"
         viewBox="0 0 380 380"
-        style={{ position: "absolute", inset: 0 }}
+        style={{ position: "absolute", inset: 0, pointerEvents: "none" }}
         aria-hidden
       >
         <circle
