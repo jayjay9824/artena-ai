@@ -1,5 +1,5 @@
 "use client";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Bell, BellRing, Bookmark, BookmarkCheck, Calendar, ExternalLink, MapPin, Ticket, X, Plus } from "lucide-react";
 import { useMyActivity } from "../context/MyActivityContext";
 import { useCollection } from "../collection/hooks/useCollection";
@@ -13,10 +13,32 @@ const FONT_HEAD = "'KakaoBigSans', system-ui, sans-serif";
 
 type TabKey = "near" | "travel" | "alerts" | "must";
 
-/* ── Local-storage Notify Me + Saved Exhibitions ─────────────────── */
+/* ── Local-storage Notify Me + Saved Exhibitions + Filters ───────── */
 
-const NOTIFY_KEY = "artena.exhibitions.notify";
-const SAVED_KEY  = "artena.exhibitions.saved";
+const NOTIFY_KEY        = "artena.exhibitions.notify";
+const SAVED_KEY         = "artena.exhibitions.saved";
+const CITIES_KEY        = "artena.exhibitions.cities";
+const CUSTOM_CITIES_KEY = "artena.exhibitions.customCities";
+const TIME_KEY          = "artena.exhibitions.time";
+
+/** Centroid coords for the canonical 4 cities. */
+const CITY_COORDS: Record<City, [number, number]> = {
+  "Seoul":    [37.5665, 126.9780],
+  "New York": [40.7128, -74.0060],
+  "Tokyo":    [35.6762, 139.6503],
+  "London":   [51.5074, -0.1278],
+};
+
+/** Resolve user's lat/lon to the closest known city via squared Euclidean. */
+function closestKnownCity(lat: number, lon: number): City {
+  let best:     City   = "Seoul";
+  let bestDist: number = Infinity;
+  (Object.entries(CITY_COORDS) as [City, [number, number]][]).forEach(([name, [clat, clon]]) => {
+    const d = Math.pow(lat - clat, 2) + Math.pow(lon - clon, 2);
+    if (d < bestDist) { bestDist = d; best = name; }
+  });
+  return best;
+}
 
 function readSet(key: string): Set<string> {
   if (typeof window === "undefined") return new Set();
@@ -379,11 +401,92 @@ export default function ExhibitionsPage() {
   const { items: items } = useCollection();
 
   const [tab, setTab]               = useState<TabKey>("near");
-  const [city, setCity]             = useState<City>("Seoul");
-  const [time, setTime]             = useState<TimeKey>("3m");
-  const [savedSet, setSavedSet]     = useState<Set<string>>(() => readSet(SAVED_KEY));
-  const [notifySet, setNotifySet]   = useState<Set<string>>(() => readSet(NOTIFY_KEY));
-  const [detail, setDetail]         = useState<Exhibition | null>(null);
+
+  // Multi-city filter — Set of city names (canonical + user-added).
+  // Hydrated from localStorage on mount; defaults to ["Seoul"] for
+  // first-time visitors so the page isn't empty.
+  const [selectedCities, setSelectedCities] = useState<Set<string>>(new Set(["Seoul"]));
+  const [customCities,   setCustomCities]   = useState<string[]>([]);
+  const [time,           setTime]           = useState<TimeKey>("3m");
+  const [hydrated,       setHydrated]       = useState(false);
+  const [savedSet,       setSavedSet]       = useState<Set<string>>(() => readSet(SAVED_KEY));
+  const [notifySet,      setNotifySet]      = useState<Set<string>>(() => readSet(NOTIFY_KEY));
+  const [detail,         setDetail]         = useState<Exhibition | null>(null);
+
+  /* Hydrate filters from localStorage */
+  useEffect(() => {
+    try {
+      const c = JSON.parse(window.localStorage.getItem(CITIES_KEY) ?? "null");
+      if (Array.isArray(c) && c.length > 0) setSelectedCities(new Set(c.filter(x => typeof x === "string")));
+      const cc = JSON.parse(window.localStorage.getItem(CUSTOM_CITIES_KEY) ?? "null");
+      if (Array.isArray(cc)) setCustomCities(cc.filter(x => typeof x === "string"));
+      const t = window.localStorage.getItem(TIME_KEY);
+      if (t && ["now", "1m", "3m", "6m", "1y"].includes(t)) setTime(t as TimeKey);
+    } catch { /* corrupted store — ignore */ }
+    setHydrated(true);
+  }, []);
+
+  /* Persist filters whenever they change (skip until hydrated to avoid clobber) */
+  useEffect(() => {
+    if (!hydrated) return;
+    try { window.localStorage.setItem(CITIES_KEY, JSON.stringify(Array.from(selectedCities))); } catch {}
+  }, [selectedCities, hydrated]);
+  useEffect(() => {
+    if (!hydrated) return;
+    try { window.localStorage.setItem(CUSTOM_CITIES_KEY, JSON.stringify(customCities)); } catch {}
+  }, [customCities, hydrated]);
+  useEffect(() => {
+    if (!hydrated) return;
+    try { window.localStorage.setItem(TIME_KEY, time); } catch {}
+  }, [time, hydrated]);
+
+  /* City toggle — click adds/removes; keep at least one city so the
+   * tabs aren't entirely empty. */
+  const toggleCity = (name: string) => {
+    setSelectedCities(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) {
+        if (next.size > 1) next.delete(name);   // never empty
+      } else {
+        next.add(name);
+      }
+      return next;
+    });
+  };
+
+  /* Near me — real geolocation, then resolve to closest known city. */
+  const requestNearMe = () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) {
+      // Browser doesn't support geolocation — fall back to Seoul.
+      setSelectedCities(prev => new Set([...prev, "Seoul"]));
+      return;
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const closest = closestKnownCity(pos.coords.latitude, pos.coords.longitude);
+        setSelectedCities(prev => new Set([...prev, closest]));
+      },
+      () => {
+        // Permission denied / unavailable — silently fall back, no
+        // browser dialog noise. User can pick a city manually.
+      },
+      { timeout: 8000, maximumAge: 60_000 * 30 },
+    );
+  };
+
+  /* Add city — V1 simple text prompt. Replace with a dropdown
+   * autocomplete once a real city catalogue ships. */
+  const addCustomCity = () => {
+    if (typeof window === "undefined") return;
+    const raw = window.prompt("Add a city");
+    if (!raw) return;
+    const name = raw.trim();
+    if (!name) return;
+    if (!customCities.includes(name) && !(CITIES as string[]).includes(name)) {
+      setCustomCities(arr => [...arr, name]);
+    }
+    setSelectedCities(prev => new Set([...prev, name]));
+  };
 
   /* User signal extraction (taste match + Artist Alerts feed) */
   const { knownArtists, patternKeywords } = useMemo(() => {
@@ -399,21 +502,22 @@ export default function ExhibitionsPage() {
 
   const exhibitions = getExhibitions();
 
-  /* Tab → list filter */
+  /* Tab → list filter (multi-city aware) */
   const visible = useMemo<Exhibition[]>(() => {
+    const inSelected = (e: Exhibition) => selectedCities.has(e.city);
     let list = exhibitions.filter(e => withinWindow(e, time));
 
     if (tab === "near") {
-      list = list.filter(e => e.city === city && !e.travelDestination);
-      // Fallback: if Near You is empty for the chosen city, show
-      // anything in that city (incl. travel-destination ones).
-      if (list.length === 0) list = exhibitions.filter(e => e.city === city && withinWindow(e, time));
+      list = list.filter(e => inSelected(e) && !e.travelDestination);
+      // Fallback: if "Near You" is empty for the chosen cities, show
+      // any exhibition in those cities (incl. travel-destination ones).
+      if (list.length === 0) list = exhibitions.filter(e => inSelected(e) && withinWindow(e, time));
     } else if (tab === "travel") {
-      list = list.filter(e => e.travelDestination && e.city !== city);
+      list = list.filter(e => e.travelDestination && !inSelected(e));
     } else if (tab === "alerts") {
       list = list.filter(e => e.artists.some(a => knownArtists.has(a.toLowerCase())));
     } else if (tab === "must") {
-      list = list.filter(e => e.mustSee && e.city === city);
+      list = list.filter(e => e.mustSee && inSelected(e));
       if (list.length === 0) list = exhibitions.filter(e => e.mustSee);
     }
 
@@ -422,7 +526,7 @@ export default function ExhibitionsPage() {
       .map(e => ({ ex: e, ...scoreExhibition(e, knownArtists, patternKeywords) }))
       .sort((a, b) => b.score - a.score)
       .map(x => x.ex);
-  }, [exhibitions, tab, city, time, knownArtists, patternKeywords]);
+  }, [exhibitions, tab, selectedCities, time, knownArtists, patternKeywords]);
 
   const toggleSave = (id: string) => {
     setSavedSet(prev => {
@@ -486,7 +590,15 @@ export default function ExhibitionsPage() {
         <Tabs value={tab} onChange={setTab} />
 
         {/* Filters */}
-        <Filters city={city} setCity={setCity} time={time} setTime={setTime} />
+        <Filters
+          selectedCities={selectedCities}
+          customCities={customCities}
+          onToggleCity={toggleCity}
+          onNearMe={requestNearMe}
+          onAddCity={addCustomCity}
+          time={time}
+          setTime={setTime}
+        />
 
         {/* List */}
         {visible.length === 0 ? (
@@ -565,10 +677,18 @@ function Tabs({ value, onChange }: { value: TabKey; onChange: (t: TabKey) => voi
   );
 }
 
-function Filters({ city, setCity, time, setTime }: {
-  city: City; setCity: (c: City) => void; time: TimeKey; setTime: (t: TimeKey) => void;
+function Filters({
+  selectedCities, customCities, onToggleCity, onNearMe, onAddCity,
+  time, setTime,
+}: {
+  selectedCities: Set<string>;
+  customCities:   string[];
+  onToggleCity:   (name: string) => void;
+  onNearMe:       () => void;
+  onAddCity:      () => void;
+  time:           TimeKey;
+  setTime:        (t: TimeKey) => void;
 }) {
-  const cityOptions: (City | "near_me")[] = ["near_me" as const, ...CITIES];
   const timeOptions: { id: TimeKey; label: string }[] = [
     { id: "now", label: "Now" },
     { id: "1m",  label: "1M" },
@@ -586,25 +706,37 @@ function Filters({ city, setCity, time, setTime }: {
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" as const }}>
         <span style={{ fontSize: 9, color: "#9A9A9A", letterSpacing: ".18em", textTransform: "uppercase" as const, fontWeight: 600, marginRight: 4 }}>Location</span>
-        {cityOptions.map(c => {
-          const isNearMe = c === "near_me";
-          const label    = isNearMe ? "Near me" : c;
-          // "Near me" maps to Seoul as a sensible default — IP-geolocation
-          // would resolve this on a real backend.
-          const target   = isNearMe ? "Seoul" : c;
-          const active   = city === target;
-          return (
-            <button
-              key={c}
-              onClick={() => setCity(target as City)}
-              style={pillStyle(active)}
-            >
-              {isNearMe && <MapPin size={11} strokeWidth={1.6} style={{ marginRight: 4 }} />}
-              {label}
-            </button>
-          );
-        })}
-        <button style={pillStyle(false)} onClick={() => alert("Add city — coming soon")}>
+
+        {/* Near me — triggers real geolocation, never marked active itself
+            (the resolved city becomes active in the canonical chip below). */}
+        <button onClick={onNearMe} style={pillStyle(false)}>
+          <MapPin size={11} strokeWidth={1.6} style={{ marginRight: 4 }} />
+          Near me
+        </button>
+
+        {/* Canonical 4 cities — toggle in/out of the selectedCities Set. */}
+        {CITIES.map(c => (
+          <button
+            key={c}
+            onClick={() => onToggleCity(c)}
+            style={pillStyle(selectedCities.has(c))}
+          >
+            {c}
+          </button>
+        ))}
+
+        {/* User-added custom cities — same toggle behaviour. */}
+        {customCities.map(c => (
+          <button
+            key={`custom-${c}`}
+            onClick={() => onToggleCity(c)}
+            style={pillStyle(selectedCities.has(c))}
+          >
+            {c}
+          </button>
+        ))}
+
+        <button style={pillStyle(false)} onClick={onAddCity}>
           <Plus size={11} strokeWidth={1.6} style={{ marginRight: 3 }} /> Add city
         </button>
       </div>
