@@ -29,20 +29,27 @@ export function ConfirmCaptureCard({ onConfirm, onRescan, confidence }: Props) {
       exit={{    opacity: 0, y: 24 }}
       transition={{ type: "spring", stiffness: 200, damping: 22 }}
       style={{
-        position:     "absolute",
+        position:     "fixed",
         left:         "50%",
-        bottom:       "calc(36px + env(safe-area-inset-bottom, 0px))",
-        transform:    "translateX(-50%)",
-        width:        "min(360px, calc(100% - 36px))",
-        zIndex:       40,
+        // framer-motion would otherwise overwrite a static
+        // `transform: translateX(-50%)` once `y` starts animating,
+        // snapping the card to the left edge and clipping the
+        // right side off-screen. Putting x as a motion value in
+        // style keeps it composed with y on every frame.
+        x:            "-50%",
+        bottom:       "calc(28px + env(safe-area-inset-bottom, 0px))",
+        width:        "min(360px, calc(100vw - 32px))",
+        maxWidth:     "calc(100vw - 32px)",
+        zIndex:       250,
         background:   "rgba(20,20,20,0.78)",
         backdropFilter:        "blur(18px)",
         WebkitBackdropFilter:  "blur(18px)",
         border:       "0.5px solid rgba(255,255,255,0.18)",
         borderRadius: 18,
-        padding:      "18px 18px 16px",
+        padding:      "16px 18px 14px",
         boxShadow:    "0 14px 48px rgba(0,0,0,0.45)",
         fontFamily:   FONT,
+        boxSizing:    "border-box" as const,
       }}
     >
       {/* Top row: caption + confidence pill */}

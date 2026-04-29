@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
@@ -26,6 +26,16 @@ export const metadata: Metadata = {
     title: "AXVELA AI",
     description: "Cultural Intelligence, Refined.",
   },
+};
+
+/** viewport-fit=cover lets env(safe-area-inset-*) return real values
+ *  on iPhones with home indicators / notches — needed so the camera
+ *  confirm card and bottom dock don't sit behind the home bar. */
+export const viewport: Viewport = {
+  width:          "device-width",
+  initialScale:   1,
+  viewportFit:    "cover",
+  themeColor:     "#0D0D0D",
 };
 
 export default function RootLayout({
