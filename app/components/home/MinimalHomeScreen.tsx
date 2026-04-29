@@ -126,9 +126,11 @@ export function MinimalHomeScreen({
         alignItems:     "center",
         justifyContent: "center",
         width:          "100%",
-        // Pulls the orb visually below the geometric center of the
-        // viewport — spec: "원은 화면 중앙보다 약간 아래에 위치".
-        marginTop:      24,
+        // Lifted above the geometric center to give the floating
+        // AXVELA AI launcher (~168px from bottom) clear breathing
+        // room. Was +24 (slightly below center); the negative
+        // margin pulls the orb up by ~56px overall.
+        marginTop:      -32,
         position:       "relative" as const,
         zIndex:         1,
       }}>

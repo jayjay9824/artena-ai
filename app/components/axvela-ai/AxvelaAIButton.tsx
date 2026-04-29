@@ -112,9 +112,10 @@ export function AxvelaAIButton({ onOpen, bottomOffset }: Props) {
         // y, then the CSS animation takes over.
         bottom:          bottomOffset ?? "calc(168px + env(safe-area-inset-bottom, 0px))",
         zIndex:          50,
-        // Pill
-        minWidth:        280,
-        padding:         "12px 28px",
+        // Pill — tightened from the original 280/12-28/15+11 pass
+        // because it was crowding the ScanOrb on narrow phones.
+        minWidth:        220,
+        padding:         "9px 20px",
         background:      "linear-gradient(135deg, #0A0A14 0%, #1A1A2E 100%)",
         border:          "1.5px solid rgba(139, 92, 246, 0.6)",
         borderRadius:    999,
@@ -128,33 +129,35 @@ export function AxvelaAIButton({ onOpen, bottomOffset }: Props) {
         flexDirection:   "column",
         alignItems:      "center",
         justifyContent:  "center",
-        gap:             1,
+        gap:             0,
       }}
     >
       <span style={{
         display:        "inline-flex",
         alignItems:     "center",
-        gap:             8,
-        fontSize:        15,
+        gap:             6,
+        fontSize:        13,
         fontWeight:      500,
-        letterSpacing:   "0.12em",
+        letterSpacing:   "0.10em",
         color:           "#FFFFFF",
         fontFamily:      FONT_HEAD,
+        lineHeight:      1.2,
       }}>
         {t("axvela.cta.title")}
         <Sparkles
           className="axvela-ai-sparkle"
-          size={15}
+          size={12}
           strokeWidth={1.8}
           color="#A78BFA"
           aria-hidden
         />
       </span>
       <span style={{
-        fontSize:        11,
+        fontSize:        9.5,
         color:           "rgba(255,255,255,0.70)",
         letterSpacing:   "0.05em",
         marginTop:       2,
+        lineHeight:      1.2,
       }}>
         {t("axvela.cta.subtitle")}
       </span>
