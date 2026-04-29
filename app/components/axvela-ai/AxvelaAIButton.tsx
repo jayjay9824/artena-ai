@@ -36,47 +36,50 @@ const STYLE_ID = "axvela-ai-cta-styles";
  *     suppressed entirely.
  */
 const KEYFRAMES = `
+/* Phase 5 final tuning — violet halos pulled ~30% (radius and
+   alpha) so the pill reads as material, not glow. The deep
+   black drop + the inset top highlight do the heavy lifting. */
 @keyframes aiMaterialBreath {
   0%, 100% {
     transform: scale(1);
     box-shadow:
-      0 12px 36px rgba(0, 0, 0, 0.45),
-      0 0 26px rgba(168, 85, 247, 0.26),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+      0 12px 36px rgba(0, 0, 0, 0.46),
+      0 0 22px rgba(168, 85, 247, 0.18),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10);
   }
   50% {
     transform: scale(1.012);
     box-shadow:
       0 14px 40px rgba(0, 0, 0, 0.50),
-      0 0 36px rgba(168, 85, 247, 0.36),
-      inset 0 1px 0 rgba(255, 255, 255, 0.10);
+      0 0 30px rgba(168, 85, 247, 0.25),
+      inset 0 1px 0 rgba(255, 255, 255, 0.12);
   }
 }
 
 .axvela-ai-cta {
   animation: aiMaterialBreath 4s ease-in-out infinite;
   box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.45),
-    0 0 26px rgba(168, 85, 247, 0.26),
-    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    0 12px 36px rgba(0, 0, 0, 0.46),
+    0 0 22px rgba(168, 85, 247, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.10);
   will-change: transform, box-shadow;
 }
 .axvela-ai-cta:hover {
-  border-color: rgba(168, 85, 247, 0.55);
+  border-color: rgba(168, 85, 247, 0.48);
 }
 .axvela-ai-cta:focus-visible {
-  outline:        2px solid rgba(168, 85, 247, 0.7);
+  outline:        2px solid rgba(168, 85, 247, 0.6);
   outline-offset: 4px;
 }
 
-/* Press flash — momentary halo bump while finger is down. The
-   transition smooths re-entry to the breath-driven shadow on
-   release; box-shadow is high specificity vs. the keyframe. */
+/* Press flash — pulled back to a quiet halo step. Still
+   registers visually within ~140ms but reads as a tonal
+   shift, not a flashbulb. */
 .axvela-ai-cta--pressed {
   box-shadow:
     0 10px 30px rgba(0, 0, 0, 0.55),
-    0 0 44px rgba(168, 85, 247, 0.55),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+    0 0 32px rgba(168, 85, 247, 0.40),
+    inset 0 1px 0 rgba(255, 255, 255, 0.14) !important;
   transition: box-shadow 140ms ease-out;
 }
 
@@ -197,7 +200,7 @@ export function AxvelaAIButton({ onActivate, disabled = false, rippleKey }: Prop
           <motion.span
             key={effectiveRippleKey}
             className="axvela-ai-ripple"
-            initial={{ scale: 0.9, opacity: 0.45 }}
+            initial={{ scale: 0.9, opacity: 0.32 }}
             animate={{ scale: 2.0, opacity: 0    }}
             exit={{    opacity: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
@@ -205,7 +208,7 @@ export function AxvelaAIButton({ onActivate, disabled = false, rippleKey }: Prop
               position:     "absolute",
               inset:        -2,
               borderRadius: 9999,
-              border:       "1.5px solid rgba(168, 85, 247, 0.6)",
+              border:       "1px solid rgba(168, 85, 247, 0.48)",
               pointerEvents: "none",
               willChange:    "transform, opacity",
             }}

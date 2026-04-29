@@ -232,8 +232,8 @@ export function MinimalHomeScreen({
             {rippleKey > 0 && (
               <motion.span
                 key={`orb-ripple-${rippleKey}`}
-                initial={{ scale: 0.9, opacity: 0.25 }}
-                animate={{ scale: 1.6, opacity: 0    }}
+                initial={{ scale: 0.9, opacity: 0.18 }}
+                animate={{ scale: 1.5, opacity: 0    }}
                 exit={{    opacity: 0 }}
                 transition={{ duration: ORB_RIPPLE_MS / 1000, ease: "easeOut" }}
                 aria-hidden
@@ -241,7 +241,7 @@ export function MinimalHomeScreen({
                   position:      "absolute",
                   inset:         0,
                   borderRadius:  "50%",
-                  border:        "1px solid rgba(168, 85, 247, 0.45)",
+                  border:        "1px solid rgba(168, 85, 247, 0.32)",
                   pointerEvents: "none",
                   willChange:    "transform, opacity",
                 }}
@@ -281,13 +281,14 @@ export function MinimalHomeScreen({
 
       {/* ── 4. Purple haze overlay — sits above the dimmed home
               + dock, but below the still-bright center stack
-              (z-100). Renders as the activation light bath that
-              the pill is the source of. ────────────────────── */}
+              (z-100). Phase 5 tuning: peak opacity / radial
+              alpha pulled ~30% so the activation reads as a
+              tonal shift in the space, not a glow bath. ───── */}
       <AnimatePresence>
         {isModeOn && (
           <motion.div
             initial={{ opacity: 0 }}
-            animate={{ opacity: 0.30 }}
+            animate={{ opacity: 0.22 }}
             exit={{    opacity: 0 }}
             transition={{ duration: ACTIVATE_MS / 1000, ease: "easeOut" }}
             aria-hidden
@@ -297,7 +298,7 @@ export function MinimalHomeScreen({
               zIndex:        50,
               pointerEvents: "none",
               background:
-                "radial-gradient(circle at 50% 55%, rgba(168, 85, 247, 0.55) 0%, rgba(168, 85, 247, 0) 70%)",
+                "radial-gradient(circle at 50% 55%, rgba(168, 85, 247, 0.40) 0%, rgba(168, 85, 247, 0) 70%)",
               willChange:    "opacity",
             }}
           />

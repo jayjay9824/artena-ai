@@ -45,8 +45,8 @@ const KEYFRAMES = `
   50%      { transform: translate3d( 2%, -1%, 0); }
 }
 @keyframes axvelaParticleDrift {
-  0%, 100% { transform: translate3d(0, 0, 0);     opacity: 0.18; }
-  50%      { transform: translate3d(8px, -10px, 0); opacity: 0.10; }
+  0%, 100% { transform: translate3d(0, 0, 0);     opacity: 0.13; }
+  50%      { transform: translate3d(8px, -10px, 0); opacity: 0.07; }
 }
 @keyframes axvelaTypingDot {
   0%, 80%, 100% { transform: scale(0.65); opacity: 0.35; }
@@ -55,9 +55,11 @@ const KEYFRAMES = `
 
 .axvela-ai-overlay-bg {
   position: absolute; inset: 0;
+  /* Phase 5 — radials trimmed ~25% so the dark space reads as
+     a quiet room with violet *air*, not a violet wash. */
   background:
-    radial-gradient(circle at 50% 35%, rgba(168, 85, 247, 0.13) 0%, rgba(168, 85, 247, 0) 55%),
-    radial-gradient(circle at 80% 80%, rgba(99,  102, 241, 0.08) 0%, rgba(99,  102, 241, 0) 60%),
+    radial-gradient(circle at 50% 35%, rgba(168, 85, 247, 0.10) 0%, rgba(168, 85, 247, 0) 55%),
+    radial-gradient(circle at 80% 80%, rgba(99,  102, 241, 0.06) 0%, rgba(99,  102, 241, 0) 60%),
     #0a0a0f;
   pointer-events: none;
 }
@@ -69,8 +71,8 @@ const KEYFRAMES = `
   position: absolute;
   width: 3px; height: 3px;
   border-radius: 50%;
-  background: rgba(167, 139, 250, 0.45);
-  box-shadow: 0 0 8px rgba(167, 139, 250, 0.4);
+  background: rgba(167, 139, 250, 0.32);
+  box-shadow: 0 0 6px rgba(167, 139, 250, 0.28);
   animation: axvelaParticleDrift 7s ease-in-out infinite;
   will-change: transform, opacity;
   pointer-events: none;
@@ -396,7 +398,7 @@ export function AIModeOverlay({ open, onClose }: Props) {
             <path
               className="axvela-ai-wave"
               d="M0 600 Q 300 540, 600 600 T 1200 600"
-              stroke="rgba(168, 85, 247, 0.12)"
+              stroke="rgba(168, 85, 247, 0.09)"
               strokeWidth="1"
               fill="none"
             />
@@ -404,7 +406,7 @@ export function AIModeOverlay({ open, onClose }: Props) {
               className="axvela-ai-wave"
               style={{ animationDuration: "22s", animationDelay: "-4s" }}
               d="M0 200 Q 300 240, 600 200 T 1200 200"
-              stroke="rgba(99, 102, 241, 0.09)"
+              stroke="rgba(99, 102, 241, 0.07)"
               strokeWidth="1"
               fill="none"
             />
@@ -626,12 +628,14 @@ export function AIModeOverlay({ open, onClose }: Props) {
                 alignItems:     "center",
                 gap:             8,
                 padding:        "8px 8px 8px 16px",
-                background:     "rgba(8, 8, 14, 0.70)",
+                background:     "rgba(8, 8, 14, 0.72)",
                 backdropFilter:        "blur(24px) saturate(115%)",
                 WebkitBackdropFilter:  "blur(24px) saturate(115%)",
-                border:         "1px solid rgba(168, 85, 247, 0.40)",
+                /* Phase 5 — pill border softened so it reads as a
+                   pane of glass, not a violet outline. */
+                border:         "1px solid rgba(168, 85, 247, 0.28)",
                 borderRadius:   9999,
-                boxShadow:      "0 12px 40px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.06)",
+                boxShadow:      "0 10px 32px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.07)",
               }}
             >
               <button
@@ -700,7 +704,7 @@ export function AIModeOverlay({ open, onClose }: Props) {
                     ? "linear-gradient(135deg, #A855F7 0%, #7C3AED 100%)"
                     : "rgba(255, 255, 255, 0.06)",
                   boxShadow:       input.trim() && !isStreaming
-                    ? "0 0 18px rgba(168, 85, 247, 0.50), 0 4px 14px rgba(0, 0, 0, 0.45)"
+                    ? "0 0 12px rgba(168, 85, 247, 0.35), 0 4px 14px rgba(0, 0, 0, 0.45)"
                     : "none",
                   transition:      "background 160ms ease, box-shadow 160ms ease",
                 }}
