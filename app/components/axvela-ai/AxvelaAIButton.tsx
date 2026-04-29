@@ -4,87 +4,78 @@ import { motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useLanguage } from "../../i18n/useLanguage";
 
-const FONT      = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
-const FONT_HEAD = "'KakaoBigSans',   -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif";
+const FONT_HEAD = "'KakaoBigSans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif";
 
 const STYLE_ID = "axvela-ai-cta-styles";
 
+/**
+ * Phase 1 idle styling — "premium AI mode entry", not a button.
+ *
+ *   • Dark glass body (rgba 15/15/20 .78 + 18px backdrop blur)
+ *   • Hairline violet border (rgba 168/85/247 .35)
+ *   • Subtle top-down purple highlight gradient layered onto the
+ *     dark glass — gives the material a faint sheen without
+ *     turning into a neon rectangle
+ *   • Three-layer shadow:
+ *       - a deep drop (0 12px 36px black .45) for floating weight
+ *       - a soft violet halo (0 0 26px violet .26) for life
+ *       - an inner top highlight (inset 0 1px 0 white .08) for the
+ *         hand-finished glass edge
+ *
+ * The aiMaterialBreath keyframe animates scale 1 → 1.012 → 1
+ * along with a subtle violet halo intensification, four-second
+ * cycle. Reads as "living glass material" not a pulsing CTA.
+ */
 const KEYFRAMES = `
-@keyframes axvelaPulse {
+@keyframes aiMaterialBreath {
   0%, 100% {
+    transform: scale(1);
     box-shadow:
-      0 0 20px rgba(139, 92, 246, 0.40),
-      0 0 40px rgba(139, 92, 246, 0.25),
-      0 0 60px rgba(139, 92, 246, 0.15),
-      inset 0 0 12px rgba(167, 139, 250, 0.20);
-    border-color: rgba(139, 92, 246, 0.60);
+      0 12px 36px rgba(0, 0, 0, 0.45),
+      0 0 26px rgba(168, 85, 247, 0.26),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
   }
   50% {
+    transform: scale(1.012);
     box-shadow:
-      0 0 28px rgba(139, 92, 246, 0.60),
-      0 0 56px rgba(139, 92, 246, 0.40),
-      0 0 84px rgba(139, 92, 246, 0.25),
-      inset 0 0 16px rgba(167, 139, 250, 0.32);
-    border-color: rgba(167, 139, 250, 0.90);
+      0 14px 40px rgba(0, 0, 0, 0.50),
+      0 0 36px rgba(168, 85, 247, 0.36),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10);
   }
-}
-
-@keyframes axvelaSparkleTwinkle {
-  0%, 100% { opacity: 1;   transform: scale(1)    rotate(0deg); }
-  50%      { opacity: 0.6; transform: scale(1.15) rotate(15deg); }
-}
-
-@keyframes axvelaFloat {
-  0%, 100% { transform: translate3d(-50%, 0, 0); }
-  50%      { transform: translate3d(-50%, -4px, 0); }
 }
 
 .axvela-ai-cta {
-  animation: axvelaPulse 2.8s ease-in-out infinite,
-             axvelaFloat 4s ease-in-out infinite;
-}
-.axvela-ai-cta .axvela-ai-sparkle {
-  animation: axvelaSparkleTwinkle 2s ease-in-out infinite;
+  animation: aiMaterialBreath 4s ease-in-out infinite;
+  /* Initial shadow so the button reads as glass even before
+     the keyframe's first tick lands. */
+  box-shadow:
+    0 12px 36px rgba(0, 0, 0, 0.45),
+    0 0 26px rgba(168, 85, 247, 0.26),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
 .axvela-ai-cta:hover {
-  filter: drop-shadow(0 0 8px rgba(167, 139, 250, 0.5));
+  border-color: rgba(168, 85, 247, 0.55);
 }
 .axvela-ai-cta:focus-visible {
-  outline:        2px solid #A78BFA;
+  outline:        2px solid rgba(168, 85, 247, 0.7);
   outline-offset: 4px;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .axvela-ai-cta,
-  .axvela-ai-cta .axvela-ai-sparkle {
+  .axvela-ai-cta {
     animation: none !important;
+    transform: none !important;
   }
 }
 `;
 
-/**
- * Floating AXVELA AI launcher pill — black/violet glow with a
- * subtle pulse + float, sparkle that twinkles. Fixed centered
- * just above the HomeDock so it's the most prominent
- * always-available CTA on the home surface.
- *
- * Visual ownership is the launcher only — the modal it opens
- * is a separate component (AxvelaAIChatModal). Parent supplies
- * the open handler and decides when (if ever) to hide the
- * button (e.g. while scanning).
- */
 interface Props {
   onOpen: () => void;
-  /** Optional override of the bottom anchor; defaults sit above
-   *  the HomeDock (which is 120px tall + safe area). */
-  bottomOffset?: string;
 }
 
-export function AxvelaAIButton({ onOpen, bottomOffset }: Props) {
+export function AxvelaAIButton({ onOpen }: Props) {
   const { t } = useLanguage();
 
-  // Inject keyframes once per session — keeps the multi-layer
-  // glow + pulse + sparkle out of the inline-style hot path.
   React.useEffect(() => {
     if (typeof document === "undefined") return;
     if (document.getElementById(STYLE_ID)) return;
@@ -100,53 +91,51 @@ export function AxvelaAIButton({ onOpen, bottomOffset }: Props) {
       aria-label="Open AXVELA AI assistant"
       onClick={onOpen}
       className="axvela-ai-cta"
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.8, duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      whileTap={{ scale: 0.97 }}
+      transition={{ delay: 0.6, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+      whileTap={{ scale: 0.985 }}
       style={{
-        position:        "fixed",
-        left:            "50%",
-        // The keyframe animation owns transform — we use it for the
-        // float bob with the -50% X offset. Initial mount uses framer
-        // y, then the CSS animation takes over.
-        bottom:          bottomOffset ?? "calc(168px + env(safe-area-inset-bottom, 0px))",
-        zIndex:          50,
-        // Half-sized single-line pill. The subtitle was dropped —
-        // at this footprint it would be sub-9px and unreadable;
-        // the icon + title carry the brand on its own.
-        minWidth:        140,
-        padding:         "7px 16px",
-        background:      "linear-gradient(135deg, #0A0A14 0%, #1A1A2E 100%)",
-        border:          "1.25px solid rgba(139, 92, 246, 0.6)",
-        borderRadius:    999,
-        cursor:          "pointer",
-        color:           "#FFFFFF",
-        fontFamily:      FONT,
+        position:         "relative",
+        zIndex:           10,
+        height:           56,
+        minWidth:         160,
+        padding:          "0 32px",
+        // Subtle top-down purple highlight stacked on top of the
+        // dark glass color — gives the material a faint inner sheen
+        // without ever crossing into neon territory.
+        background:
+          "linear-gradient(180deg, rgba(168,85,247,0.10) 0%, rgba(168,85,247,0) 38%), " +
+          "rgba(15, 15, 20, 0.78)",
+        backdropFilter:        "blur(18px) saturate(115%)",
+        WebkitBackdropFilter:  "blur(18px) saturate(115%)",
+        border:           "1px solid rgba(168, 85, 247, 0.35)",
+        borderRadius:     9999,
+        cursor:           "pointer",
+        color:            "#FFFFFF",
+        fontFamily:       FONT_HEAD,
         WebkitTapHighlightColor: "transparent",
-        display:         "inline-flex",
-        alignItems:      "center",
-        justifyContent:  "center",
-        gap:             6,
+        display:          "inline-flex",
+        alignItems:       "center",
+        justifyContent:   "center",
+        gap:              10,
       }}
     >
+      <Sparkles
+        size={17}
+        strokeWidth={1.7}
+        color="#C4B5FD"
+        aria-hidden
+      />
       <span style={{
-        fontSize:        11.5,
-        fontWeight:      600,
-        letterSpacing:   "0.10em",
-        color:           "#FFFFFF",
-        fontFamily:      FONT_HEAD,
-        lineHeight:      1,
+        fontSize:       13,
+        fontWeight:     600,
+        letterSpacing:  "0.17em",
+        color:          "#FFFFFF",
+        lineHeight:     1,
       }}>
         {t("axvela.cta.title")}
       </span>
-      <Sparkles
-        className="axvela-ai-sparkle"
-        size={11}
-        strokeWidth={1.8}
-        color="#A78BFA"
-        aria-hidden
-      />
     </motion.button>
   );
 }

@@ -119,23 +119,25 @@ export function MinimalHomeScreen({
         />
       </a>
 
-      {/* ── 2. Center scan orb ────────────────────────────────────── */}
+      {/* ── 2. Center stack — ScanOrb + AXVELA AI pill ──────────── */}
       <div style={{
-        // Use alignItems on the parent to lock vertical position
-        // explicitly instead of fighting flex:1 + center. Orb sits
-        // toward the top of the available space so the floating
-        // AXVELA AI pill (~168px from bottom + ~36px tall) has
-        // unmistakable separation underneath.
+        // Column stack so the AXVELA AI pill sits directly under
+        // the ScanOrb with a small breathing gap. The wrapper is
+        // anchored to the top of the available flex space so the
+        // pair reads as a single composed unit rather than drifting.
         flex:           1,
         display:        "flex",
-        alignItems:     "flex-start",
-        justifyContent: "center",
+        flexDirection:  "column",
+        alignItems:     "center",
+        justifyContent: "flex-start",
         width:          "100%",
         paddingTop:     16,
+        gap:            6,
         position:       "relative" as const,
         zIndex:         1,
       }}>
         <ScanOrb onClick={onOpenScanner} label={TEXT.scanLabel} />
+        <AxvelaAIButton onOpen={() => setAxvelaOpen(true)} />
       </div>
 
       {/* ── 3. Bottom dock — Collection · Profile ───────────────── */}
@@ -146,8 +148,7 @@ export function MinimalHomeScreen({
         profileLabel={TEXT.profile}
       />
 
-      {/* ── 5. Floating AXVELA AI launcher ──────────────────────── */}
-      <AxvelaAIButton onOpen={() => setAxvelaOpen(true)} />
+      {/* ── 4. AXVELA AI chat modal (still mounted at the root) ── */}
       <AxvelaAIChatModal open={axvelaOpen} onClose={() => setAxvelaOpen(false)} />
     </div>
   );
