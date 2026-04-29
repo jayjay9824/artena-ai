@@ -25,11 +25,21 @@ export const metadata: Metadata = {
     description: "Cultural Intelligence, Refined.",
     type: "website",
     url: "https://www.axvela.com",
+    images: [
+      {
+        url:    "/og/axvela-og.png",
+        width:  1200,
+        height: 630,
+        alt:    "AXVELA AI",
+        type:   "image/png",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "AXVELA AI",
     description: "Cultural Intelligence, Refined.",
+    images: ["/og/axvela-og.png"],
   },
 };
 
