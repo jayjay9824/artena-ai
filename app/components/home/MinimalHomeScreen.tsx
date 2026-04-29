@@ -4,14 +4,13 @@ import { ScanOrb } from "./ScanOrb";
 import { HomeDock } from "./HomeDock";
 import { OceanBackground } from "./OceanBackground";
 
-const FONT      = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
-const FONT_HEAD = "'KakaoBigSans',   -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif";
+const FONT = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
 
 /* Text constants — kept here so an i18n pass can lift them without
-   chasing magic strings. */
+   chasing magic strings. The wordmark + tagline have moved to the
+   logo asset (axvela-mark.png) so the home reads as a single mark
+   over the ocean rather than competing layers of text. */
 const TEXT = {
-  brand:      "AXVELA",
-  subtitle:   "AI ART ANALYSIS",
   scanLabel:  "SCAN",
   collection: "Collection",
   profile:    "Profile",
@@ -82,40 +81,35 @@ export function MinimalHomeScreen({
       {/* ── 0. Aerial ocean background (z-index 0) ──────────────── */}
       <OceanBackground />
 
-      {/* ── 1. Top brand ─────────────────────────────────────────── */}
+      {/* ── 1. Top brand mark (logo, no wordmark text) ──────────── */}
       <a
         href="/"
+        aria-label="AXVELA AI"
         style={{
-          display:        "inline-block",
+          display:        "block",
           textDecoration: "none",
-          textAlign:      "center" as const,
-          marginTop:      "calc(72px + env(safe-area-inset-top, 0px))",
+          marginTop:      "calc(56px + env(safe-area-inset-top, 0px))",
           position:       "relative" as const,
           zIndex:         1,
+          lineHeight:     0,
         }}
       >
-        <p style={{
-          margin:        "0 0 9px",
-          fontSize:      22,
-          fontWeight:    700,
-          letterSpacing: "0.30em",
-          color:         "#111111",
-          fontFamily:    FONT_HEAD,
-          // Optical centering for wide letter-spacing
-          paddingLeft:   "0.30em",
-        }}>
-          {TEXT.brand}
-        </p>
-        <p style={{
-          margin:        0,
-          fontSize:      9.5,
-          letterSpacing: "0.32em",
-          color:         "#777777",
-          fontFamily:    FONT,
-          paddingLeft:   "0.32em",
-        }}>
-          {TEXT.subtitle}
-        </p>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/axvela-mark.png"
+          alt="AXVELA AI"
+          width={140}
+          height={140}
+          style={{
+            display:   "block",
+            width:     140,
+            height:    140,
+            objectFit: "contain",
+            // Soft drop shadow so the dark X reads cleanly even when
+            // the ocean band underneath turns very dark.
+            filter:    "drop-shadow(0 2px 12px rgba(0,0,0,0.18))",
+          }}
+        />
       </a>
 
       {/* ── 2. Center scan orb ────────────────────────────────────── */}
