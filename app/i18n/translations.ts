@@ -221,6 +221,20 @@ const ko: Dictionary = {
   "axvela.chip.value":                    "투자 가치는?",
   "axvela.chip.similar":                  "비슷한 작품 추천",
 
+  /* ── AXVELA AI Mode Overlay (Phase 3) ─────────────────── */
+  "ai_overlay.title":                     "AXVELA AI",
+  "ai_overlay.greeting_main":             "안녕하세요,\n지니님 ✦",
+  "ai_overlay.greeting_pre":              "작품, 작가, 시장 맥락을 분석하고\n당신의 아트 컬렉션을 더 ",
+  "ai_overlay.greeting_highlight":        "특별하게",
+  "ai_overlay.greeting_post":             " 만들어 드릴게요.",
+  "ai_overlay.input_placeholder":         "무엇이든 물어보세요...",
+  "ai_overlay.disclaimer":                "AI는 실수를 할 수 있습니다. 중요한 정보는 확인해주세요.",
+  "ai_overlay.back":                      "뒤로",
+  "ai_overlay.history":                   "기록",
+  "ai_overlay.settings":                  "설정",
+  "ai_overlay.mic":                       "음성 입력",
+  "ai_overlay.send":                      "보내기",
+
   "profile.title":        "프로필",
   "profile.tagline":      "나의 AXVELA",
   "profile.saved_count":  "저장한 작품",
@@ -496,6 +510,20 @@ const en: Dictionary = {
   "axvela.chip.artist":                   "Tell me about this artist",
   "axvela.chip.value":                    "What's the investment value?",
   "axvela.chip.similar":                  "Recommend similar works",
+
+  /* ── AXVELA AI Mode Overlay (Phase 3) ─────────────────── */
+  "ai_overlay.title":                     "AXVELA AI",
+  "ai_overlay.greeting_main":             "Hello,\nGenie ✦",
+  "ai_overlay.greeting_pre":              "I'll read artworks, artists, and market context\nto make your art collection ",
+  "ai_overlay.greeting_highlight":        "more meaningful",
+  "ai_overlay.greeting_post":             ".",
+  "ai_overlay.input_placeholder":         "Ask anything...",
+  "ai_overlay.disclaimer":                "AI can make mistakes. Verify important information.",
+  "ai_overlay.back":                      "Back",
+  "ai_overlay.history":                   "History",
+  "ai_overlay.settings":                  "Settings",
+  "ai_overlay.mic":                       "Voice input",
+  "ai_overlay.send":                      "Send",
 
   "profile.title":        "Profile",
   "profile.tagline":      "Your AXVELA",

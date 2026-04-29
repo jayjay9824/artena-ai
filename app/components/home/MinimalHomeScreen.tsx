@@ -5,7 +5,7 @@ import { ScanOrb } from "./ScanOrb";
 import { HomeDock } from "./HomeDock";
 import { OceanBackground } from "./OceanBackground";
 import { AxvelaAIButton } from "../axvela-ai/AxvelaAIButton";
-import { AxvelaAIChatModal } from "../axvela-ai/AxvelaAIChatModal";
+import { AIModeOverlay } from "../axvela-ai/AIModeOverlay";
 
 const FONT = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
 
@@ -61,10 +61,9 @@ export function MinimalHomeScreen({
   onProfile,
   onFileSelected,
 }: Props) {
-  /* Modal mount state (existing). */
-  const [axvelaOpen,   setAxvelaOpen]   = useState(false);
-
-  /* Phase 2 activation state machine. */
+  /* Phase 2 activation state machine + Phase 3 AI Mode Overlay.
+     isAIMode now directly drives AIModeOverlay visibility — the
+     legacy axvelaOpen state for AxvelaAIChatModal is gone. */
   const [isActivating, setIsActivating] = useState(false);
   const [isAIMode,     setIsAIMode]     = useState(false);
   const [rippleKey,    setRippleKey]    = useState(0);
@@ -105,16 +104,14 @@ export function MinimalHomeScreen({
     setIsActivating(true);
     activateTimerRef.current = setTimeout(() => {
       setIsActivating(false);
-      setIsAIMode(true);
-      setAxvelaOpen(true);  // hands off to existing chat overlay
+      setIsAIMode(true);  // Phase 3 — overlay reads this directly
       activateTimerRef.current = null;
     }, ACTIVATE_MS);
   };
 
-  const handleModalClose = () => {
-    setAxvelaOpen(false);
-    // Drop AI mode so the button reactivates and the home returns
-    // to its idle state. Phase 3 may keep AI mode "on" longer.
+  /* Drop AI mode → overlay closes, button reactivates, home returns
+     to idle state from the activation visuals. */
+  const handleOverlayClose = () => {
     setIsAIMode(false);
   };
 
@@ -307,8 +304,8 @@ export function MinimalHomeScreen({
         )}
       </AnimatePresence>
 
-      {/* ── 5. AXVELA AI chat modal (current AI Overlay stand-in) */}
-      <AxvelaAIChatModal open={axvelaOpen} onClose={handleModalClose} />
+      {/* ── 5. AXVELA AI Mode Overlay (Phase 3) ─────────────────── */}
+      <AIModeOverlay open={isAIMode} onClose={handleOverlayClose} />
     </div>
   );
 }
