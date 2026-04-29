@@ -1,8 +1,10 @@
 "use client";
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { ScanOrb } from "./ScanOrb";
 import { HomeDock } from "./HomeDock";
 import { OceanBackground } from "./OceanBackground";
+import { AxvelaAIButton } from "../axvela-ai/AxvelaAIButton";
+import { AxvelaAIChatModal } from "../axvela-ai/AxvelaAIChatModal";
 
 const FONT = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
 
@@ -45,6 +47,11 @@ export function MinimalHomeScreen({
   onProfile,
   onFileSelected,
 }: Props) {
+  /* AXVELA AI floating launcher — opens a context-free chat modal
+     for general art-domain questions. Lives only on the home; the
+     scanner / report / quick-view surfaces don't render it. */
+  const [axvelaOpen, setAxvelaOpen] = useState(false);
+
   /* Invisible clipboard-paste path. Power users still get instant
      analyze when pasting a screenshot anywhere on the home surface. */
   useEffect(() => {
@@ -136,6 +143,10 @@ export function MinimalHomeScreen({
         collectionLabel={TEXT.collection}
         profileLabel={TEXT.profile}
       />
+
+      {/* ── 5. Floating AXVELA AI launcher ──────────────────────── */}
+      <AxvelaAIButton onOpen={() => setAxvelaOpen(true)} />
+      <AxvelaAIChatModal open={axvelaOpen} onClose={() => setAxvelaOpen(false)} />
     </div>
   );
 }

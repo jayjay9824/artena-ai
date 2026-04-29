@@ -208,6 +208,19 @@ const ko: Dictionary = {
   "mode.investment":                      "투자",
   "mode.expert":                          "전문가",
 
+  /* ── AXVELA AI floating launcher ───────────────────────── */
+  "axvela.cta.title":                     "AXVELA AI",
+  "axvela.cta.subtitle":                  "작품에 대해 무엇이든 물어보세요",
+  "axvela.modal.title":                   "AXVELA AI",
+  "axvela.modal.placeholder":             "작품에 대해 물어보세요…",
+  "axvela.modal.empty_title":             "무엇이든 물어보세요",
+  "axvela.modal.empty_body":              "미술사, 작가, 시장, 감상법 — AXVELA AI가 함께합니다.",
+  "axvela.modal.error":                   "답변 생성 중 오류가 발생했습니다. 다시 시도해 주세요.",
+  "axvela.modal.close":                   "닫기",
+  "axvela.chip.artist":                   "이 작가에 대해 알려줘",
+  "axvela.chip.value":                    "투자 가치는?",
+  "axvela.chip.similar":                  "비슷한 작품 추천",
+
   "profile.title":        "프로필",
   "profile.tagline":      "나의 AXVELA",
   "profile.saved_count":  "저장한 작품",
@@ -470,6 +483,19 @@ const en: Dictionary = {
   "mode.appreciation":                    "Appreciation",
   "mode.investment":                      "Investment",
   "mode.expert":                          "Expert",
+
+  /* ── AXVELA AI floating launcher ───────────────────────── */
+  "axvela.cta.title":                     "AXVELA AI",
+  "axvela.cta.subtitle":                  "Ask anything about art",
+  "axvela.modal.title":                   "AXVELA AI",
+  "axvela.modal.placeholder":             "Ask anything about art…",
+  "axvela.modal.empty_title":             "Ask anything",
+  "axvela.modal.empty_body":              "Art history, artists, markets, how to look — AXVELA AI is here.",
+  "axvela.modal.error":                   "Sorry, something went wrong. Please try again.",
+  "axvela.modal.close":                   "Close",
+  "axvela.chip.artist":                   "Tell me about this artist",
+  "axvela.chip.value":                    "What's the investment value?",
+  "axvela.chip.similar":                  "Recommend similar works",
 
   "profile.title":        "Profile",
   "profile.tagline":      "Your AXVELA",
