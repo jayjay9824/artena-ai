@@ -155,9 +155,15 @@ export function AxvelaAIChatModal({ open, onClose }: Props) {
               position:     "fixed",
               left:         "50%",
               bottom:       0,
-              transform:    "translateX(-50%)",
-              width:        "100%",
-              maxWidth:     430,
+              // framer-motion would otherwise overwrite a static
+              // `transform: translateX(-50%)` once `y` starts
+              // animating, snapping the sheet hard left and
+              // clipping the right half off-screen on phones.
+              // Putting x as a motion value keeps it composed
+              // with y on every frame.
+              x:            "-50%",
+              width:        "min(430px, 100vw)",
+              maxWidth:     "100vw",
               height:       "82dvh",
               background:   "linear-gradient(180deg, #0E0E1A 0%, #0A0A14 100%)",
               borderTopLeftRadius:  22,
@@ -170,6 +176,7 @@ export function AxvelaAIChatModal({ open, onClose }: Props) {
               display:      "flex",
               flexDirection: "column",
               overflow:     "hidden",
+              boxSizing:    "border-box" as const,
             }}
           >
             {/* Drag handle */}
