@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 const WIKI_KO  = "https://ko.wikipedia.org/w/api.php";
 const WIKI_EN  = "https://en.wikipedia.org/w/api.php";
 const COMMONS  = "https://commons.wikimedia.org/w/api.php";
-const HEADERS  = { "User-Agent": "ARTENA-AI/1.0 (artena-ai.com)" };
+const HEADERS  = { "User-Agent": "AXVELA-AI/1.0 (axvela.com)" };
 
 function timeout(ms: number): AbortSignal {
   const ac = new AbortController();

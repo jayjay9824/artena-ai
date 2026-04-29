@@ -11,6 +11,10 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  // Production canonical for OG / Twitter image URL resolution.
+  // Vercel auto-injects this for previews; we set it explicitly so
+  // share crawlers always see absolute URLs.
+  metadataBase: new URL("https://www.axvela.com"),
   title: "AXVELA AI — Cultural Intelligence",
   description:
     "AXVELA AI is a learning-driven cultural intelligence platform for art, culture, artists, exhibitions, and taste learning.",
@@ -20,6 +24,7 @@ export const metadata: Metadata = {
     siteName: "AXVELA AI",
     description: "Cultural Intelligence, Refined.",
     type: "website",
+    url: "https://www.axvela.com",
   },
   twitter: {
     card: "summary_large_image",

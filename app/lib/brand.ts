@@ -16,7 +16,7 @@ export const BRAND = {
   name:        "AXVELA AI",
   shortName:   "AXVELA",
   scannerName: "AXVELA Scanner",
-  domain:      "axvela.ai",
+  domain:      "axvela.com",
 } as const;
 
 export type Brand = typeof BRAND;
