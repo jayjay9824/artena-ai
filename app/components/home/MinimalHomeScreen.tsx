@@ -121,16 +121,17 @@ export function MinimalHomeScreen({
 
       {/* ── 2. Center scan orb ────────────────────────────────────── */}
       <div style={{
+        // Use alignItems on the parent to lock vertical position
+        // explicitly instead of fighting flex:1 + center. Orb sits
+        // toward the top of the available space so the floating
+        // AXVELA AI pill (~168px from bottom + ~36px tall) has
+        // unmistakable separation underneath.
         flex:           1,
         display:        "flex",
-        alignItems:     "center",
+        alignItems:     "flex-start",
         justifyContent: "center",
         width:          "100%",
-        // Lifted above the geometric center to give the floating
-        // AXVELA AI launcher (~168px from bottom) clear breathing
-        // room. Was +24 (slightly below center); the negative
-        // margin pulls the orb up by ~56px overall.
-        marginTop:      -32,
+        paddingTop:     16,
         position:       "relative" as const,
         zIndex:         1,
       }}>
