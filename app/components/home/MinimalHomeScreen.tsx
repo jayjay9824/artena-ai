@@ -138,10 +138,9 @@ export function MinimalHomeScreen({
         <ScanOrb onClick={onOpenScanner} label={TEXT.scanLabel} />
       </div>
 
-      {/* ── 3 & 4. Bottom dock with Camera FAB ───────────────────── */}
+      {/* ── 3. Bottom dock — Collection · Profile ───────────────── */}
       <HomeDock
         onCollection={onCollection}
-        onCamera={onOpenScanner}
         onProfile={onProfile}
         collectionLabel={TEXT.collection}
         profileLabel={TEXT.profile}
