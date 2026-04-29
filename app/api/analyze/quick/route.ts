@@ -1,5 +1,8 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
+import { preprocessImageBase64 } from "../../../services/imagePreprocess";
+
+export const runtime = "nodejs";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -31,9 +34,18 @@ const REJECTION_SCHEMA = `{"isArtwork": false, "rejectionReason": "거부 이유
 const ACCURACY_NOTE = `[정확도 우선]
 - 서명·캡션·도판 일치 등 강한 단서가 없으면 절대 단정하지 말 것
 - 자신도가 낮으면 title을 "미확인 [양식] [대상]", artist를 "미상"으로 표기
-- recognitionConfidence 가이드:
+
+[시각 단서 우선순위] — 이 순서로 정밀 검사
+1. 모서리·캔버스 가장자리: 서명·연도
+2. 액자·벽 명판: 박물관·갤러리 캡션 (작가·작품·연도·매체)
+3. 작품 표면: 양식·붓터치·매체·색감
+4. 도자·조각: 굽 명문·낙관·재질
+5. 건축: 정초석·명판·양식 디테일
+단서 2개 이상 일치할 때만 단정.
+
+[recognitionConfidence 가이드]
   90+ : 서명·캡션·명백한 도판 일치
-  75-89: 양식·재료·구도가 강하게 일치 + 작가 식별 가능
+  75-89: 양식·재료·구도가 강하게 일치 + 작가 식별 가능 (단서 2개 이상)
   60-74: 양식·시대 추정만 가능, 작품명 미상
   40-59: 양식 추정만 가능
   < 40 : 식별 불가`;
@@ -73,8 +85,13 @@ export async function POST(req: NextRequest) {
       const file = fd.get("image") as File | null;
       if (!file) return NextResponse.json({ success: false, error: "이미지가 없습니다" }, { status: 400 });
 
-      const base64    = Buffer.from(await file.arrayBuffer()).toString("base64");
-      const mediaType = file.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+      const rawBase64 = Buffer.from(await file.arrayBuffer()).toString("base64");
+      const rawMedia  = file.type as "image/jpeg" | "image/png" | "image/gif" | "image/webp";
+
+      // Same EXIF auto-orient + 1568px resize + mozjpeg pass as the
+      // full Opus path. Sharper signatures / captions, smaller
+      // upload, deterministic input.
+      const cleaned = await preprocessImageBase64(rawBase64, rawMedia);
 
       response = await client.messages.create({
         model: "claude-haiku-4-5",
@@ -82,7 +99,7 @@ export async function POST(req: NextRequest) {
         messages: [{
           role: "user",
           content: [
-            { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+            { type: "image", source: { type: "base64", media_type: cleaned.mediaType, data: cleaned.base64 } },
             { type: "text",  text: IMAGE_PROMPT },
           ],
         }],

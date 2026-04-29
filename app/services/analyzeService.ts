@@ -8,6 +8,7 @@
  */
 
 import Anthropic from "@anthropic-ai/sdk";
+import { preprocessImageBase64 } from "./imagePreprocess";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -85,20 +86,37 @@ const CATEGORY_RULES = `[카테고리별 필드 매핑 규칙]
 const IMAGE_ACCURACY_NOTE = `[이미지 식별 원칙 — 정확도 우선]
 정답을 모르면 모른다고 답하는 것이 잘못 단정하는 것보다 항상 낫다.
 
-1. 단서 수집: 서명·낙관·캡션·캔버스 가장자리·도자 굽 명문·건물 명판·재료·구도·색팔레트
+[시각 단서 검사 우선순위]
+다음 영역을 순서대로 정밀 검사한 뒤 식별 결정에 반영하세요:
+1. 작품 모서리 / 캔버스 가장자리 — 작가 서명, 연도, 작업실 명문, 갤러리 라벨
+2. 액자 하단·측면 또는 벽면 명판 — 박물관·갤러리 캡션 (작가명, 작품명, 연도, 매체, 소장처)
+3. 작품 표면 — 양식 일관성, 붓터치, 매체 (유화·아크릴·수채·파스텔·판화 등), 색감
+4. 도자기·조각 — 굽 명문, 도장(낙관), 명문판, 재질
+5. 건축물 — 정초석, 입구 명판, 양식 디테일 (기둥·창호·벽재·지붕)
+6. 서예·고미술 — 낙관·인장, 표구 형태, 종이/비단 질감
+
+[추론 절차]
+1. 단서 수집: 위 우선순위에서 관찰된 모든 시각 단서 나열
 2. 후보 추정: 가장 강한 단서 2-3개로 후보 작품/작가/시대를 좁힌다
-3. 검증: 알려진 도판 기억과 양식·재료·연대가 일치하는지 교차 확인
-4. 자신도 평가 (recognitionConfidence, 0-100):
-   • 90+ : 서명·캡션·도장·명백한 도판 일치 — 단정 가능
-   • 75-89: 양식·재료·구도·색이 강하게 일치 + 작가 식별 가능
+3. 교차 검증: 알려진 도판 기억과 양식·재료·연대·서명 일관성을 교차 확인
+4. 단정 임계값: 단서 2개 이상 일치할 때만 단정. 1개만 일치하면 양식 추정에 그친다.
+
+[자신도 평가 (recognitionConfidence, 0-100)]
+   • 90+ : 서명·낙관·캡션 명판·도장·명백한 도판 일치 — 단정 가능
+   • 75-89: 양식·재료·구도·색이 강하게 일치 + 작가 식별 가능 (단서 2개 이상)
    • 60-74: 양식·시대 추정 가능, 작품명 미상이거나 추정에 가까움
    • 40-59: 양식만 추정 가능, 작가/작품 미상
    • < 40 : 식별 거의 불가
-5. 불확실 표기 (자신도 < 60일 때):
+
+[불확실 표기 (자신도 < 60일 때)]
    • title: "미확인 [양식] [대상]" (예: "미확인 추상화", "미확인 고려청자")
    • artist: "미상" 또는 "[추정 시대] 작가 미상"
    • description: 관찰 가능한 시각 정보만 기술, 추정은 "추정됨"으로 명시
-6. identificationEvidence 필드에 결정에 가장 큰 역할을 한 단서를 한국어로 간결히 기재`;
+   • identificationEvidence: 식별이 어려운 이유 명시 (예: "서명·캡션 모두 식별 불가, 양식만 추정")
+
+[기재]
+identificationEvidence 필드에 결정에 가장 큰 역할을 한 시각 단서를 한국어로 간결히 기재
+(예: "우측 하단 서명 'Lee U.' 명확히 판독", "고려청자 상감기법 + 운학문, 굽 명문 미식별")`;
 
 const IMAGE_VALID  = `분석 가능: 회화·드로잉·판화·사진예술·설치미술 / 조각·기념비·공공미술 / 역사적·예술적 건축물·세계유산 / 도자기·고미술·유물·국보문화재 / 고궁·사원·유네스코 세계유산`;
 const IMAGE_REJECT = `분석 불가: 일반 스냅샷(여행·셀카·음식·제품) / 평범한 건물(아파트·상가·사무용) / 스크린샷·문서·UI`;
@@ -170,6 +188,12 @@ export async function analyzeFromImage(
   base64: string,
   mediaType: ImageMediaType,
 ): Promise<AnalyzeResult> {
+  // Resize to ≤ 1568 px (Claude vision sweet spot), bake EXIF
+  // orientation into pixels, re-encode through mozjpeg. Cleaner
+  // input → better signature/caption legibility → fewer
+  // misidentifications.
+  const cleaned = await preprocessImageBase64(base64, mediaType);
+
   const stream = client.messages.stream({
     model:      "claude-opus-4-7",
     max_tokens: 3500,
@@ -177,7 +201,7 @@ export async function analyzeFromImage(
     messages: [{
       role: "user",
       content: [
-        { type: "image", source: { type: "base64", media_type: mediaType, data: base64 } },
+        { type: "image", source: { type: "base64", media_type: cleaned.mediaType, data: cleaned.base64 } },
         { type: "text",  text: IMAGE_PROMPT },
       ],
     }],

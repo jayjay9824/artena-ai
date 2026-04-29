@@ -13,6 +13,9 @@ import {
   type ImageMediaType,
 } from "../../services/analyzeService";
 
+// Sharp-based image preprocessing requires the Node.js runtime.
+export const runtime = "nodejs";
+
 export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type") || "";
