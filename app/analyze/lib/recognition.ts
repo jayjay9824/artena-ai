@@ -1,14 +1,23 @@
 /**
- * STEP 2 — Recognition confidence + status classifier.
+ * Recognition confidence + status classifier.
  *
- * Derived (not Claude-returned) from analysis signals so we never
- * trust a generic / placeholder identification:
+ * Two signals are blended:
  *
- *   • Specific artist + title + year + style → boosts
- *   • Generic terms (Unknown / Untitled / 미상 / 미확인) → penalty
- *   • Verified provenance (auctions, collections) → small boost
+ *   1. Model self-confidence (a.recognitionConfidence) — reported by
+ *      Claude with the analysis. Calibrated by the prompt's accuracy
+ *      block: 90+ for signature/caption matches, 75-89 for strong
+ *      stylistic matches, etc.
  *
- * Thresholds (spec):
+ *   2. Heuristic from the analysis fields — penalizes generic
+ *      placeholders (Unknown / 미상 / 미확인 / Untitled), rewards
+ *      specific artist + title + year + verified provenance.
+ *
+ * Combination rule: take the model's number when present, but cap it
+ * by the heuristic when the heuristic is materially lower (i.e. the
+ * model claims high confidence but the data still reads as generic
+ * — never let an over-confident model bypass our placeholder check).
+ *
+ * Thresholds:
  *   confidence ≥ 80   confirmed
  *   60 ≤ c < 80       partial
  *   confidence < 60   uncertain
@@ -24,7 +33,8 @@ const GENERIC_TITLE  = /(unknown|untitled|미상|미확인|undefined|n\/a)/i;
 const GENERIC_ARTIST = /(unknown|미상|미확인|undefined|none|n\/a)/i;
 const UNIDENTIFIED   = /(미확인|unidentified|unconfirmed)/i;
 
-export function deriveRecognitionConfidence(a: CollectionAnalysis): number {
+/** Heuristic-only score, kept separate so callers can inspect it. */
+export function deriveRecognitionHeuristic(a: CollectionAnalysis): number {
   let score = 50;
 
   const title  = (a.title  ?? "").trim();
@@ -41,6 +51,25 @@ export function deriveRecognitionConfidence(a: CollectionAnalysis): number {
   if (UNIDENTIFIED.test(title) || UNIDENTIFIED.test(artist)) score -= 25;
 
   return Math.max(0, Math.min(100, score));
+}
+
+export function deriveRecognitionConfidence(a: CollectionAnalysis): number {
+  const heuristic = deriveRecognitionHeuristic(a);
+  const modelRaw  = a.recognitionConfidence;
+
+  // No model self-rating (legacy or quick-path miss) — fall back to
+  // the heuristic so older reports keep working.
+  if (typeof modelRaw !== "number" || Number.isNaN(modelRaw)) {
+    return heuristic;
+  }
+
+  const model = Math.max(0, Math.min(100, Math.round(modelRaw)));
+
+  // Cap by heuristic when the heuristic is much lower — guards
+  // against a confident-sounding model output paired with generic
+  // placeholders. Otherwise weighted blend (model 65 / heuristic 35).
+  if (heuristic + 20 < model) return heuristic;
+  return Math.round(model * 0.65 + heuristic * 0.35);
 }
 
 export function classifyRecognition(c: number): RecognitionStatus {

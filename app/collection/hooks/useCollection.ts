@@ -25,6 +25,12 @@ export interface CollectionAnalysis {
   works?: CollectionWork[];
   critics?: CollectionCritic[];
   exhibitions?: CollectionExhibition[];
+  /** Model's self-rated identification confidence (0-100). Optional —
+   *  older reports stored before this field was added simply omit it
+   *  and the derive fallback picks up the heuristic value. */
+  recognitionConfidence?: number;
+  /** One-line evidence the model used to identify the work. */
+  identificationEvidence?: string;
 }
 
 export interface CollectionItem {

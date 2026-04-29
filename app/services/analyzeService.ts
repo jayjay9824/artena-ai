@@ -26,6 +26,8 @@ const RESPONSE_SCHEMA = `{
   "artist": "작가명/건축가명/제작 주체",
   "year": "제작·착공·조성 연도 또는 시대",
   "style": "양식/사조 (미술 양식 또는 건축 양식)",
+  "recognitionConfidence": 0-100,
+  "identificationEvidence": "식별에 사용한 가장 강한 시각 단서 1-2문장 (서명·낙관·캡션·도판 일치 등)",
   "description": "전문가 수준의 설명 (3-4문장, 한국어)",
   "emotions": {
     "calm": 0-100,
@@ -80,10 +82,23 @@ const CATEGORY_RULES = `[카테고리별 필드 매핑 규칙]
 - auctions: 실제 기록 있으면 포함, 없으면 []
 - collections: 소장 박물관·기관 정보`;
 
-const IMAGE_ACCURACY_NOTE = `[이미지 식별 원칙]
-- 이미지만으로 확실히 특정할 수 없는 건물·유물은 title을 "미확인 [양식] 건축물, [추정 지역]"으로 표기
-- 불확실한 건물명·건축가를 억지로 추측하지 말 것
-- 이미지에서 직접 관찰 가능한 특징(파사드, 재료, 구조 요소)만을 근거로 기술할 것`;
+const IMAGE_ACCURACY_NOTE = `[이미지 식별 원칙 — 정확도 우선]
+정답을 모르면 모른다고 답하는 것이 잘못 단정하는 것보다 항상 낫다.
+
+1. 단서 수집: 서명·낙관·캡션·캔버스 가장자리·도자 굽 명문·건물 명판·재료·구도·색팔레트
+2. 후보 추정: 가장 강한 단서 2-3개로 후보 작품/작가/시대를 좁힌다
+3. 검증: 알려진 도판 기억과 양식·재료·연대가 일치하는지 교차 확인
+4. 자신도 평가 (recognitionConfidence, 0-100):
+   • 90+ : 서명·캡션·도장·명백한 도판 일치 — 단정 가능
+   • 75-89: 양식·재료·구도·색이 강하게 일치 + 작가 식별 가능
+   • 60-74: 양식·시대 추정 가능, 작품명 미상이거나 추정에 가까움
+   • 40-59: 양식만 추정 가능, 작가/작품 미상
+   • < 40 : 식별 거의 불가
+5. 불확실 표기 (자신도 < 60일 때):
+   • title: "미확인 [양식] [대상]" (예: "미확인 추상화", "미확인 고려청자")
+   • artist: "미상" 또는 "[추정 시대] 작가 미상"
+   • description: 관찰 가능한 시각 정보만 기술, 추정은 "추정됨"으로 명시
+6. identificationEvidence 필드에 결정에 가장 큰 역할을 한 단서를 한국어로 간결히 기재`;
 
 const IMAGE_VALID  = `분석 가능: 회화·드로잉·판화·사진예술·설치미술 / 조각·기념비·공공미술 / 역사적·예술적 건축물·세계유산 / 도자기·고미술·유물·국보문화재 / 고궁·사원·유네스코 세계유산`;
 const IMAGE_REJECT = `분석 불가: 일반 스냅샷(여행·셀카·음식·제품) / 평범한 건물(아파트·상가·사무용) / 스크린샷·문서·UI`;
@@ -112,6 +127,10 @@ const TEXT_PROMPT = (query: string) =>
   `${REJECTION_SCHEMA}\n\n` +
   `분석 가능하다면 카테고리를 분류하고 아래 규칙에 따라 분석하세요:\n` +
   `${CATEGORY_RULES}\n\n` +
+  `[정확도 자체평가]\n` +
+  `검색어가 명확히 특정되는 작가·작품·건축물이면 recognitionConfidence를 80-95로,\n` +
+  `오타·중의성·추정이 섞여 있으면 50-75로 표기하세요.\n` +
+  `잘 모르는 대상에 대해 자료를 만들어내지 말고 빈 배열·"미상"으로 두세요.\n\n` +
   `잘 알려진 작가·작품·건축물이면 실제 공개 데이터를 사용하고, 그 외는 전문가적으로 추정하세요. 각 배열 최소 3항목.\n\n` +
   `아래 JSON 형식으로만 응답하세요 (다른 텍스트 없이):\n` +
   RESPONSE_SCHEMA;
@@ -124,12 +143,18 @@ function parseClaudeJson(raw: string): Record<string, unknown> {
   return JSON.parse(m[0]);
 }
 
+/* Adaptive thinking + streaming are required for accuracy on hard
+   identifications (lesser-known works, heavy crops, low-light camera
+   frames). Streaming keeps the connection alive on slow Opus 4.7
+   passes; finalMessage() collects the assembled response. */
 export async function analyzeFromText(query: string): Promise<AnalyzeResult> {
-  const message = await client.messages.create({
-    model: "claude-opus-4-7",
-    max_tokens: 3000,
-    messages: [{ role: "user", content: TEXT_PROMPT(query) }],
+  const stream = client.messages.stream({
+    model:      "claude-opus-4-7",
+    max_tokens: 3500,
+    thinking:   { type: "adaptive" },
+    messages:   [{ role: "user", content: TEXT_PROMPT(query) }],
   });
+  const message = await stream.finalMessage();
 
   const text = message.content.find(b => b.type === "text");
   if (!text || text.type !== "text") throw new Error("응답 없음");
@@ -145,9 +170,10 @@ export async function analyzeFromImage(
   base64: string,
   mediaType: ImageMediaType,
 ): Promise<AnalyzeResult> {
-  const message = await client.messages.create({
-    model: "claude-opus-4-7",
-    max_tokens: 3000,
+  const stream = client.messages.stream({
+    model:      "claude-opus-4-7",
+    max_tokens: 3500,
+    thinking:   { type: "adaptive" },
     messages: [{
       role: "user",
       content: [
@@ -156,6 +182,7 @@ export async function analyzeFromImage(
       ],
     }],
   });
+  const message = await stream.finalMessage();
 
   const text = message.content.find(b => b.type === "text");
   if (!text || text.type !== "text") throw new Error("응답 없음");

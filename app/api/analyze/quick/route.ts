@@ -22,15 +22,28 @@ const QUICK_SCHEMA = `{
   "year":   "제작 연도 또는 시대",
   "oneLineInterpretation": "한 문장 해석 (한국어, 30자 내외)",
   "keywords": ["키워드1", "키워드2", "키워드3"],
-  "exhibitionVenue": "주요 소장처 또는 전시 갤러리 (없으면 빈 문자열)"
+  "exhibitionVenue": "주요 소장처 또는 전시 갤러리 (없으면 빈 문자열)",
+  "recognitionConfidence": 0-100
 }`;
 
 const REJECTION_SCHEMA = `{"isArtwork": false, "rejectionReason": "거부 이유 한국어 한 문장"}`;
+
+const ACCURACY_NOTE = `[정확도 우선]
+- 서명·캡션·도판 일치 등 강한 단서가 없으면 절대 단정하지 말 것
+- 자신도가 낮으면 title을 "미확인 [양식] [대상]", artist를 "미상"으로 표기
+- recognitionConfidence 가이드:
+  90+ : 서명·캡션·명백한 도판 일치
+  75-89: 양식·재료·구도가 강하게 일치 + 작가 식별 가능
+  60-74: 양식·시대 추정만 가능, 작품명 미상
+  40-59: 양식 추정만 가능
+  < 40 : 식별 불가`;
 
 const IMAGE_PROMPT = `당신은 미술 큐레이터입니다. 이미지를 빠르게 식별합니다.
 
 분석 불가(평범한 스냅샷·문서·UI 등)이면 아래 JSON만 응답:
 ${REJECTION_SCHEMA}
+
+${ACCURACY_NOTE}
 
 분석 가능하면 정확히 아래 JSON 형식으로만 응답 (부가 설명 없이):
 ${QUICK_SCHEMA}`;
@@ -38,6 +51,7 @@ ${QUICK_SCHEMA}`;
 const TEXT_PROMPT = (query: string) =>
   `당신은 미술 큐레이터입니다. 검색어: "${query}"\n\n` +
   `미술·건축·문화유산과 무관하면 아래 JSON만 응답: ${REJECTION_SCHEMA}\n\n` +
+  `${ACCURACY_NOTE}\n\n` +
   `정확히 아래 JSON 형식으로만 응답 (부가 설명 없이):\n${QUICK_SCHEMA}`;
 
 export async function POST(req: NextRequest) {
