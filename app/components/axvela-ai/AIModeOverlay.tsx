@@ -1,6 +1,6 @@
 "use client";
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, History, Sliders, Mic, Send, Sparkles } from "lucide-react";
 import { useLanguage } from "../../i18n/useLanguage";
 
@@ -115,14 +115,29 @@ interface Props {
 
 export function AIModeOverlay({ open, onClose }: Props) {
   const { t, lang } = useLanguage();
+  const reducedMotion = useReducedMotion();
 
   const [messages,    setMessages]    = useState<ChatMsg[]>([]);
   const [streaming,   setStreaming]   = useState("");
   const [isStreaming, setIsStreaming] = useState(false);
   const [input,       setInput]       = useState("");
 
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const textareaRef    = useRef<HTMLTextAreaElement>(null);
+  /* Phase 4 — back transition state. The overlay handles its own
+     fade-out locally (400ms), then calls onClose so the parent's
+     home recovery starts after the overlay has finished hiding. */
+  const [isClosing,   setIsClosing]   = useState(false);
+
+  /* visualViewport sync — tracks keyboard so the overlay shrinks
+     to the visible area on iOS / Android Chrome and the input
+     pill never gets covered. Falls back to 100dvh otherwise. */
+  const [vhPx,        setVhPx]        = useState<number | null>(null);
+
+  const messagesEndRef    = useRef<HTMLDivElement>(null);
+  const textareaRef       = useRef<HTMLTextAreaElement>(null);
+  const closeTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const closeFromPopRef   = useRef(false);
+  const onCloseRef        = useRef(onClose);
+  useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
   /* Inject decoration + button styles once. */
   useEffect(() => {
@@ -142,17 +157,30 @@ export function AIModeOverlay({ open, onClose }: Props) {
     return () => { document.body.style.overflow = prev; };
   }, [open]);
 
-  /* Reset chat on close so reopen returns to the greeting. */
+  /* Reset chat + closing flag on close so reopen returns to the
+     greeting and isn't stuck mid-fade. */
   useEffect(() => {
-    if (open) return;
+    if (open) {
+      setIsClosing(false);
+      return;
+    }
     const id = setTimeout(() => {
       setMessages([]);
       setStreaming("");
       setIsStreaming(false);
       setInput("");
+      setIsClosing(false);
     }, 360);
     return () => clearTimeout(id);
   }, [open]);
+
+  /* Tear down any pending close timer on unmount. */
+  useEffect(() => () => {
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+  }, []);
 
   /* Auto-scroll to latest. */
   useEffect(() => {
@@ -166,6 +194,92 @@ export function AIModeOverlay({ open, onClose }: Props) {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, 96)}px`;
   }, [input]);
+
+  /* Phase 4 — single close path used by back button, ESC, and
+     popstate. Plays the overlay fade locally, then asks the
+     parent to flip isAIMode 400ms later so the home recovery
+     starts after the overlay has finished hiding. */
+  const triggerClose = useCallback(() => {
+    setIsClosing(prev => {
+      if (prev) return prev;  // already closing
+      const fadeMs = reducedMotion ? 150 : 400;
+      closeTimerRef.current = setTimeout(() => {
+        // Pop the history entry we pushed on open — but only if the
+        // close wasn't already triggered by a popstate (browser back).
+        if (!closeFromPopRef.current && typeof window !== "undefined") {
+          try { window.history.back(); } catch { /* ignore */ }
+        }
+        closeFromPopRef.current = false;
+        onCloseRef.current();
+        closeTimerRef.current = null;
+      }, fadeMs);
+      return true;
+    });
+  }, [reducedMotion]);
+
+  /* Phase 4 — browser back support. Push a synthetic history
+     entry on open, listen for popstate. Browser back closes the
+     overlay instead of navigating away. */
+  useEffect(() => {
+    if (!open) return;
+    if (typeof window === "undefined") return;
+
+    window.history.pushState({ axvelaAIOverlay: true }, "");
+
+    const onPop = () => {
+      closeFromPopRef.current = true;
+      triggerClose();
+    };
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [open, triggerClose]);
+
+  /* Phase 4 — ESC closes the overlay on desktop. */
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") triggerClose();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, triggerClose]);
+
+  /* Phase 4 — focus the input on open, restore focus to the
+     trigger element (the AXVELA AI button) on close. */
+  useEffect(() => {
+    if (!open) return;
+    const previouslyFocused = (typeof document !== "undefined"
+      ? document.activeElement
+      : null) as HTMLElement | null;
+
+    const focusTimer = setTimeout(() => {
+      textareaRef.current?.focus();
+    }, 200);
+
+    return () => {
+      clearTimeout(focusTimer);
+      try { previouslyFocused?.focus?.(); } catch { /* ignore */ }
+    };
+  }, [open]);
+
+  /* Phase 4 — visualViewport-aware height. When the soft keyboard
+     opens, visualViewport.height shrinks; we set the overlay to
+     that height so the input pill rides up with the keyboard
+     instead of getting clipped under it. */
+  useEffect(() => {
+    if (!open) return;
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    const update = () => setVhPx(vv.height);
+    update();
+    vv.addEventListener("resize", update);
+    vv.addEventListener("scroll", update);
+    return () => {
+      vv.removeEventListener("resize", update);
+      vv.removeEventListener("scroll", update);
+      setVhPx(null);
+    };
+  }, [open]);
 
   const send = useCallback(async (text: string) => {
     const trimmed = text.trim();
@@ -217,24 +331,44 @@ export function AIModeOverlay({ open, onClose }: Props) {
   const greetingMain = t("ai_overlay.greeting_main");
   const showGreeting = messages.length === 0 && !isStreaming;
 
+  /* Animation values — opening uses a 500ms ease-out spring feel,
+     closing uses a 400ms ease-in (per Phase 4 spec). Reduced
+     motion collapses both to ~150ms so the overlay barely
+     transitions at all. */
+  const enterDur = reducedMotion ? 0.15 : 0.5;
+  const exitDur  = reducedMotion ? 0.15 : 0.4;
+
   return (
     <AnimatePresence>
       {open && (
         <motion.div
           key="ai-overlay"
           initial={{ opacity: 0, scale: 1.02 }}
-          animate={{ opacity: 1, scale: 1    }}
-          exit={{    opacity: 0, scale: 1.02 }}
-          transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+          animate={
+            isClosing
+              ? { opacity: 0, scale: 1.02 }
+              : { opacity: 1, scale: 1    }
+          }
+          transition={
+            isClosing
+              ? { duration: exitDur,  ease: "easeIn" }
+              : { duration: enterDur, ease: [0.16, 1, 0.3, 1] }
+          }
+          // No visible exit animation — by the time AnimatePresence
+          // unmounts (after parent flips open=false), isClosing has
+          // already faded the overlay to its exit values.
+          exit={{ opacity: 0, scale: 1.02, transition: { duration: 0 } }}
           aria-modal="true"
           role="dialog"
+          aria-label={t("ai_overlay.aria_label")}
           style={{
             position:   "fixed",
             inset:      0,
             zIndex:     100,
-            // Full dynamic viewport — survives iOS Safari URL bar
-            // collapse / Android Chrome resize.
-            height:     "100dvh",
+            // visualViewport.height when available gives a precise
+            // keyboard-aware height; 100dvh otherwise survives iOS
+            // Safari URL bar collapse + Android Chrome resize.
+            height:     vhPx !== null ? `${vhPx}px` : "100dvh",
             background: "#0a0a0f",
             color:      "#FFFFFF",
             fontFamily: FONT,
@@ -307,7 +441,7 @@ export function AIModeOverlay({ open, onClose }: Props) {
             }}
           >
             <button
-              onClick={onClose}
+              onClick={triggerClose}
               aria-label={t("ai_overlay.back")}
               className="axvela-ai-glass-btn"
             >

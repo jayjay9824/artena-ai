@@ -135,7 +135,9 @@ export function AxvelaAIButton({ onActivate, disabled = false, rippleKey }: Prop
   return (
     <motion.button
       type="button"
-      aria-label="Open AXVELA AI assistant"
+      aria-label={t("axvela.cta.aria_label")}
+      aria-expanded={disabled}
+      aria-haspopup="dialog"
       onClick={handleClick}
       onTapStart={() => setIsPressed(true)}
       onTap={() => setIsPressed(false)}
