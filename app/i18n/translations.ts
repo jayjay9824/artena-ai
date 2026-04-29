@@ -203,6 +203,11 @@ const ko: Dictionary = {
   "scanner.confirm_cta":                 "분석 시작",
   "scanner.confirm_rescan":              "다시 스캔",
 
+  /* ── AXVELA Mode System (Step 4) ───────────────────────── */
+  "mode.appreciation":                    "감상",
+  "mode.investment":                      "투자",
+  "mode.expert":                          "전문가",
+
   "profile.title":        "프로필",
   "profile.tagline":      "나의 AXVELA",
   "profile.saved_count":  "저장한 작품",
@@ -460,6 +465,11 @@ const en: Dictionary = {
   "scanner.confirm_question":            "Analyze this artwork?",
   "scanner.confirm_cta":                 "Analyze",
   "scanner.confirm_rescan":              "Rescan",
+
+  /* ── AXVELA Mode System (Step 4) ───────────────────────── */
+  "mode.appreciation":                    "Appreciation",
+  "mode.investment":                      "Investment",
+  "mode.expert":                          "Expert",
 
   "profile.title":        "Profile",
   "profile.tagline":      "Your AXVELA",
