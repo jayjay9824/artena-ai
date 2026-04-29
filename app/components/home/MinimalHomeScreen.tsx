@@ -9,7 +9,7 @@ const FONT_HEAD = "'KakaoBigSans',   -apple-system, BlinkMacSystemFont, 'SF Pro 
 /* Text constants — kept here so an i18n pass can lift them without
    chasing magic strings. */
 const TEXT = {
-  brand:      "ARTENA",
+  brand:      "AXVELA",
   subtitle:   "AI ART ANALYSIS",
   scanLabel:  "SCAN",
   collection: "Collection",
@@ -26,10 +26,10 @@ interface Props {
 }
 
 /**
- * ARTENA AI — full home replacement.
+ * AXVELA AI — full home replacement.
  *
  * Four blocks only:
- *   1. Top brand    "ARTENA" + "AI ART ANALYSIS"
+ *   1. Top brand    "AXVELA" + "AI ART ANALYSIS"
  *   2. Scan orb     centered black 240px CTA inside 380px dotted ring
  *   3. Home dock    Collection · Camera (FAB) · Profile
  *   4. Camera FAB   mirrors the Scan orb route

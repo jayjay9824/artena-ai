@@ -18,9 +18,9 @@ interface HomeScreenProps {
 }
 
 /**
- * ARTENA Home — Scan-first.
+ * AXVELA Home — Scan-first.
  *
- * Three elements only: ARTENA brand line, AI ART ANALYSIS subtitle,
+ * Three elements only: AXVELA brand line, AI ART ANALYSIS subtitle,
  * a single dominant Scan button inside a soft dotted guide ring.
  * No instructional copy, no alternate-input grid — those features
  * still work (camera fallback, upload, text search) but are reached
@@ -76,7 +76,7 @@ export function HomeScreen({ onOpenScanner, onFileSelected, error }: HomeScreenP
           color:         "#0D0D0D",
           fontFamily:    "'KakaoBigSans', system-ui, sans-serif",
         }}>
-          ARTENA
+          AXVELA
         </p>
         <p style={{
           margin:        0,

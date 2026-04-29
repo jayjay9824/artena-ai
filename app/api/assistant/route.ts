@@ -5,11 +5,25 @@ import type { MarketIntelligenceData } from "../../analyze/components/MarketInte
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
+/**
+ * STEP 4 — object-context payload from the client. Drives prompt
+ * rules that block price answers when the object is not a verified
+ * market-relevant artwork, and adds a label-scan caveat when the
+ * recognition was uncertain.
+ */
+interface AssistantContext {
+  objectCategory?:      string;
+  isMarketRelevant?:    boolean;
+  marketDataAvailable?: boolean;
+  recognitionStatus?:   string;
+}
+
 // ── System prompt builder ────────────────────────────────────────────────────
 
 function buildSystemPrompt(
   analysis: CollectionAnalysis,
-  reportData: MarketIntelligenceData | null
+  reportData: MarketIntelligenceData | null,
+  ctx: AssistantContext = {},
 ): string {
   const cat = analysis.category ?? "painting";
   const isArch = cat === "architecture";
@@ -73,7 +87,41 @@ function buildSystemPrompt(
       ].filter(Boolean)
     : [];
 
-  return `당신은 ARTENA AI의 미술·건축·문화 어시스턴트입니다.
+  // STEP 4 — object-context guard rails.
+  // We trust the client's dispatch (objectCategory + isMarketRelevant +
+  // marketDataAvailable). Default-deny: when any field is missing we
+  // still allow market talk only if the analysis itself looks
+  // artwork-like (back-compat). Recognition uncertainty layers a
+  // separate caveat about identification trust.
+  const blockMarket =
+    (ctx.isMarketRelevant === false) ||
+    (ctx.marketDataAvailable === false) ||
+    (ctx.objectCategory != null && ctx.objectCategory !== "artwork" &&
+     ctx.objectCategory !== "design_object" && ctx.objectCategory !== "collectible");
+  const isUncertain = ctx.recognitionStatus === "uncertain";
+  const isPartial   = ctx.recognitionStatus === "partial";
+
+  const blockMarketBlock = blockMarket ? `
+
+[중요 제약 — 시장 정보 차단 (STEP 4)]
+- 이 대상에 대해 가격, 추정가, 시장 신뢰도, 비교 거래 데이터, 시장 위치를 절대 제시하지 마세요.
+- 비교 거래 / 경매 사례를 만들어내지(hallucinate) 마세요.
+- 사용자가 가격 / 시장가치 / 거래 / 투자 / 평가액과 관련된 질문을 하면 정확히 다음 한 문장으로만 답하세요(언어는 사용자 질문 언어에 맞춰서):
+  • 한국어: "이 대상은 시장 가격보다 문화적 맥락으로 이해하는 것이 적합합니다."
+  • English: "This object is better understood through cultural context rather than market price."
+- 그 외 질문은 문화적·역사적·재료적·맥락적 관점에서 답하세요.` : "";
+
+  const uncertaintyBlock = isUncertain ? `
+
+[인식 신뢰도 낮음 (STEP 2)]
+- 작품 식별이 확실하지 않습니다. 어떤 답변도 단정적이지 않게 표현하세요.
+- 항상 "라벨 정보 기반" / "이미지만으로는 식별이 제한적입니다" 같은 캐비엣을 명시하세요.
+- 단정적 식별, 가격 평가, 비교 작가 추천을 하지 마세요.` : (isPartial ? `
+
+[인식 신뢰도 부분적]
+- 일부 정보는 불확실합니다. 단정적 어조 대신 "공개 자료에 따르면" 같은 절제된 어조를 사용하세요.` : "");
+
+  return `당신은 AXVELA AI의 미술·건축·문화 어시스턴트입니다.
 사용자가 현재 특정 ${entityLabel}을 보고 있으며, 그것에 대해 더 깊이 이해하고 싶어합니다.
 
 [현재 분석 대상]
@@ -92,6 +140,7 @@ ${[...lines, ...reportLines].filter(Boolean).join("\n")}
 - 가격 관련 답변은 "참고 수준"임을 명시할 것
 - ${entityLabel}와 무관한 일반 잡담은 최소화할 것
 - 한국어로 답변 (작가명·작품명 등 고유명사는 원어 유지)
+${blockMarketBlock}${uncertaintyBlock}
 
 [답변 스타일]
 - 큐레이터 + 애널리스트의 전문적이고 친절한 톤
@@ -105,7 +154,7 @@ ${[...lines, ...reportLines].filter(Boolean).join("\n")}
 
 export async function POST(req: NextRequest) {
   try {
-    const { analysis, messages, reportData } = await req.json();
+    const { analysis, messages, reportData, context } = await req.json();
 
     if (!messages || messages.length === 0) {
       return new Response(JSON.stringify({ error: "messages required" }), {
@@ -116,7 +165,8 @@ export async function POST(req: NextRequest) {
 
     const systemPrompt = buildSystemPrompt(
       analysis as CollectionAnalysis,
-      (reportData as MarketIntelligenceData) ?? null
+      (reportData as MarketIntelligenceData) ?? null,
+      (context as AssistantContext) ?? {},
     );
 
     const stream = await client.messages.create({

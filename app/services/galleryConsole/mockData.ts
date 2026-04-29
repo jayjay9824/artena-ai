@@ -36,7 +36,7 @@ const between = (lo: number, hi: number) => Math.floor(rand() * (hi - lo + 1)) +
 
 export const MOCK_GALLERY: Gallery = {
   id:   GALLERY_ID,
-  name: "ARTENA Demo Gallery",
+  name: "AXVELA Demo Gallery",
 };
 
 export const MOCK_ARTISTS: Artist[] = [

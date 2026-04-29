@@ -13,7 +13,7 @@ export default function ReportNotFound() {
           fontSize: 11, color: "#8A6A3F", letterSpacing: ".22em",
           textTransform: "uppercase" as const, marginBottom: 14,
         }}>
-          ARTENA AI
+          AXVELA AI
         </p>
         <h1 style={{
           fontSize: 22, fontWeight: 700, color: "#111111",

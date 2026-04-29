@@ -170,7 +170,7 @@ export function AnalyzingToQuickView({
       {/* ── Artwork — shared element across phases ───────────── */}
       {!reveal ? (
         <motion.div
-          layoutId="artena-quick-artwork"
+          layoutId="axvela-quick-artwork"
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
           style={{
             position:    "absolute",
@@ -201,7 +201,7 @@ export function AnalyzingToQuickView({
         </motion.div>
       ) : (
         <motion.div
-          layoutId="artena-quick-artwork"
+          layoutId="axvela-quick-artwork"
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
           style={{
             position:     "absolute",

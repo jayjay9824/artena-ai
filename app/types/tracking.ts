@@ -1,7 +1,7 @@
 /**
- * PART 5 — ARTENA tracking schema.
+ * PART 5 — AXVELA tracking schema.
  *
- * Single source of truth for the events ARTENA collects. Adding a
+ * Single source of truth for the events AXVELA collects. Adding a
  * new event means adding it here; the queue / API / consumers all
  * key off this union.
  *
@@ -10,7 +10,7 @@
  * different purpose (granular dev logs vs. business data asset).
  */
 
-export type ARTENAEvent =
+export type AXVELAEvent =
   | "SCAN_START"
   | "TARGET_DETECTED"
   | "TARGET_LOCKED"
@@ -43,6 +43,13 @@ export type ARTENAEvent =
   | "HISTORY_VIEW_EXPANDED"
   | "HISTORY_SCROLL_DEPTH";
 
+/**
+ * Backward-compat alias. Existing imports of `ARTENAEvent` keep
+ * working unchanged — new code should import `AXVELAEvent`.
+ * @deprecated Use AXVELAEvent.
+ */
+export type ARTENAEvent = AXVELAEvent;
+
 /** BLOCK D — where the artwork entered the pipeline. */
 export type SourceType = "camera" | "upload" | "collection";
 
@@ -69,7 +76,7 @@ export interface TrackedEvent {
   user_id:           string;
   /** null until canonical matching identifies an artwork. */
   artwork_id:        string | null;
-  event_type:        ARTENAEvent;
+  event_type:        AXVELAEvent;
   /** ISO timestamp at the time the event was queued. */
   timestamp:         string;
   /** ms — populated where the schema rules call for it. */

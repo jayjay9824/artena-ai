@@ -10,7 +10,12 @@ import { CameraPermissionPrompt } from "./CameraPermissionPrompt";
 import { ScannerTopBar } from "./ScannerTopBar";
 import { CameraPreview } from "./CameraPreview";
 import { FocusFrame, type FocusFrameState } from "./FocusFrame";
-import type { ScanSuccessPayload, ScannerState } from "../../types/scanner";
+import { QRPurposeOverlay } from "./QRPurposeOverlay";
+import { QRNoticeSheet } from "./QRNoticeSheet";
+import type {
+  ScanSuccessPayload, ScannerState, QRDetection,
+} from "../../types/scanner";
+import { isAnalyzableQR, isAppQR } from "../../services/scanner/qrPurpose";
 import { captureVideoFrame } from "../../lib/scanner/captureFrame";
 import { logScannerEvent } from "../../lib/scanner/scannerEvents";
 import { tinyHaptic } from "../../lib/scanner/haptic";
@@ -28,6 +33,22 @@ interface Props {
   onSearchByText?:       () => void;
   onScanLabelManually?:  () => void;
   onScanSuccess?:        (payload: ScanSuccessPayload) => void;
+  /**
+   * STEP 2 — when true, the scanner enters label-scan mode:
+   * viewfinder springs to a wide horizontal rectangle and the
+   * status indicator reads "SCAN LABEL" instead of the per-state
+   * detection copy.
+   */
+  labelMode?:            boolean;
+  /**
+   * STEP 3 — decoded QR codes for purpose dispatch + AR overlay.
+   * Producer (real BarcodeDetector wiring or test harness) feeds
+   * this; mock cycle leaves it empty. Multi-QR triggers the AR
+   * overlay; single non-analyzable QR triggers QRNoticeSheet.
+   */
+  qrDetections?:         QRDetection[];
+  /** Caller-driven QR pick from the AR overlay. */
+  onQRPicked?:           (d: QRDetection) => void;
 }
 
 /* Map the scanner state machine to one of four FocusFrame states. */
@@ -70,6 +91,9 @@ export function SmartScannerScreen({
   onSearchByText,
   onScanLabelManually,
   onScanSuccess,
+  labelMode = false,
+  qrDetections = [],
+  onQRPicked,
 }: Props) {
   const { t } = useLanguage();
   const { permissionStatus, requestPermission } = useCameraPermission();
@@ -349,7 +373,40 @@ export function SmartScannerScreen({
       </motion.div>
 
       {/* Focus frame */}
-      <FocusFrame state={focusState} />
+      <FocusFrame state={focusState} labelMode={labelMode} />
+
+      {/* STEP 2 — label-mode indicator. Replaces the standard status
+          text with the prominent "SCAN LABEL" caption while the wide
+          rectangular frame is active. Spring-fades in. */}
+      <AnimatePresence>
+        {labelMode && !isExiting && (
+          <motion.p
+            key="label-mode-cap"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{    opacity: 0, y: -6 }}
+            transition={{ type: "spring", stiffness: 200, damping: 22 }}
+            style={{
+              position:      "absolute",
+              top:           "calc(72px + env(safe-area-inset-top, 0px))",
+              left:          0,
+              right:         0,
+              textAlign:     "center" as const,
+              margin:        0,
+              fontSize:      11,
+              fontWeight:    600,
+              letterSpacing: "0.40em",
+              color:         "#FFFFFF",
+              fontFamily:    FONT,
+              zIndex:        31,
+              pointerEvents: "none",
+              textShadow:    "0 2px 12px rgba(0,0,0,0.5)",
+            }}
+          >
+            {t("scanner.scan_label_mode")}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       {/* PART 2 capture snap — white rect inside the focus-frame area
           only. Quick 180ms 0 → 0.85 → 0 flash. Never full screen. */}
@@ -454,6 +511,31 @@ export function SmartScannerScreen({
           />
         </>
       )}
+
+      {/* STEP 3 — multi-QR AR overlay. Caller feeds qrDetections;
+          mock cycle leaves it empty so this stays inert by default. */}
+      {qrDetections.length > 1 && !isExiting && (
+        <QRPurposeOverlay
+          detections={qrDetections}
+          onPick={(d) => onQRPicked?.(d)}
+        />
+      )}
+
+      {/* STEP 3 — single non-analyzable QR notice sheet. App-store
+          and unsupported QRs surface fallback actions instead of
+          producing a report. */}
+      <AnimatePresence>
+        {qrDetections.length === 1 &&
+         !isAnalyzableQR(qrDetections[0].purpose) &&
+         !isExiting && (
+          <QRNoticeSheet
+            variant={isAppQR(qrDetections[0].purpose) ? "app" : "unsupported"}
+            onScanArtwork={() => onQRPicked?.(qrDetections[0])}
+            onScanLabel={() => (onScanLabelManually ?? onUploadImage)?.()}
+            onSearchByText={() => onSearchByText?.()}
+          />
+        )}
+      </AnimatePresence>
 
       {/* Offline toast */}
       <AnimatePresence>

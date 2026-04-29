@@ -17,7 +17,7 @@ interface Props {
 /**
  * STEP 1 — Scanner top bar.
  *
- *   ◀ Back        |  ARTENA SCANNER  |  ⚡ Flash toggle
+ *   ◀ Back        |  AXVELA SCANNER  |  ⚡ Flash toggle
  *
  * Translucent gradient header so it sits over the live camera
  * preview without obscuring detail at the top of the frame.

@@ -78,7 +78,7 @@ export function ArtistReport({ data }: { data: ArtistReportData }) {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 36, paddingBottom: 24, borderBottom: "1px solid #F0F0F0" }}>
         <div>
-          <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>ARTENA Intelligence Layer</span>
+          <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>AXVELA Intelligence Layer</span>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", letterSpacing: ".01em", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>Artist Intelligence Report</h2>
         </div>
         <div style={{ textAlign: "right" as const }}>
@@ -169,7 +169,7 @@ export function ArtistReport({ data }: { data: ArtistReportData }) {
       </SectionBlock>
 
       <div style={{ paddingTop: 20, borderTop: "1px solid #F2F2F2", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 9, color: "#CCC", letterSpacing: ".12em" }}>ARTENA · Cultural Intelligence Engine</span>
+        <span style={{ fontSize: 9, color: "#CCC", letterSpacing: ".12em" }}>AXVELA · Cultural Intelligence Engine</span>
         <span style={{ fontSize: 9, color: "#CCC" }}>For informational purposes only</span>
       </div>
     </div>

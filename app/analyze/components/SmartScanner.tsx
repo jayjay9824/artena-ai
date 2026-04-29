@@ -25,7 +25,7 @@ export interface SmartScannerProps {
 /* ── Spec copy — verbatim ───────────────────────────────────────────── */
 
 const STATE_COPY: Record<ScannerState, { primary: string; sub: string }> = {
-  idle:             { primary: "Point at artwork, label, or QR", sub: "ARTENA reads QR · label · artwork in real time" },
+  idle:             { primary: "Point at artwork, label, or QR", sub: "AXVELA reads QR · label · artwork in real time" },
   artwork_detected: { primary: "Artwork detected",               sub: "Hold steady to analyze image and style" },
   label_detected:   { primary: "Label detected",                 sub: "Reading artist, title, year, and medium" },
   qr_detected:      { primary: "QR detected",                    sub: "Extracting artwork and exhibition data" },
@@ -584,7 +584,7 @@ export function SmartScanner({
             fontWeight: 500, textDecoration: "none",
           }}
         >
-          ARTENA Scanner
+          AXVELA Scanner
         </a>
 
         <button onClick={toggleFlash} style={{

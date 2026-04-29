@@ -1,5 +1,5 @@
 /**
- * ARTENA Data Flywheel
+ * AXVELA Data Flywheel
  *
  * One trackEvent() entrypoint feeds the local event queue and (eventually)
  * a backend ingest endpoint. Intent detection runs synchronously when an
@@ -158,7 +158,7 @@ export function trackEvent(event: EventType, payload: TrackEventPayload = {}) {
 
   // Always log in dev for visibility.
   if (typeof console !== "undefined") {
-    console.log("[ARTENA]", record);
+    console.log("[AXVELA]", record);
   }
 
   // Auto-emit intent_signal when an ai_question carries purchase intent.

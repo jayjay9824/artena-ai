@@ -7,7 +7,7 @@ import { MOCK_GALLERY } from "../../services/galleryConsole/mockData";
  * Bulk Upload — Gallery-side placeholder. Real implementation will:
  *   1. accept a CSV/XLSX upload
  *   2. preview the first N rows
- *   3. let the gallery map source columns → ARTENA Artwork fields
+ *   3. let the gallery map source columns → AXVELA Artwork fields
  *   4. dry-run validation, then commit to gallery_id ↔ artwork_id pairs
  *
  * V1: a static walk-through so galleries see what's coming and the
@@ -17,16 +17,16 @@ import { MOCK_GALLERY } from "../../services/galleryConsole/mockData";
 const FONT      = "'KakaoSmallSans', system-ui, sans-serif";
 const FONT_HEAD = "'KakaoBigSans', system-ui, sans-serif";
 
-const REQUIRED_FIELDS: { artena: string; example: string }[] = [
-  { artena: "title",            example: "From Point" },
-  { artena: "artistName",       example: "Lee Ufan" },
-  { artena: "year",             example: "1976" },
-  { artena: "medium",           example: "Oil on canvas" },
-  { artena: "dimensions",       example: "100 × 80 cm" },
-  { artena: "primaryImageUrl",  example: "https://cdn…/lu-from-point.jpg" },
-  { artena: "axid",             example: "AX-LU-1976-014 (optional)" },
-  { artena: "priceVisibility",  example: "public | on_request | private" },
-  { artena: "availabilityStatus", example: "available | reserved | sold | not_for_sale" },
+const REQUIRED_FIELDS: { axvela: string; example: string }[] = [
+  { axvela: "title",            example: "From Point" },
+  { axvela: "artistName",       example: "Lee Ufan" },
+  { axvela: "year",             example: "1976" },
+  { axvela: "medium",           example: "Oil on canvas" },
+  { axvela: "dimensions",       example: "100 × 80 cm" },
+  { axvela: "primaryImageUrl",  example: "https://cdn…/lu-from-point.jpg" },
+  { axvela: "axid",             example: "AX-LU-1976-014 (optional)" },
+  { axvela: "priceVisibility",  example: "public | on_request | private" },
+  { axvela: "availabilityStatus", example: "available | reserved | sold | not_for_sale" },
 ];
 
 export default function BulkUploadPage() {
@@ -49,7 +49,7 @@ export default function BulkUploadPage() {
             textDecoration: "none",
           }}
         >
-          ← ARTENA AI · Gallery Console
+          ← AXVELA AI · Gallery Console
         </a>
         <h1 style={{
           fontSize: 28, fontWeight: 700, color: "#1C1A17",
@@ -59,7 +59,7 @@ export default function BulkUploadPage() {
           Bulk Upload
         </h1>
         <p style={{ fontSize: 13, color: "#6F6F6F", margin: "0 0 28px" }}>
-          Bring an entire show online — CSV or Excel, mapped to ARTENA Artwork fields.
+          Bring an entire show online — CSV or Excel, mapped to AXVELA Artwork fields.
           Each row is linked to <strong>{MOCK_GALLERY.name}</strong> on commit.
         </p>
 
@@ -194,9 +194,9 @@ function MappingStep({ onNext, onBack }: { onNext: () => void; onBack: () => voi
       <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 18 }}>
         <div style={iconWell()}><Database size={18} strokeWidth={1.5} color="#8A6A3F" /></div>
         <div>
-          <h2 style={h2Style()}>Map source columns to ARTENA fields</h2>
+          <h2 style={h2Style()}>Map source columns to AXVELA fields</h2>
           <p style={pStyle()}>
-            The required fields below mirror Artwork in the ARTENA registry. AXID is optional but recommended for trust-tier upgrades.
+            The required fields below mirror Artwork in the AXVELA registry. AXID is optional but recommended for trust-tier upgrades.
           </p>
         </div>
       </div>
@@ -208,12 +208,12 @@ function MappingStep({ onNext, onBack }: { onNext: () => void; onBack: () => voi
         overflow: "hidden",
       }}>
         <div style={mapHeaderStyle()}>
-          <span>ARTENA field</span>
+          <span>AXVELA field</span>
           <span>Example value</span>
         </div>
         {REQUIRED_FIELDS.map((f, i) => (
           <div
-            key={f.artena}
+            key={f.axvela}
             style={{
               display: "grid", gridTemplateColumns: "1fr 1.5fr",
               padding: "10px 16px",
@@ -222,7 +222,7 @@ function MappingStep({ onNext, onBack }: { onNext: () => void; onBack: () => voi
             }}
           >
             <code style={{ color: "#8A6A3F", fontWeight: 600, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace" }}>
-              {f.artena}
+              {f.axvela}
             </code>
             <span style={{ color: "#6F6F6F" }}>{f.example}</span>
           </div>
@@ -251,7 +251,7 @@ function LinkingStep({ onBack }: { onBack: () => void }) {
           <h2 style={h2Style()}>Link to your gallery</h2>
           <p style={pStyle()}>
             Each Artwork row will be stamped with this gallery&apos;s id on commit. Public collectors will see the works under
-            <strong> {MOCK_GALLERY.name}</strong> in the ARTENA Gallery showcase.
+            <strong> {MOCK_GALLERY.name}</strong> in the AXVELA Gallery showcase.
           </p>
         </div>
       </div>

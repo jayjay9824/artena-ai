@@ -1,5 +1,5 @@
 /**
- * PART 6 — ARTENA Design System tokens.
+ * PART 6 — AXVELA Design System tokens.
  *
  * Single source of truth for colors, spacing, typography, animation
  * timing, and corner radii. New components import from here; legacy

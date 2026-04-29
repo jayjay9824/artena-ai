@@ -3,7 +3,7 @@ import React, { createContext, useContext, useReducer, useEffect, useCallback } 
 
 export interface SavedArtwork {
   artwork_id: string;
-  /** Latest report id if this artwork came from an ARTENA analysis. */
+  /** Latest report id if this artwork came from an AXVELA analysis. */
   report_id?: string;
   image_url: string | null;
   artist_name: string;

@@ -53,9 +53,9 @@ function CoverArea({ gallery }: { gallery: Gallery }) {
 /* ── Verified badge + modal ─────────────────────────────────────── */
 const BADGE_META: Record<VerifiedTier, { label: string; color: string; desc: string }> = {
   approved: {
-    label: "ARTENA Verified Gallery",
+    label: "AXVELA Verified Gallery",
     color: "#8A6A3F",
-    desc: "ARTENA에서 검증된 갤러리입니다.\n작가, 전시, 거래 이력을 기반으로 승인되었습니다.",
+    desc: "AXVELA에서 검증된 갤러리입니다.\n작가, 전시, 거래 이력을 기반으로 승인되었습니다.",
   },
   premium: {
     label: "Premium Gallery",
@@ -63,9 +63,9 @@ const BADGE_META: Record<VerifiedTier, { label: string; color: string; desc: str
     desc: "프리미엄 갤러리는 지속적인 거래 이력, 높은 응답률, 검증된 작가 라인업을 보유합니다.",
   },
   partner: {
-    label: "ARTENA Partner Gallery",
+    label: "AXVELA Partner Gallery",
     color: "#B5860A",
-    desc: "ARTENA와 공식 파트너십을 맺은 갤러리입니다.\n가장 높은 수준의 신뢰 검증이 완료되었습니다.",
+    desc: "AXVELA와 공식 파트너십을 맺은 갤러리입니다.\n가장 높은 수준의 신뢰 검증이 완료되었습니다.",
   },
 };
 
@@ -194,7 +194,7 @@ export function GalleryProfile({ gallery, listings, onBack, onSelectListing }: G
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 2L4 7L9 12" stroke="#888" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          ARTENA Gallery
+          AXVELA Gallery
         </button>
         {primary && (
           <a href={primary.url} target="_blank" rel="noreferrer" style={{

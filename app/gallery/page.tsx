@@ -37,7 +37,7 @@ const tierGte = (a: UserTier, b: UserTier) => TIERS.indexOf(a) >= TIERS.indexOf(
 
 /* ── Verified badge ─────────────────────────────────────────────── */
 const BADGE: Record<VerifiedTier, { label: string; color: string }> = {
-  approved: { label: "ARTENA Verified", color: "#8A6A3F" },
+  approved: { label: "AXVELA Verified", color: "#8A6A3F" },
   premium:  { label: "Premium Gallery", color: "#0D0D0D" },
   partner:  { label: "Partner Gallery", color: "#B5860A" },
 };
@@ -134,7 +134,7 @@ function HoldModal({ listing, onClose }: { listing: GalleryListing; onClose: () 
 
 /* ── Quick Action Buttons (on card) ─────────────────────────────── */
 /**
- * Spec actions: View with ARTENA AI / Inquire / Ask Gallery.
+ * Spec actions: View with AXVELA AI / Inquire / Ask Gallery.
  * Hold + Waitlist remain as tier-gated capabilities — those are
  * existing features (we don't delete them) but they sit behind the
  * three primary connection-layer actions.
@@ -168,8 +168,8 @@ function QuickActions({ listing, userTier, onHold }: {
 
   const buttons: React.ReactNode[] = [];
 
-  // Primary spec action — opens the artwork inside the ARTENA analysis
-  // surface so the collector can read it through ARTENA's lens.
+  // Primary spec action — opens the artwork inside the AXVELA analysis
+  // surface so the collector can read it through AXVELA's lens.
   buttons.push(pill(
     t("gallery.view_with"),
     () => { window.location.href = `/analyze?artworkId=${encodeURIComponent(artwork_id)}`; },
@@ -364,7 +364,7 @@ function BottomSheet({ listing, userTier, onClose, onViewDetail, onViewGallery, 
 
           <div style={{ height: "0.5px", background: "#F0F0F0", margin: "16px 0" }} />
 
-          {/* Action buttons — spec primary: View with ARTENA AI / Inquire / Ask Gallery */}
+          {/* Action buttons — spec primary: View with AXVELA AI / Inquire / Ask Gallery */}
           <BtnFilled
             label={t("gallery.view_with")}
             onClick={() => { window.location.href = `/analyze?artworkId=${encodeURIComponent(listing.artwork_id)}`; }}

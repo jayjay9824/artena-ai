@@ -50,7 +50,7 @@ export function CandidateSelection({ candidates, onSelect, onNoMatch }: Props) {
           textDecoration: "none", marginBottom: 14,
         }}
       >
-        ARTENA AI
+        AXVELA AI
       </a>
 
       {/* Title */}

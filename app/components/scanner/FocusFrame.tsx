@@ -10,6 +10,12 @@ interface Props {
   state:        FocusFrameState;
   /** Visual feedback only — no warning text. */
   distanceCue?: DistanceCue;
+  /**
+   * STEP 2 — when true, the viewfinder springs from the default
+   * artwork-friendly square to a wide horizontal rectangle suited
+   * to a museum label. Spec: spring + haptic on transition.
+   */
+  labelMode?:   boolean;
 }
 
 const CORNER_LEN_PX = 26;
@@ -27,11 +33,16 @@ const FRAME_RADIUS  = 14;
  *   too_close  → corners take a soft red tint
  *   too_far    → whole frame opacity drops to 0.55
  */
-export function FocusFrame({ state, distanceCue = "normal" }: Props) {
+export function FocusFrame({ state, distanceCue = "normal", labelMode = false }: Props) {
   // One crisp haptic on every locked entry. Silently no-ops on iOS Safari.
   useEffect(() => {
     if (state === "locked") tinyHaptic(40);
   }, [state]);
+
+  // STEP 2 — second crisp haptic on entering label mode.
+  useEffect(() => {
+    if (labelMode) tinyHaptic(30);
+  }, [labelMode]);
 
   if (state === "hidden") return null;
 
@@ -53,20 +64,25 @@ export function FocusFrame({ state, distanceCue = "normal" }: Props) {
           : isDetecting
             ? 1.02
             : 1.0,
+        // STEP 2 — wide horizontal frame in label mode, square-ish
+        // otherwise. Animated together so the morph springs from
+        // one rectangle to the other.
+        width:   labelMode ? "82%" : "62%",
+        height:  labelMode ? "18%" : "44%",
       }}
       transition={{
         opacity: { duration: 0.3, ease: [0.32, 0.72, 0, 1] },
         scale:   isLocked
           ? { times: [0, 0.45, 1], duration: 0.32, ease: [0.22, 1, 0.36, 1] }
           : { type: "spring", stiffness: 380, damping: 32 },
+        width:   { type: "spring", stiffness: 200, damping: 22 },
+        height:  { type: "spring", stiffness: 200, damping: 22 },
       }}
       style={{
         position:      "absolute",
         left:          "50%",
         top:           "50%",
         translate:     "-50% -50%",
-        width:         "62%",
-        height:        "44%",
         pointerEvents: "none",
         zIndex:        25,
       }}

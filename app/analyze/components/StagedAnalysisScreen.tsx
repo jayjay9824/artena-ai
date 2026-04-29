@@ -65,7 +65,7 @@ export function StagedAnalysisScreen({
             textDecoration: "none",
           }}
         >
-          ARTENA AI · Cultural Intelligence
+          AXVELA AI · Cultural Intelligence
         </a>
 
         {/* Quick View — appears when basic stage resolves */}
@@ -96,7 +96,7 @@ export function StagedAnalysisScreen({
               fontSize: 14, color: "#2A2A2A", margin: 0,
               lineHeight: 1.5, fontFamily: FONT,
             }}>
-              ARTENA가 작품을 분석하고 있습니다.
+              AXVELA가 작품을 분석하고 있습니다.
             </p>
             <p style={{
               fontSize: 12, color: "#9A9A9A", margin: "6px 0 0",

@@ -2,7 +2,7 @@
 import React from "react";
 
 /**
- * "ARTENA가 읽는 데이터" — minimal data-layer row.
+ * "AXVELA가 읽는 데이터" — minimal data-layer row.
  * Spec lists 6 layers and one descriptive sentence; no SVG graph,
  * no decorative chrome.
  */
@@ -26,7 +26,7 @@ export function DataLayers() {
         margin: "0 0 14px",
         fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
       }}>
-        ARTENA가 읽는 데이터
+        AXVELA가 읽는 데이터
       </p>
 
       {/* Layers grid — 3 columns × 2 rows */}

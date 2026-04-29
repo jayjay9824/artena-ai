@@ -47,7 +47,7 @@ export function ArtenaGraph() {
           margin: "0 0 14px",
           fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
         }}>
-          ARTENA가 읽는 데이터
+          AXVELA가 읽는 데이터
         </p>
 
         <div style={{

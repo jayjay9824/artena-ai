@@ -68,7 +68,7 @@ export function MarketReport({ data }: { data: MarketReportData }) {
       {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 36, paddingBottom: 24, borderBottom: "1px solid #F0F0F0" }}>
         <div>
-          <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>ARTENA Intelligence Layer</span>
+          <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>AXVELA Intelligence Layer</span>
           <h2 style={{ fontSize: 18, fontWeight: 700, color: "#000", letterSpacing: ".01em", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>Market Intelligence Report</h2>
         </div>
         <div style={{ textAlign: "right" as const }}>
@@ -148,14 +148,14 @@ export function MarketReport({ data }: { data: MarketReportData }) {
       </SectionBlock>
 
       {/* 06 */}
-      <SectionBlock number="06" title="ARTENA Insight Summary">
+      <SectionBlock number="06" title="AXVELA Insight Summary">
         <div style={{ background: "#FAFAFA", border: "1px solid #F0F0F0", padding: "22px 24px" }}>
           <p style={{ fontSize: 13, color: "#111", lineHeight: 1.95, margin: 0 }}>{data.artenaSummary}</p>
         </div>
       </SectionBlock>
 
       <div style={{ paddingTop: 20, borderTop: "1px solid #F2F2F2", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 9, color: "#CCC", letterSpacing: ".12em" }}>ARTENA · Cultural Intelligence Engine</span>
+        <span style={{ fontSize: 9, color: "#CCC", letterSpacing: ".12em" }}>AXVELA · Cultural Intelligence Engine</span>
         <span style={{ fontSize: 9, color: "#CCC" }}>For informational purposes only</span>
       </div>
     </div>

@@ -22,24 +22,24 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
   return (
     <>
       <style>{`
-        @keyframes artena-logo-in {
+        @keyframes axvela-logo-in {
           from { opacity: 0; transform: scale(0.96); }
           to   { opacity: 1; transform: scale(1); }
         }
-        .artena-intro-screen {
+        .axvela-intro-screen {
           transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1);
         }
-        .artena-logo-wrap {
-          animation: artena-logo-in 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+        .axvela-logo-wrap {
+          animation: axvela-logo-in 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
           animation-play-state: paused;
         }
-        .artena-logo-wrap.playing {
+        .axvela-logo-wrap.playing {
           animation-play-state: running;
         }
       `}</style>
 
       <div
-        className="artena-intro-screen"
+        className="axvela-intro-screen"
         style={{
           position: "fixed",
           inset: 0,
@@ -54,7 +54,7 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
         }}
       >
         <div
-          className={`artena-logo-wrap${phase >= 1 ? " playing" : ""}`}
+          className={`axvela-logo-wrap${phase >= 1 ? " playing" : ""}`}
           style={{
             opacity: 0, // overridden by animation
             display: "flex",
@@ -64,8 +64,8 @@ export function IntroSplash({ onComplete }: IntroSplashProps) {
           }}
         >
           <img
-            src="/images/artena-logo.png"
-            alt="ARTENA AI"
+            src="/images/axvela-logo.png"
+            alt="AXVELA AI"
             style={{
               width: "100%",
               maxWidth: 240,

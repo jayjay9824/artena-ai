@@ -338,7 +338,7 @@ export function MarketIntelligenceReport({
         <div style={{ marginBottom: 36, paddingBottom: 24, borderBottom: "1px solid #F0F0F0" }}>
           <div className="mir-header-row">
             <div>
-              <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".24em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>ARTENA AI · Market Intelligence Report</span>
+              <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".24em", textTransform: "uppercase" as const, display: "block", marginBottom: 8 }}>AXVELA AI · Market Intelligence Report</span>
               <h2 style={{ fontSize: 20, fontWeight: 800, color: "#000", margin: "0 0 6px", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
                 {data.artworkOverview.artist}
               </h2>
@@ -436,7 +436,7 @@ export function MarketIntelligenceReport({
           <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".14em", textTransform: "uppercase" as const, marginBottom: 10 }}>구조적 해석</p>
           <p style={{ fontSize: 13, color: "#444", lineHeight: 1.85, marginBottom: 18 }}>{data.interpretation.structuralAnalysis}</p>
           <div style={{ background: "#FAFAFA", border: "1px solid #F0F0F0", padding: "16px 20px" }}>
-            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".14em", display: "block", marginBottom: 6 }}>ARTENA 한 줄 해석</span>
+            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".14em", display: "block", marginBottom: 6 }}>AXVELA 한 줄 해석</span>
             <p style={{ fontSize: 13, color: "#222", fontWeight: 600, margin: 0, lineHeight: 1.6, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>{data.interpretation.artenaSummary}</p>
           </div>
         </div>
@@ -448,7 +448,7 @@ export function MarketIntelligenceReport({
           <Row label="갤러리/기관 이력" value={data.artistPositioning.galleryHistory} />
           <Row label="시장 포지션" value={data.artistPositioning.marketPosition} />
           <div style={{ marginTop: 14, padding: "12px 16px", background: "#F8F7FF", border: "1px solid #E8E4FF" }}>
-            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".12em", display: "block", marginBottom: 4 }}>ARTENA 평가</span>
+            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".12em", display: "block", marginBottom: 4 }}>AXVELA 평가</span>
             <p style={{ fontSize: 12, color: "#444", margin: 0, lineHeight: 1.65 }}>{data.artistPositioning.artenaEvaluation}</p>
           </div>
         </div>
@@ -469,7 +469,7 @@ export function MarketIntelligenceReport({
           <div style={{ marginBottom: 18 }}>
             <NumberedList items={data.comparableAnalysis.limitations} />
           </div>
-          <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".14em", textTransform: "uppercase" as const, marginBottom: 10 }}>ARTENA 판단</p>
+          <p style={{ fontSize: 9, color: "#BBB", letterSpacing: ".14em", textTransform: "uppercase" as const, marginBottom: 10 }}>AXVELA 판단</p>
           <p style={{ fontSize: 13, color: "#444", lineHeight: 1.85, margin: 0 }}>{data.comparableAnalysis.artenaJudgment}</p>
         </div>
 
@@ -541,7 +541,7 @@ export function MarketIntelligenceReport({
           <Row label="지역 특성" value={data.marketContext.regional} />
           <Row label="수요 구조" value={data.marketContext.collectorDemand} />
           <div style={{ marginTop: 14, padding: "14px 18px", background: "#000", border: "1px solid #000" }}>
-            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".14em", display: "block", marginBottom: 6 }}>ARTENA INSIGHT</span>
+            <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".14em", display: "block", marginBottom: 6 }}>AXVELA INSIGHT</span>
             <p style={{ fontSize: 13, color: "#FFF", fontWeight: 600, margin: 0, lineHeight: 1.6, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>{data.marketContext.artenaInsight}</p>
           </div>
         </div>
@@ -573,7 +573,7 @@ export function MarketIntelligenceReport({
             본 리포트는 공개 시장 데이터 및 비교 분석 기반의 참고용 시장 추정 정보입니다.
             공식 감정서, 법적 평가, 세무 평가, 투자 자문이 아닙니다.
             비공개 갤러리 거래, 실제 계약 가격, 작품 상태, 프로비넌스는 반영되지 않을 수 있습니다.
-            ARTENA AI · Cultural Intelligence Engine
+            AXVELA AI · Cultural Intelligence Engine
           </p>
         </div>
       </div>

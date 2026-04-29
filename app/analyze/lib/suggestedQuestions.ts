@@ -1,7 +1,7 @@
 /**
  * Signal-driven suggested questions for an analysis.
  *
- * Used by both QuickReport (chips above the "Ask ARTENA" button) and
+ * Used by both QuickReport (chips above the "Ask AXVELA" button) and
  * ArtAssistantScreen (chips on the empty-state of the chat). Single
  * source of truth so the two surfaces stay in sync.
  *
@@ -14,6 +14,7 @@
 
 import type { CollectionAnalysis } from "../../collection/hooks/useCollection";
 import type { QuestionType, SuggestedQuestion } from "../../types/assistant";
+import { deriveAnalysisResult } from "./objectCategory";
 
 export type Analysis = CollectionAnalysis;
 
@@ -138,10 +139,10 @@ export function getQuickReportChips(a: Analysis): SuggestedQuestion[] {
   return [all[0], all[1], all[all.length - 1]].filter(Boolean) as SuggestedQuestion[];
 }
 
-/* ── STEP 6 — Ask ARTENA fixed chips ─────────────────────────────── */
+/* ── STEP 6 — Ask AXVELA fixed chips ─────────────────────────────── */
 
 /**
- * STEP 6 baseline — three canonical chips for the Ask ARTENA empty
+ * STEP 6 baseline — three canonical chips for the Ask AXVELA empty
  * state when no analysis context is available. BLOCK B's
  * `pickAskChips()` overrides this when the analysis has enough
  * signal to pick a more contextual set.
@@ -160,38 +161,38 @@ export interface AskChip {
 }
 
 /**
- * BLOCK B — pick exactly three contextual chips for the Ask surface.
+ * BLOCK B + STEP 4 — pick contextual chips for the Ask surface.
  *
- * Selection signals:
- *   1. category         architecture / artifact / cultural_site
- *      vs. fine art (the default branch)
- *   2. market position  Blue-chip vs. Established vs. Emerging,
- *      derived from marketNote text + auction / collection counts
- *   3. topical signal   abstract / minimal / conceptual lift the
- *      interpretation set
+ * Branch order:
+ *   1. STEP 4 — when objectCategory is NOT market-relevant (cultural
+ *      heritage / architecture / artifact / historic site / museum
+ *      guide / unknown), return the unified 4-chip cultural set:
+ *        period · material · meaning · explain label
+ *      This overrides the earlier per-category variants so the
+ *      Ask surface speaks the same vocabulary across all non-market
+ *      objects.
  *
- * Returns translations.ts keys so the chip text tracks the active
- * UI language. Spec rule: max 40 chars, single line — every key
- * surfaced here resolves to a short interrogative.
+ *   2. Market-relevant objects (artwork / design_object / collectible)
+ *      branch by position + topical signal — Blue-chip / Abstract /
+ *      Emerging / default.
+ *
+ * Spec rule: max 40 chars, single line per chip. Cultural set is 4
+ * chips per spec; market sets remain 3.
  */
 export function pickAskChips(a: Analysis): AskChip[] {
-  // Architecture / heritage paths first — different vocabulary.
-  if (a.category === "architecture") {
+  const dispatch = deriveAnalysisResult(a);
+
+  // STEP 4 — unified cultural set for every non-market object.
+  if (!dispatch.isMarketRelevant) {
     return [
-      { key: "ask.chip_history",        type: "interpretation" },
-      { key: "ask.chip_importance",     type: "interpretation" },
-      { key: "ask.chip_similar_works",  type: "comparison"     },
-    ];
-  }
-  if (a.category === "artifact" || a.category === "cultural_site") {
-    return [
-      { key: "ask.chip_period",         type: "interpretation" },
-      { key: "ask.chip_importance",     type: "interpretation" },
-      { key: "ask.chip_where_visible",  type: "market"         },
+      { key: "ask.chip_cultural_period",   type: "interpretation" },
+      { key: "ask.chip_cultural_material", type: "interpretation" },
+      { key: "ask.chip_cultural_meaning",  type: "interpretation" },
+      { key: "ask.chip_cultural_label",    type: "interpretation" },
     ];
   }
 
-  // Position signals
+  // Position signals — only reached for market-relevant objects.
   const note     = (a.marketNote ?? "").toLowerCase();
   const auCount  = a.auctions?.length    ?? 0;
   const colCount = a.collections?.length ?? 0;
@@ -232,7 +233,8 @@ export function pickAskChips(a: Analysis): AskChip[] {
     ];
   }
 
-  // Default fallback — same three as the static ASK_CHIPS.
+  // Default fallback for market-relevant objects without a clear
+  // position signal — same three as the static ASK_CHIPS.
   return ASK_CHIPS;
 }
 

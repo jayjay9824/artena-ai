@@ -38,7 +38,7 @@ export function useShareReport(opts: UseShareReportOptions) {
       setLastResult("no-id");
       return "no-id";
     }
-    const shareTitle = override?.artist ?? artist ?? "ARTENA";
+    const shareTitle = override?.artist ?? artist ?? "AXVELA";
     const shareText  = override?.title  ?? title  ?? "Cultural Intelligence Report";
 
     // Record the interaction + audit entry first. Both write before

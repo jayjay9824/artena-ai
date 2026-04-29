@@ -56,12 +56,12 @@ function LoadingSpinner() {
           fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
         }}
       >
-        ARTENA AI
+        AXVELA AI
       </a>
       <div style={{ width: 40, height: 40, border: "3px solid #EBE6DB", borderTop: "3px solid #8A6A3F", borderRadius: "50%", animation: "spin 0.9s linear infinite" }} />
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       <div style={{ textAlign: "center" }}>
-        <p style={{ fontSize: 14, color: "#555", marginBottom: 4 }}>작가와 작품을 ARTENA AI가 분석중입니다</p>
+        <p style={{ fontSize: 14, color: "#555", marginBottom: 4 }}>작가와 작품을 AXVELA AI가 분석중입니다</p>
         <p style={{ fontSize: 11, color: "#bbb" }}>시장 데이터, 작품 이력, 경매 기록을 분석하고 있습니다...</p>
       </div>
     </div>
@@ -84,6 +84,13 @@ function ScanScreen() {
   const [showScanner,   setShowScanner]   = useState(false);
   const [reportId,      setReportId]      = useState<string | null>(null);
   const [candidates,    setCandidates]    = useState<MatchedArtwork[]>([]);
+  // STEP 2 — label-scan mode. When the user taps "Scan Label" from
+  // the uncertain-recognition sheet we re-open the scanner with the
+  // wide horizontal viewfinder. The latest scanned image becomes the
+  // input for re-analysis (multimodal merge with the original artwork
+  // is wired here as a same-pipeline re-run; richer image-pair
+  // merging lands in a follow-up step).
+  const [labelScanMode, setLabelScanMode] = useState(false);
 
   // STEP 1 — staged analysis (Quick View + Progressive Loading) for
   // image uploads. Runs the quick + full endpoints concurrently and
@@ -437,6 +444,7 @@ function ScanScreen() {
     const handleScanSuccess = (payload: ScanSuccessPayload) => {
       if (!payload.imageBlob || !payload.imageURI) {
         setShowScanner(false);
+        setLabelScanMode(false);
         return;
       }
       const file = payload.imageBlob instanceof File
@@ -444,14 +452,20 @@ function ScanScreen() {
         : new File([payload.imageBlob], "scan.jpg", {
             type: payload.imageBlob.type || "image/jpeg",
           });
+      // STEP 2 — both first-pass and label-mode scans funnel through
+      // the same staged analyze pipeline. Recognition is re-derived
+      // from the new analysis; confidence may upgrade if the label
+      // image carried more identifying detail.
+      setLabelScanMode(false);
       analyzeWithFile(file, payload.imageURI);
     };
     return (
       <SmartScannerScreen
-        onClose={() => setShowScanner(false)}
-        onUploadImage={() => setShowScanner(false)}
-        onSearchByText={() => setShowScanner(false)}
+        onClose={() => { setShowScanner(false); setLabelScanMode(false); }}
+        onUploadImage={() => { setShowScanner(false); setLabelScanMode(false); }}
+        onSearchByText={() => { setShowScanner(false); setLabelScanMode(false); }}
         onScanSuccess={handleScanSuccess}
+        labelMode={labelScanMode}
       />
     );
   }
@@ -464,7 +478,7 @@ function ScanScreen() {
     return (
       <div style={{ fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18", padding: "52px 22px 100px", maxWidth: 430, margin: "0 auto", background: "#F8F7F4", minHeight: "100vh", boxSizing: "border-box" as const }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22, textDecoration: "none", color: "inherit" }}>
-          <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
+          <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>AXVELA</span>
           <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase" as const, color: "#CCC" }}>Cultural Intelligence AI</span>
         </a>
         {imagePreview && (
@@ -474,7 +488,7 @@ function ScanScreen() {
         )}
         <button onClick={analyzeImage} style={{ width: "100%", padding: "15px 0", background: "#111", color: "#fff", border: "none", borderRadius: 12, cursor: "pointer", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, fontWeight: 600, letterSpacing: ".05em", marginBottom: 12, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
           <span style={{ fontSize: 10, color: "#8A6A3F" }}>◆</span>
-          ARTENA AI 분석
+          AXVELA AI 분석
         </button>
         <button onClick={() => { setScreen("upload"); setImagePreview(null); setPendingFile(null); setError(null); }} style={{ width: "100%", padding: "12px 0", background: "transparent", color: "#AAA", border: "0.5px solid #E0E0E0", borderRadius: 12, cursor: "pointer", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 13 }}>
           다시 선택하기
@@ -496,6 +510,18 @@ function ScanScreen() {
         reportLoading={reportLoading && reportType === "intelligence"}
         reportData={reportType === "intelligence" && !reportLoading ? (reportData as MarketIntelligenceData | null) : null}
         reportId={reportId ?? undefined}
+        // STEP 2 — uncertain recognition routes back into the scanner
+        // with the wide horizontal viewfinder. Search-by-text falls
+        // back to the home surface for now (search input lives there).
+        onScanLabel={() => {
+          setLabelScanMode(true);
+          setShowScanner(true);
+        }}
+        onSearchByText={() => {
+          setShowScanner(false);
+          setLabelScanMode(false);
+          reset();
+        }}
       />
     );
   }

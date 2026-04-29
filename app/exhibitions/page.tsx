@@ -357,7 +357,7 @@ function DetailPanel({ ex, score, reason, onClose }: DetailPanelProps) {
           {formatDateRange(ex)} · {ex.city}
         </p>
 
-        {/* ARTENA Match Reason — surfaces the score + signal in detail
+        {/* AXVELA Match Reason — surfaces the score + signal in detail
             (the card already shows it, but the detail panel is where
             users decide whether to book). */}
         <div style={{
@@ -372,7 +372,7 @@ function DetailPanel({ ex, score, reason, onClose }: DetailPanelProps) {
               fontSize: 9, color: "#8A6A3F", letterSpacing: ".18em",
               textTransform: "uppercase" as const, fontWeight: 600,
             }}>
-              ARTENA Match
+              AXVELA Match
             </span>
             <span style={{
               fontSize: 14, fontWeight: 700, color: "#8A6A3F",

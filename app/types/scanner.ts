@@ -1,5 +1,5 @@
 /**
- * ARTENA Camera Intelligence Layer — strict types.
+ * AXVELA Camera Intelligence Layer — strict types.
  *
  * Powers the new SmartScannerScreen + scanner hooks. Kept separate
  * from the legacy app/analyze/scanner/types.ts so the existing
@@ -59,4 +59,37 @@ export interface ScanSuccessPayload {
   imageURI?:  string;
   /** Confidence at lock time, 0..100. */
   confidence: number;
+}
+
+/* ── QR purpose dispatch (STEP 3) ──────────────────────────────── */
+
+/**
+ * What a decoded QR is for. Only `artwork_info` / `exhibition_info`
+ * are routed into the AXVELA report pipeline; the others surface a
+ * neutral notice with fallback actions instead of being trusted.
+ */
+export type QRPurpose =
+  | "ios_app"
+  | "android_app"
+  | "museum_guide"
+  | "artwork_info"
+  | "exhibition_info"
+  | "unknown";
+
+/**
+ * One decoded QR. `position` is in viewport % so the AR-style
+ * overlay can place its chip directly over the code without extra
+ * coordinate gymnastics. Producers convert from BarcodeDetector
+ * pixel boxes before populating the field.
+ */
+export interface QRDetection {
+  payload:    string;
+  purpose:    QRPurpose;
+  position?:  {
+    x:      number;
+    y:      number;
+    width:  number;
+    height: number;
+  };
+  confidence?: number;
 }

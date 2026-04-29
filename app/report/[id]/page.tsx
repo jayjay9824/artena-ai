@@ -33,8 +33,8 @@ export async function generateMetadata({ params }: RouteProps): Promise<Metadata
 
   if (!report) {
     return {
-      title: "Report not found · ARTENA AI",
-      description: "ARTENA only shows results when the artwork can be matched to a reliable record.",
+      title: "Report not found · AXVELA AI",
+      description: "AXVELA only shows results when the artwork can be matched to a reliable record.",
     };
   }
 
@@ -42,7 +42,7 @@ export async function generateMetadata({ params }: RouteProps): Promise<Metadata
   const description = report.artenaInsight
     || (report.analysisSummary
         ? report.analysisSummary.slice(0, 180) + (report.analysisSummary.length > 180 ? "…" : "")
-        : "ARTENA AI cultural intelligence report");
+        : "AXVELA AI cultural intelligence report");
 
   // STEP 5 — point OG/Twitter at the rendered 1080x1920 share card so
   // crawlers see the editorial card with title + artist + insight +
@@ -50,7 +50,7 @@ export async function generateMetadata({ params }: RouteProps): Promise<Metadata
   const cardUrl = shareCardOgUrl(id);
 
   return {
-    title:       `${title} · ARTENA AI`,
+    title:       `${title} · AXVELA AI`,
     description,
     openGraph: {
       title,

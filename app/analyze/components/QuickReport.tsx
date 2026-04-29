@@ -16,6 +16,12 @@ import { getQuickReportChips } from "../lib/suggestedQuestions";
 import type { QuestionType } from "../../types/assistant";
 import { shareReport } from "../../services/reportShareService";
 import { useLanguage } from "../../i18n/useLanguage";
+import { deriveAnalysisResult, shouldShowMarket } from "../lib/objectCategory";
+import { CulturalHeritageIntelligence } from "./CulturalHeritageIntelligence";
+import { deriveRecognition } from "../lib/recognition";
+import { PartialRecognitionToast } from "./PartialRecognitionToast";
+import { UncertainRecognitionSheet } from "./UncertainRecognitionSheet";
+import { AnimatePresence } from "framer-motion";
 
 /* ── Types ───────────────────────────────────────────────────── */
 
@@ -41,6 +47,16 @@ export interface QuickReportProps {
    * saveReport().
    */
   reportId?: string;
+  /**
+   * STEP 2 — Uncertain recognition routes the user back to the
+   * scanner in label-mode. Caller wires the actual navigation.
+   */
+  onScanLabel?:    () => void;
+  /**
+   * STEP 2 — Uncertain recognition fallback to text search. Caller
+   * wires this to whatever search surface the app surfaces.
+   */
+  onSearchByText?: () => void;
 }
 
 /* ── Analytics ───────────────────────────────────────────────── */
@@ -316,11 +332,17 @@ export function QuickReport({
   reportLoading,
   reportData,
   reportId,
+  onScanLabel,
+  onSearchByText,
 }: QuickReportProps) {
   const [actions, setActions] = useState({ liked: false, saved: false, collected: false });
   const [heartAnim, setHeartAnim]     = useState(false);
   const [showAssistant, setShowAssistant] = useState(false);
   const [showCollectionPicker, setShowCollectionPicker] = useState(false);
+  // STEP 2 — recognition dispatch state. Toast + sheet visibility
+  // tracks user dismiss; recognition is re-derived on each analysis.
+  const [partialDismissed,   setPartialDismissed]   = useState(false);
+  const [uncertainDismissed, setUncertainDismissed] = useState(false);
   const [toast, setToast]             = useState<ToastState | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<{ text: string; type: QuestionType } | null>(null);
   const [analysisExpanded, setAnalysisExpanded] = useState(false);
@@ -440,9 +462,49 @@ export function QuickReport({
   const stability  = Math.round(confidence * 0.87);
   const posColor   = position === "Blue-chip" ? "#8A6A3F" : position === "Emerging" ? "#B07030" : "#111";
 
+  // STEP 1 — Object category dispatch. Drives whether Market
+  // Intelligence renders or yields to Cultural Heritage Intelligence.
+  const dispatch  = deriveAnalysisResult(a);
+
+  // STEP 2 — Recognition confidence dispatch.
+  const recognition = deriveRecognition(a);
+  const isUncertain = recognition.recognitionStatus === "uncertain";
+  const isPartial   = recognition.recognitionStatus === "partial";
+
+  // Market is suppressed when recognition is uncertain even if the
+  // category check would otherwise allow it — a market ranking on a
+  // wrongly identified work is worse than no ranking.
+  const showMarket = shouldShowMarket(dispatch) && !isUncertain;
+
   return (
     <>
       <style dangerouslySetInnerHTML={{ __html: QR_STYLES }} />
+
+      {/* STEP 2 — partial recognition toast (subtle, top, dismissible) */}
+      <AnimatePresence>
+        {isPartial && !partialDismissed && (
+          <PartialRecognitionToast onDismiss={() => setPartialDismissed(true)} />
+        )}
+      </AnimatePresence>
+
+      {/* STEP 2 — uncertain recognition bottom sheet. Premium calm
+          tone, three-action flow (Scan Label / Search / Continue). */}
+      <AnimatePresence>
+        {isUncertain && !uncertainDismissed && (
+          <UncertainRecognitionSheet
+            onScanLabel={() => {
+              setUncertainDismissed(true);
+              onScanLabel?.();
+            }}
+            onSearchByText={() => {
+              setUncertainDismissed(true);
+              onSearchByText?.();
+            }}
+            onContinueAnyway={() => setUncertainDismissed(true)}
+          />
+        )}
+      </AnimatePresence>
+
       <div style={{
         maxWidth: 640, margin: "0 auto", background: "#FFFFFF",
         minHeight: "100vh", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
@@ -523,8 +585,8 @@ export function QuickReport({
                   const artistText = a.artist || artistFallback(a);
                   const titleText  = a.title  || "Untitled";
                   const result = await shareReport(reportId, {
-                    title: "ARTENA AI",
-                    text:  `ARTENA AI: ${artistText} - ${titleText}`,
+                    title: "AXVELA AI",
+                    text:  `AXVELA AI: ${artistText} - ${titleText}`,
                   });
                   if (result === "copied") {
                     setToast({ message: t("report.share_link_copied") });
@@ -543,7 +605,7 @@ export function QuickReport({
           {/* Artwork info — bottom of hero */}
           <div style={{ position: "absolute" as const, bottom: 0, left: 0, right: 0, padding: "0 22px 28px" }}>
             <a href="/" style={{ display: "inline-block", fontSize: 9, color: "rgba(255,255,255,0.45)", letterSpacing: ".22em", textTransform: "uppercase" as const, margin: "0 0 10px", textDecoration: "none" }}>
-              ARTENA AI
+              AXVELA AI
             </a>
             <h1 style={{ fontSize: 22, fontWeight: 700, color: "#FFF", margin: "0 0 5px", lineHeight: 1.2, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
               {a.artist || artistFallback(a)}
@@ -560,9 +622,40 @@ export function QuickReport({
         {/* ── Content ─────────────────────────────────────────────── */}
         <div className="qr-content" style={{ padding: "0 22px" }}>
 
-          {/* ── 2. ARTENA Insight ────────────────────────────────── */}
+          {/* STEP 2 — Image-only-limited caption when the user
+              continued past the uncertain sheet. Calm, muted; never
+              styled like an error. */}
+          {isUncertain && uncertainDismissed && (
+            <div style={{
+              marginTop:    20,
+              padding:      "12px 14px",
+              background:   "#FAF7F2",
+              border:       "0.5px solid #ECE5D8",
+              borderRadius: 12,
+            }}>
+              <p style={{
+                fontSize:    11.5,
+                color:       "#8A6A3F",
+                margin:      "0 0 4px",
+                fontWeight:  600,
+                letterSpacing: "0.04em",
+              }}>
+                ◆ {t("recognition.image_only_limited")}
+              </p>
+              <p style={{
+                fontSize:    11,
+                color:       "#8E8E93",
+                margin:      0,
+                lineHeight:  1.55,
+              }}>
+                {t("recognition.label_to_improve")}
+              </p>
+            </div>
+          )}
+
+          {/* ── 2. AXVELA Insight ────────────────────────────────── */}
           <div style={{ paddingTop: 32, paddingBottom: 28, borderBottom: "0.5px solid #F0F0F0" }}>
-            <SectionLabel text="아르테나 인사이트" />
+            <SectionLabel text="AXVELA 인사이트" />
 
             {a.description && (() => {
               const TRUNC = 150;
@@ -613,7 +706,13 @@ export function QuickReport({
             )}
           </div>
 
-          {/* ── 3. Market Intelligence ───────────────────────────── */}
+          {/* ── 3. Market Intelligence — only renders when the
+               object is an artwork with verified market data.
+               Otherwise CulturalHeritageIntelligence takes its
+               place. STEP 1 spec: never show insufficient-data
+               placeholders for non-market objects. */}
+          {!showMarket && <CulturalHeritageIntelligence analysis={a} />}
+          {showMarket && (
           <div style={{ paddingTop: 28, paddingBottom: 28, borderBottom: "0.5px solid #F0F0F0" }}>
             <SectionLabel text={isArchitecture(a) || isArtifact(a) ? "문화유산 인텔리전스" : "시장 인텔리전스"} />
 
@@ -666,7 +765,7 @@ export function QuickReport({
               <ScoreBar label="Market Stability"    value={stability}  delay={160} />
             </div>
 
-            {/* ARTENA Insight — judgment-style, capped at 3 lines via line-clamp */}
+            {/* AXVELA Insight — judgment-style, capped at 3 lines via line-clamp */}
             {a.marketNote && (
               <p style={{
                 fontSize: 12, color: "#444", lineHeight: 1.7, margin: 0,
@@ -680,8 +779,11 @@ export function QuickReport({
               </p>
             )}
           </div>
+          )}
 
-          {/* ── Full Report CTA ───────────────────────────────────── */}
+          {/* ── Full Report CTA — only when Market Intelligence is shown,
+               since the deep dive is market-focused. */}
+          {showMarket && (
           <div style={{ paddingTop: 22, paddingBottom: 22, borderBottom: "0.5px solid #F0F0F0" }}>
             <button
               onClick={onFullReport}
@@ -712,6 +814,7 @@ export function QuickReport({
               )}
             </button>
           </div>
+          )}
 
           {/* Report output */}
           {reportData && (
@@ -720,8 +823,8 @@ export function QuickReport({
             </div>
           )}
 
-          {/* ── Ask ARTENA (separate section, in scroll flow) ─────── */}
-          {/* Spec: Ask ARTENA must live as its own section, not inside
+          {/* ── Ask AXVELA (separate section, in scroll flow) ─────── */}
+          {/* Spec: Ask AXVELA must live as its own section, not inside
               the fixed bottom bar. Question chips and the Ask CTA stay
               together as one block here so the layer reads as one unit. */}
           <div style={{ paddingTop: 24, paddingBottom: 8 }}>
@@ -777,7 +880,7 @@ export function QuickReport({
             >
               <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
                 <span style={{ fontSize: 9, color: "#8A6A3F" }}>◆</span>
-                <span style={{ fontSize: 12, color: "#FFF", letterSpacing: ".07em" }}>아르테나 AI에게 더 물어보기</span>
+                <span style={{ fontSize: 12, color: "#FFF", letterSpacing: ".07em" }}>AXVELA AI에게 더 물어보기</span>
               </div>
               <span style={{ fontSize: 10, color: "rgba(255,255,255,0.38)", letterSpacing: ".03em" }}>
                 이 작품을 더 깊이 이해해보세요

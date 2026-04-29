@@ -8,11 +8,11 @@
  *
  * Layout:
  *   ─ artwork image (top half, full bleed)
- *   ─ ARTENA brand line
+ *   ─ AXVELA brand line
  *   ─ artist
  *   ─ title
  *   ─ short insight (italic, bronze rule)
- *   ─ canonical share link (artena.ai/report/{id})
+ *   ─ canonical share link (axvela.ai/report/{id})
  */
 
 import { ImageResponse } from "next/og";
@@ -44,7 +44,7 @@ export async function GET(
   const year     = report.year   || "";
   const insight  = (report.artenaInsight || report.analysisSummary || "").trim().slice(0, 160);
   const imageUrl = report.representativeImageUrl || report.imageUrl;
-  const link     = `artena.ai/report/${id}`;
+  const link     = `axvela.ai/report/${id}`;
 
   return new ImageResponse(
     (
@@ -68,7 +68,7 @@ export async function GET(
                 color: BRONZE,
               }}>
                 <div style={{ fontSize: 48, letterSpacing: "0.18em" }}>◆</div>
-                <div style={{ fontSize: 92, letterSpacing: "0.16em", fontWeight: 700 }}>ARTENA</div>
+                <div style={{ fontSize: 92, letterSpacing: "0.16em", fontWeight: 700 }}>AXVELA</div>
               </div>
             )
           }
@@ -86,7 +86,7 @@ export async function GET(
             letterSpacing: "0.22em", textTransform: "uppercase",
             marginBottom: 32,
           }}>
-            ARTENA AI · Cultural Intelligence
+            AXVELA AI · Cultural Intelligence
           </div>
 
           {/* Artist */}
@@ -151,7 +151,7 @@ export async function GET(
               fontSize: 22, color: BRONZE,
               letterSpacing: "0.22em",
             }}>
-              ◆ ARTENA
+              ◆ AXVELA
             </div>
           </div>
         </div>

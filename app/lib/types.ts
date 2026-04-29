@@ -1,13 +1,58 @@
 /**
- * ARTENA / Gallery Console — shared domain types.
+ * AXVELA / Gallery Console — shared domain types.
  *
  * Single source of truth for the data shapes that flow between the
- * ARTENA user app and the (future) Gallery Console. The user app
+ * AXVELA user app and the (future) Gallery Console. The user app
  * writes interactions and reports against these types; Gallery
  * Console will later read from the same shapes.
  *
  * Keep this file backend-agnostic — no React, no fetch, no storage.
  */
+
+/* ── Object category — drives Market Intelligence visibility ─── */
+
+/**
+ * What kind of object the analysis describes. The Quick Report
+ * surface uses this to decide whether to render the Market
+ * Intelligence section or the Cultural Heritage Intelligence
+ * fallback. Computed at render time from the analysis (no schema
+ * change to persisted reports).
+ */
+export type ObjectCategory =
+  | "artwork"
+  | "cultural_heritage"
+  | "artifact"
+  | "architecture"
+  | "historic_site"
+  | "museum_guide"
+  | "design_object"
+  | "collectible"
+  | "unknown";
+
+/**
+ * Render-time dispatch derived from an analysis. Market Intelligence
+ * is only allowed when all three flags align: artwork category +
+ * market-relevant + verified market data on hand.
+ */
+export interface AnalysisResult {
+  objectCategory:       ObjectCategory;
+  isMarketRelevant:     boolean;
+  marketDataAvailable:  boolean;
+}
+
+/**
+ * STEP 2 — Recognition confidence and dispatch state.
+ *
+ *   confirmed   80+   normal report flow
+ *   partial     60-79 subtle top toast; report may render
+ *   uncertain   <60   premium bottom sheet first; market always hidden
+ */
+export type RecognitionStatus = "confirmed" | "partial" | "uncertain";
+
+export interface RecognitionState {
+  recognitionConfidence: number;       // 0..100
+  recognitionStatus:     RecognitionStatus;
+}
 
 /* ── Identifiers ───────────────────────────────────────────────── */
 

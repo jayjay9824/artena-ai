@@ -72,9 +72,9 @@ function tinyHaptic() {
 
 /** Target-aware analyzing copy. Strictly avoids forbidden words. */
 const ANALYZING_LABELS: Record<Exclude<DetectionTarget, "none">, string[]> = {
-  qr:      ["Matching QR source",          "Building ARTENA report"],
-  label:   ["Reading label text",          "Building ARTENA report"],
-  artwork: ["Detecting artwork structure", "Building ARTENA report"],
+  qr:      ["Matching QR source",          "Building AXVELA report"],
+  label:   ["Reading label text",          "Building AXVELA report"],
+  artwork: ["Detecting artwork structure", "Building AXVELA report"],
 };
 
 /* ── Hook ───────────────────────────────────────────────────────────── */

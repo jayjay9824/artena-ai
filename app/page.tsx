@@ -104,7 +104,7 @@ function Nav() {
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src="/images/Gemini_Generated_Image_ta7r94ta7r94ta7r.png"
-            alt="ARTENA AI"
+            alt="AXVELA AI"
             style={{
               position: "absolute",
               top: "50%",
@@ -243,7 +243,7 @@ function PhoneCard() {
                 Artwork Analysis
               </p>
               <p style={{ fontSize: "13px", fontWeight: 700, color: "#0a0a0a", letterSpacing: "-0.02em" }}>
-                ARTENA AI
+                AXVELA AI
               </p>
             </div>
             {/* icon */}
@@ -296,7 +296,7 @@ function PhoneCard() {
                 </div>
                 <div style={{ flex: 1 }}>
                   <p style={{ fontSize: "8.5px", color: "#aaa", letterSpacing: "0.12em", textTransform: "uppercase", fontWeight: 600, marginBottom: "5px" }}>
-                    ARTENA AI
+                    AXVELA AI
                   </p>
                   <div style={{ background: "#fff", borderRadius: "3px 14px 14px 14px", padding: "10px 11px", border: "1px solid #efefef" }}>
                     {AI_PARAGRAPHS.map((para, i) => (
@@ -334,7 +334,7 @@ function Hero() {
           {/* Watermark logo — clipped strictly inside left column */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src="/images/artena-logo.png"
+            src="/images/axvela-logo.png"
             alt=""
             aria-hidden="true"
             style={{
@@ -370,7 +370,7 @@ function Hero() {
 
           <FadeSection delay={240}>
             <p className="mt-10 text-lg sm:text-xl text-[#6b6b6b] font-light leading-relaxed max-w-xl">
-              ARTENA AI learns your aesthetic sensibility — and builds a cultural
+              AXVELA AI learns your aesthetic sensibility — and builds a cultural
               intelligence that grows with you.
             </p>
           </FadeSection>
@@ -381,7 +381,7 @@ function Hero() {
                 href="#experience"
                 className="inline-block bg-[#0a0a0a] text-white text-[12px] tracking-[0.14em] uppercase px-8 py-4 hover:bg-[#333] transition-colors duration-300"
               >
-                Explore ARTENA
+                Explore AXVELA
               </a>
               <a
                 href="#why"
@@ -421,7 +421,7 @@ function Hero() {
   );
 }
 
-/* ─────────────────────────── why artena ─────────────────────────── */
+/* ─────────────────────────── why axvela ─────────────────────────── */
 
 function WhyCard({ number, title, body, delay }: { number: string; title: string; body: string; delay: number }) {
   const { ref, visible } = useFadeIn();
@@ -465,12 +465,12 @@ function WhyCard({ number, title, body, delay }: { number: string; title: string
   );
 }
 
-function WhyArtena() {
+function WhyAxvela() {
   const reasons = [
     {
       number: "01",
       title: "Built for culture",
-      body: "ARTENA is designed for artworks, exhibitions, artists, and cultural context — not adapted from a general-purpose assistant.",
+      body: "AXVELA is designed for artworks, exhibitions, artists, and cultural context — not adapted from a general-purpose assistant.",
     },
     {
       number: "02",
@@ -480,12 +480,12 @@ function WhyArtena() {
     {
       number: "03",
       title: "Personal and private",
-      body: "Your cultural history remains yours. ARTENA builds intelligence around your experience, not ads.",
+      body: "Your cultural history remains yours. AXVELA builds intelligence around your experience, not ads.",
     },
     {
       number: "04",
       title: "Depth over breadth",
-      body: "ARTENA prioritizes relevance, interpretation, and evolving understanding.",
+      body: "AXVELA prioritizes relevance, interpretation, and evolving understanding.",
     },
   ];
 
@@ -493,7 +493,7 @@ function WhyArtena() {
     <section id="why" className="py-32 px-6">
       <div className="max-w-6xl mx-auto">
         <FadeSection>
-          <Label>Why ARTENA</Label>
+          <Label>Why AXVELA</Label>
         </FadeSection>
 
         <FadeSection delay={100}>
@@ -516,9 +516,9 @@ function WhyArtena() {
 
 const FLOW_STEPS = [
   { num: "01", word: "Experience", desc: "User explores artworks, exhibitions, and culture." },
-  { num: "02", word: "Record",     desc: "ARTENA captures preferences, interactions, and context." },
+  { num: "02", word: "Record",     desc: "AXVELA captures preferences, interactions, and context." },
   { num: "03", word: "Learn",      desc: "The system refines understanding using behavioral and aesthetic signals." },
-  { num: "04", word: "Grow",       desc: "ARTENA delivers deeper, more relevant cultural insight over time." },
+  { num: "04", word: "Grow",       desc: "AXVELA delivers deeper, more relevant cultural insight over time." },
 ];
 
 function ExperienceGrow() {
@@ -781,7 +781,7 @@ function Technology() {
     {
       label: "Layer 01",
       title: "Contextual Understanding",
-      body: "ARTENA reads cultural context — not just metadata. It understands art movements, historical periods, and stylistic relationships.",
+      body: "AXVELA reads cultural context — not just metadata. It understands art movements, historical periods, and stylistic relationships.",
     },
     {
       label: "Layer 02",
@@ -835,7 +835,7 @@ function Technology() {
             </FadeSection>
             <FadeSection delay={200}>
               <p className="mt-8 text-[15px] text-[#6b6b6b] leading-relaxed max-w-sm">
-                Culture is layered, subjective, and deeply personal. ARTENA&apos;s
+                Culture is layered, subjective, and deeply personal. AXVELA&apos;s
                 architecture is designed to hold that complexity — not reduce it.
               </p>
             </FadeSection>
@@ -923,7 +923,7 @@ function AboutArtXpark() {
 
         <FadeSection delay={100}>
           <h2 className="mt-8 text-4xl md:text-5xl font-light text-white tracking-tight max-w-2xl leading-tight">
-            ARTENA AI is built by ArtXpark.
+            AXVELA AI is built by ArtXpark.
           </h2>
         </FadeSection>
 
@@ -935,7 +935,7 @@ function AboutArtXpark() {
               engagement should be meaningful, intelligent, and deeply personal.
             </p>
             <p className="mt-5 text-[15px] text-[#888] leading-relaxed">
-              ARTENA AI is our core product — a platform that transforms how
+              AXVELA AI is our core product — a platform that transforms how
               people discover, record, and grow through culture.
             </p>
           </FadeSection>
@@ -1075,7 +1075,7 @@ function Team() {
 
   const aiBullets = [
     "PhD-level expertise in AI, multimodal systems, and data-driven modeling",
-    "Designs the learning-driven architecture of ARTENA",
+    "Designs the learning-driven architecture of AXVELA",
     "Leads the development of cultural intelligence systems and AI agents",
   ];
 
@@ -1259,7 +1259,7 @@ function Team() {
               <div style={{ marginTop: "20px", display: "flex", alignItems: "flex-start", gap: "10px" }}>
                 <span style={{ color: "#b4b4b4", flexShrink: 0 }}>→</span>
                 <p style={{ fontSize: "13px", color: "#0a0a0a", fontWeight: 500, lineHeight: 1.6 }}>
-                  Builds the core intelligence layer that powers ARTENA
+                  Builds the core intelligence layer that powers AXVELA
                 </p>
               </div>
             </FadeSection>
@@ -1346,10 +1346,10 @@ function Footer() {
     <footer className="py-10 px-6 border-t border-[#e5e5e5]">
       <div className="max-w-6xl mx-auto flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <span className="text-[12px] tracking-[0.18em] uppercase font-semibold text-[#0a0a0a]">
-          ARTENA AI
+          AXVELA AI
         </span>
         <div className="flex gap-8">
-          {["Why ARTENA", "Technology", "ArtXpark", "Team"].map((item) => (
+          {["Why AXVELA", "Technology", "ArtXpark", "Team"].map((item) => (
             <a
               key={item}
               href={`#${item.toLowerCase().replace(/\s/g, "")}`}
@@ -1376,7 +1376,7 @@ export default function Home() {
       </Nav>
       <Hero />
       <Divider />
-      <WhyArtena />
+      <WhyAxvela />
       <Divider />
       <ExperienceGrow />
       <Divider />

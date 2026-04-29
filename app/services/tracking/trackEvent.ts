@@ -1,6 +1,6 @@
 "use client";
 import type {
-  ARTENAEvent, TrackedEvent, CaptureMethod, SourceType, SessionContext,
+  AXVELAEvent, TrackedEvent, CaptureMethod, SourceType, SessionContext,
 } from "../../types/tracking";
 import { getOrCreateUserId } from "../../lib/tracking/userId";
 import { getDeviceInfo } from "../../lib/tracking/deviceInfo";
@@ -37,7 +37,7 @@ function defaultSessionContext(): SessionContext {
  *   - question_text only retained on ASK
  *   - artwork_id defaults to null
  */
-export function trackEvent(eventType: ARTENAEvent, opts: TrackOptions = {}): void {
+export function trackEvent(eventType: AXVELAEvent, opts: TrackOptions = {}): void {
   Promise.resolve().then(() => {
     const event: TrackedEvent = {
       user_id:           getOrCreateUserId(),

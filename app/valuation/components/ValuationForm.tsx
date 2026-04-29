@@ -51,7 +51,7 @@ export function ValuationForm({ onSubmit, loading, initialArtist = "" }: Valuati
   return (
     <form onSubmit={handleSubmit}>
       <div style={{ background: "#FFF", border: "1px solid #E8E8E8", padding: "36px 36px 28px" }}>
-        <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>ARTENA · Valuation Engine</span>
+        <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>AXVELA · Valuation Engine</span>
         <h2 style={{ fontSize: 22, fontWeight: 800, color: "#000", margin: "0 0 28px", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>
           Market Value Estimator
         </h2>

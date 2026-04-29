@@ -1,5 +1,5 @@
 /**
- * ARTENA AI — translation dictionaries.
+ * AXVELA AI — translation dictionaries.
  *
  * Add keys here as components migrate. Adding a new key requires
  * Korean + English entries; missing values fall back to the Korean
@@ -26,8 +26,13 @@ export const LANGUAGE_STORAGE_KEY = "artena_language";
 type Dictionary = Record<string, string>;
 
 const ko: Dictionary = {
+  /* ── brand (AXVELA rebrand) ────────────────────────────── */
+  "brand.name":      "AXVELA AI",
+  "brand.shortName": "AXVELA",
+  "brand.scanner":   "AXVELA Scanner",
+
   /* ── common ────────────────────────────────────────────── */
-  "common.app_name":         "ARTENA AI",
+  "common.app_name":         "AXVELA AI",
   "common.tagline":          "Cultural Intelligence AI",
   "common.save":             "저장",
   "common.saved":            "저장됨",
@@ -56,7 +61,7 @@ const ko: Dictionary = {
   "home.subtitle":          "AI 아트 분석",
   "home.scan_label":        "스캔",
   "home.headline":          "Just Show It.",
-  "home.sub":               "작품, 라벨, QR을 보여주면\nARTENA가 맥락과 시장을 읽습니다.",
+  "home.sub":               "작품, 라벨, QR을 보여주면\nAXVELA가 맥락과 시장을 읽습니다.",
   "home.smart_scan":        "Smart Scan",
   "home.smart_scan_badge":  "Smart Scan",
   "home.smart_scan_desc":   "작품, 설명, QR을 한 번에 인식합니다.",
@@ -79,7 +84,7 @@ const ko: Dictionary = {
   "report.estimated_range":     "Estimated Market Range",
   "report.insufficient_data":   "Insufficient market data",
   "report.unavailable":         "Unavailable",
-  "report.ask_artena":          "아르테나 AI에게 더 물어보기",
+  "report.ask_artena":          "AXVELA AI에게 더 물어보기",
   "report.deep_dive_caption":   "이 작품을 더 깊이 이해해보세요",
   "report.share_link_copied":   "링크가 복사되었습니다",
   "report.not_found_title":     "분석 결과를 찾을 수 없습니다",
@@ -89,7 +94,7 @@ const ko: Dictionary = {
   "match.candidates_title":     "유사한 작품을 찾았습니다",
   "match.candidates_subtitle":  "정확한 작품을 선택해주세요",
   "match.no_match_title":       "이 작품을 신뢰할 수 있는 기록과 매칭하지 못했습니다.",
-  "match.no_match_body":        "ARTENA는 신뢰 가능한 기록과 매칭된 결과만 보여드립니다.",
+  "match.no_match_body":        "AXVELA는 신뢰 가능한 기록과 매칭된 결과만 보여드립니다.",
   "match.try_another_image":    "다른 이미지로 시도",
   "match.search_by_text":       "작가명 또는 작품명으로 검색",
   "match.enter_manually":       "직접 작품 정보 입력",
@@ -102,7 +107,7 @@ const ko: Dictionary = {
   "my.tab_collections": "컬렉션",
   "my.tab_recent":      "최근",
   "my.view_analysis":   "분석 보기",
-  "my.record_label":    "기록 · ARTENA 분석",
+  "my.record_label":    "기록 · AXVELA 분석",
 
   /* ── collection (shared with my archive) ───────────────── */
   "collection.subtitle":  "저장한 작품과 컬렉션을 한 곳에서",
@@ -133,7 +138,7 @@ const ko: Dictionary = {
   /* ── exhibitions ───────────────────────────────────────── */
   "ex.page_name":           "전시 & 여행",
   "ex.headline":            "취향에 맞는 전시와 문화 공간을 찾아보세요.",
-  "ex.sub":                 "오늘의 도시부터 다음 여행지까지, ARTENA가 볼만한 곳을 추천합니다.",
+  "ex.sub":                 "오늘의 도시부터 다음 여행지까지, AXVELA가 볼만한 곳을 추천합니다.",
   "ex.tab_near":            "Near You",
   "ex.tab_travel":          "Travel",
   "ex.tab_alerts":          "Artist Alerts",
@@ -153,14 +158,52 @@ const ko: Dictionary = {
   "quick.ask":            "물어보기",
   "quick.save":           "저장",
   "quick.saved":          "저장됨",
+
+  /* ── cultural heritage intelligence (object-category dispatch) ── */
+  "cultural.heritage_intelligence":  "문화유산 인텔리전스",
+  "cultural.market_hidden":          "시장 정보가 적용되지 않는 객체입니다",
+  "cultural.period":                 "시대",
+  "cultural.region":                 "지역",
+  "cultural.material":               "재료",
+  "cultural.purpose":                "용도",
+  "cultural.historical_context":     "역사적 맥락",
+  "cultural.exhibition_info":        "전시 정보",
+  "cultural.original_label":         "원문 라벨",
+
+  /* ── QR intelligence (STEP 3) ─────────────────────────── */
+  "qr.app_detected_title":          "이 QR은 앱 다운로드 또는 안내 링크로 보입니다.",
+  "qr.app_detected_body":           "AXVELA 리포트는 생성되지 않습니다. 작품을 직접 촬영해 주세요.",
+  "qr.cannot_analyze_title":        "이 QR은 직접 분석할 수 없습니다.",
+  "qr.cannot_analyze_body":         "작품을 촬영하거나 설명 라벨을 촬영하면 분석을 계속할 수 있습니다.",
+  "qr.scan_artwork":                "작품 촬영하기",
+  "qr.scan_label_fallback":         "작품 설명 촬영하기",
+  "qr.search_by_text":              "텍스트로 검색하기",
+  "qr.multiple_detected":           "여러 개의 QR이 감지됨",
+  "qr.label_unknown":               "알 수 없는 QR",
+  "qr.label_artwork_info":          "작품 정보",
+  "qr.label_exhibition_info":       "전시 정보",
+  "qr.label_museum_guide":          "뮤지엄 가이드",
+  "qr.label_ios_app":               "iOS 앱",
+  "qr.label_android_app":           "Android 앱",
+
+  /* ── recognition confidence (STEP 2) ─────────────────── */
+  "recognition.partial_notice":          "일부 정보가 불확실합니다. 작품 라벨을 함께 촬영하면 정확도가 높아집니다.",
+  "recognition.uncertain_title":         "작품 정보를 정확히 확인하기 어렵습니다.",
+  "recognition.uncertain_description":   "작품 옆 설명 라벨을 촬영하면 더 정확하게 분석할 수 있습니다.",
+  "recognition.scan_label":              "작품 설명 촬영하기",
+  "recognition.search_by_text":          "텍스트로 검색하기",
+  "recognition.continue_anyway":         "그래도 현재 결과 보기",
+  "recognition.image_only_limited":      "이미지만으로는 정확한 식별이 어렵습니다.",
+  "recognition.label_to_improve":        "작품 설명 라벨을 촬영하면 정확도가 높아집니다.",
+  "scanner.scan_label_mode":             "S C A N   L A B E L",
   "profile.title":        "프로필",
-  "profile.tagline":      "나의 ARTENA",
+  "profile.tagline":      "나의 AXVELA",
   "profile.saved_count":  "저장한 작품",
   "profile.language":     "언어",
   "collection.empty":     "저장한 작품이 아직 없습니다",
 
   /* ── camera intelligence layer ─────────────────────────── */
-  "scanner.title":             "ARTENA Scanner",
+  "scanner.title":             "AXVELA Scanner",
   "scanner.permission_title":  "카메라 사용 권한",
   "scanner.permission_body":   "카메라 접근을 허용하면 작품, 설명, QR을 바로 인식할 수 있습니다.",
   "scanner.denied_title":      "카메라 접근이 차단되었습니다",
@@ -175,7 +218,7 @@ const ko: Dictionary = {
   "scanner.status_label_detected":   "설명을 읽고 있습니다",
   "scanner.status_qr_detected":      "QR 데이터 추출 중",
   "scanner.status_locking":          "대상 고정",
-  "scanner.status_analyzing":        "ARTENA 리포트 생성 중",
+  "scanner.status_analyzing":        "AXVELA 리포트 생성 중",
   "scanner.status_success":          "리포트 준비 완료",
   "scanner.status_failed":           "대상을 인식하지 못했습니다",
   "scanner.box_artwork":             "작품 감지됨",
@@ -197,7 +240,7 @@ const ko: Dictionary = {
   "label.view_original":   "원본 라벨 보기",
   "label.view_translated": "번역 보기",
 
-  /* ── Ask ARTENA chips (STEP 6) ─────────────────────────── */
+  /* ── Ask AXVELA chips (STEP 6) ─────────────────────────── */
   "ask.chip_major_works":     "대표작은?",
   "ask.chip_price_range":     "가격 range?",
   "ask.chip_similar_artists": "비슷한 작가?",
@@ -210,26 +253,37 @@ const ko: Dictionary = {
   "ask.chip_market_trend":    "시장 흐름은?",
   "ask.chip_concept":         "어떤 개념인가요?",
   "ask.chip_market_position": "시장 위치는?",
+  "ask.chip_cultural_period":   "어떤 시대의 것인가요?",
+  "ask.chip_cultural_material": "어떤 재료로 만들어졌나요?",
+  "ask.chip_cultural_meaning":  "역사적 의미는 무엇인가요?",
+  "ask.chip_cultural_label":    "원문 라벨을 설명해 주세요",
+  "ask.cultural_context_instead": "이 대상은 시장 가격보다 문화적 맥락으로 이해하는 것이 적합합니다.",
+  "ask.price_blocked_for_non_artwork": "이 대상은 시장 가격 정보가 적용되지 않습니다.",
   "ask.placeholder":          "이 작품에 대해 더 물어보세요",
   "ask.previously_explored":  "이전에 둘러본 흔적",
   "ask.view_previous_insights": "이전 인사이트 보기",
 
   /* ── gallery ───────────────────────────────────────────── */
-  "gallery.title":              "ARTENA 갤러리",
+  "gallery.title":              "AXVELA 갤러리",
   "gallery.subtitle":           "검증된 갤러리와 큐레이션 작품",
   "gallery.filter_all":         "전체",
   "gallery.filter_hold":        "홀드 가능",
   "gallery.filter_price":       "가격 공개",
   "gallery.galleries":          "갤러리",
-  "gallery.view_with":          "ARTENA AI로 보기",
+  "gallery.view_with":          "AXVELA AI로 보기",
   "gallery.inquire":            "문의하기",
   "gallery.ask":                "갤러리에 질문하기",
   "gallery.price_on_inquiry":   "가격은 문의 시 확인 가능",
 };
 
 const en: Dictionary = {
+  /* ── brand (AXVELA rebrand) ────────────────────────────── */
+  "brand.name":      "AXVELA AI",
+  "brand.shortName": "AXVELA",
+  "brand.scanner":   "AXVELA Scanner",
+
   /* ── common ────────────────────────────────────────────── */
-  "common.app_name":         "ARTENA AI",
+  "common.app_name":         "AXVELA AI",
   "common.tagline":          "Cultural Intelligence AI",
   "common.save":             "Save",
   "common.saved":            "Saved",
@@ -258,7 +312,7 @@ const en: Dictionary = {
   "home.subtitle":          "AI ART ANALYSIS",
   "home.scan_label":        "SCAN",
   "home.headline":          "Just Show It.",
-  "home.sub":               "Show ARTENA the artwork, label, or QR —\nit reads the context and the market.",
+  "home.sub":               "Show AXVELA the artwork, label, or QR —\nit reads the context and the market.",
   "home.smart_scan":        "Smart Scan",
   "home.smart_scan_badge":  "Smart Scan",
   "home.smart_scan_desc":   "Recognize artwork, label, or QR in one step.",
@@ -281,7 +335,7 @@ const en: Dictionary = {
   "report.estimated_range":     "Estimated Market Range",
   "report.insufficient_data":   "Insufficient market data",
   "report.unavailable":         "Unavailable",
-  "report.ask_artena":          "Ask ARTENA more",
+  "report.ask_artena":          "Ask AXVELA more",
   "report.deep_dive_caption":   "Go deeper into this work",
   "report.share_link_copied":   "Link copied",
   "report.not_found_title":     "We couldn't find that report.",
@@ -291,7 +345,7 @@ const en: Dictionary = {
   "match.candidates_title":     "We found similar artworks",
   "match.candidates_subtitle":  "Select the correct artwork to continue",
   "match.no_match_title":       "We couldn't match this artwork with high confidence.",
-  "match.no_match_body":        "ARTENA only shows results when the artwork can be matched to a reliable record.",
+  "match.no_match_body":        "AXVELA only shows results when the artwork can be matched to a reliable record.",
   "match.try_another_image":    "Try another image",
   "match.search_by_text":       "Search by artist or title",
   "match.enter_manually":       "Enter artwork details manually",
@@ -304,7 +358,7 @@ const en: Dictionary = {
   "my.tab_collections": "Collections",
   "my.tab_recent":      "Recent",
   "my.view_analysis":   "View Analysis",
-  "my.record_label":    "Record · ARTENA Analysis",
+  "my.record_label":    "Record · AXVELA Analysis",
 
   /* ── collection (shared with my archive) ───────────────── */
   "collection.subtitle":  "Your saved artworks, likes, and curated collections",
@@ -335,7 +389,7 @@ const en: Dictionary = {
   /* ── exhibitions ───────────────────────────────────────── */
   "ex.page_name":           "Exhibitions & Travel",
   "ex.headline":            "Find exhibitions and cultural places that match your taste.",
-  "ex.sub":                 "From your city to your next trip, ARTENA recommends what to see.",
+  "ex.sub":                 "From your city to your next trip, AXVELA recommends what to see.",
   "ex.tab_near":            "Near You",
   "ex.tab_travel":          "Travel",
   "ex.tab_alerts":          "Artist Alerts",
@@ -355,14 +409,52 @@ const en: Dictionary = {
   "quick.ask":            "Ask",
   "quick.save":           "Save",
   "quick.saved":          "Saved",
+
+  /* ── cultural heritage intelligence (object-category dispatch) ── */
+  "cultural.heritage_intelligence":  "Cultural Heritage Intelligence",
+  "cultural.market_hidden":          "Market intelligence does not apply to this object",
+  "cultural.period":                 "Period",
+  "cultural.region":                 "Region",
+  "cultural.material":               "Material",
+  "cultural.purpose":                "Purpose",
+  "cultural.historical_context":     "Historical Context",
+  "cultural.exhibition_info":        "Exhibition Info",
+  "cultural.original_label":         "Original Label",
+
+  /* ── QR intelligence (STEP 3) ─────────────────────────── */
+  "qr.app_detected_title":          "This QR appears to be an app download or guide link.",
+  "qr.app_detected_body":           "No AXVELA report will be generated. Try scanning the artwork directly.",
+  "qr.cannot_analyze_title":        "This QR cannot be analyzed directly.",
+  "qr.cannot_analyze_body":         "Scan the artwork or label to continue.",
+  "qr.scan_artwork":                "Scan Artwork",
+  "qr.scan_label_fallback":         "Scan Label",
+  "qr.search_by_text":              "Search by Text",
+  "qr.multiple_detected":           "Multiple QR codes detected",
+  "qr.label_unknown":               "Unknown QR",
+  "qr.label_artwork_info":          "Artwork Info",
+  "qr.label_exhibition_info":       "Exhibition Info",
+  "qr.label_museum_guide":          "Museum Guide",
+  "qr.label_ios_app":               "iOS App",
+  "qr.label_android_app":           "Android App",
+
+  /* ── recognition confidence (STEP 2) ─────────────────── */
+  "recognition.partial_notice":          "Some details may be uncertain. Scan the artwork label to improve accuracy.",
+  "recognition.uncertain_title":         "Artwork identification is uncertain.",
+  "recognition.uncertain_description":   "Scan the artwork label for a more accurate result.",
+  "recognition.scan_label":              "Scan Label",
+  "recognition.search_by_text":          "Search by Text",
+  "recognition.continue_anyway":         "Continue Anyway",
+  "recognition.image_only_limited":      "Image-only recognition is limited.",
+  "recognition.label_to_improve":        "Scan the artwork label to improve accuracy.",
+  "scanner.scan_label_mode":             "S C A N   L A B E L",
   "profile.title":        "Profile",
-  "profile.tagline":      "Your ARTENA",
+  "profile.tagline":      "Your AXVELA",
   "profile.saved_count":  "Saved works",
   "profile.language":     "Language",
   "collection.empty":     "Nothing saved yet",
 
   /* ── camera intelligence layer ─────────────────────────── */
-  "scanner.title":             "ARTENA Scanner",
+  "scanner.title":             "AXVELA Scanner",
   "scanner.permission_title":  "Camera Access",
   "scanner.permission_body":   "Allow camera access to read artwork, labels, and QR.",
   "scanner.denied_title":      "Camera access blocked",
@@ -377,7 +469,7 @@ const en: Dictionary = {
   "scanner.status_label_detected":   "Reading label information",
   "scanner.status_qr_detected":      "Extracting QR data",
   "scanner.status_locking":          "Target locked",
-  "scanner.status_analyzing":        "Building ARTENA report",
+  "scanner.status_analyzing":        "Building AXVELA report",
   "scanner.status_success":          "Report ready",
   "scanner.status_failed":           "Couldn't recognize the target",
   "scanner.box_artwork":             "Artwork detected",
@@ -399,7 +491,7 @@ const en: Dictionary = {
   "label.view_original":   "View Original Label",
   "label.view_translated": "View Translation",
 
-  /* ── Ask ARTENA chips (STEP 6) ─────────────────────────── */
+  /* ── Ask AXVELA chips (STEP 6) ─────────────────────────── */
   "ask.chip_major_works":     "Major works?",
   "ask.chip_price_range":     "Price range?",
   "ask.chip_similar_artists": "Similar artists?",
@@ -412,18 +504,24 @@ const en: Dictionary = {
   "ask.chip_market_trend":    "Market trend?",
   "ask.chip_concept":         "What's the concept?",
   "ask.chip_market_position": "Market position?",
+  "ask.chip_cultural_period":   "What period is this from?",
+  "ask.chip_cultural_material": "What material is it made of?",
+  "ask.chip_cultural_meaning":  "What is its historical meaning?",
+  "ask.chip_cultural_label":    "Explain the original label",
+  "ask.cultural_context_instead": "This object is better understood through cultural context rather than market price.",
+  "ask.price_blocked_for_non_artwork": "Market price intelligence does not apply to this object.",
   "ask.placeholder":          "Ask more about this work",
   "ask.previously_explored":  "Previously explored",
   "ask.view_previous_insights": "View previous insights",
 
   /* ── gallery ───────────────────────────────────────────── */
-  "gallery.title":              "ARTENA Gallery",
+  "gallery.title":              "AXVELA Gallery",
   "gallery.subtitle":           "Verified galleries and curated available works",
   "gallery.filter_all":         "All",
   "gallery.filter_hold":        "Hold Available",
   "gallery.filter_price":       "Price Visible",
   "gallery.galleries":          "Galleries",
-  "gallery.view_with":          "View with ARTENA AI",
+  "gallery.view_with":          "View with AXVELA AI",
   "gallery.inquire":            "Inquire",
   "gallery.ask":                "Ask Gallery",
   "gallery.price_on_inquiry":   "Price available upon inquiry",

@@ -4,7 +4,7 @@ import { ExternalLink } from "lucide-react";
 import type { PerformanceRow } from "../../services/galleryConsole/artworkPerformanceService";
 
 /**
- * Read-only preview of how the artwork looks inside the ARTENA user
+ * Read-only preview of how the artwork looks inside the AXVELA user
  * app's Quick Report — gives the gallery side a feel for what the
  * collector sees. Today this is a minimal stub; a future version can
  * pull the actual saved Report by reportId once Gallery Console
@@ -49,7 +49,7 @@ export function ReportPreviewPanel({ row }: PreviewProps) {
               margin: "0 0 6px",
               fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
             }}>
-              ARTENA AI
+              AXVELA AI
             </p>
             <p style={{
               fontSize: 18, fontWeight: 700, color: "#1C1A17",
@@ -73,8 +73,8 @@ export function ReportPreviewPanel({ row }: PreviewProps) {
         {/* Preview meta */}
         <div style={{ padding: "16px 18px" }}>
           <p style={{ margin: "0 0 12px", fontSize: 11.5, color: "#6F6F6F", lineHeight: 1.6 }}>
-            This is the surface ARTENA collectors see when they scan or search this artwork.
-            Question chips and Ask ARTENA route through the same analysis you see here.
+            This is the surface AXVELA collectors see when they scan or search this artwork.
+            Question chips and Ask AXVELA route through the same analysis you see here.
           </p>
 
           {row.artwork.publicShareSlug && (

@@ -99,7 +99,7 @@ export default function OnboardingTastePage() {
           textDecoration: "none",
         }}
       >
-        ARTENA AI
+        AXVELA AI
       </a>
 
       {/* Title */}

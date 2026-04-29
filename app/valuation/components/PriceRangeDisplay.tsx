@@ -28,7 +28,7 @@ export function PriceRangeDisplay({
     <div style={{ background: "#FFFFFF", border: "1px solid #E8E8E8", padding: "36px 36px 32px" }}>
       <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 28 }}>
         <div>
-          <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>ARTENA · Market Value Engine</span>
+          <span style={{ fontSize: 9, color: "#8A6A3F", letterSpacing: ".22em", textTransform: "uppercase" as const, display: "block", marginBottom: 6 }}>AXVELA · Market Value Engine</span>
           <h3 style={{ fontSize: 16, fontWeight: 700, color: "#000", margin: 0, fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>Estimated Market Value Range</h3>
         </div>
         <div style={{ textAlign: "right" as const }}>

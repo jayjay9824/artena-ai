@@ -35,7 +35,7 @@ export function NoMatch({ onTryAnotherImage, onSearchByText, onEnterManually }: 
           textDecoration: "none", marginBottom: 32,
         }}
       >
-        ARTENA AI
+        AXVELA AI
       </a>
 
       {/* Icon */}
@@ -63,7 +63,7 @@ export function NoMatch({ onTryAnotherImage, onSearchByText, onEnterManually }: 
         fontSize: 13, color: "#6F6F6F", lineHeight: 1.65,
         margin: "0 0 32px",
       }}>
-        ARTENA only shows results when the artwork can be matched to a reliable record.
+        AXVELA only shows results when the artwork can be matched to a reliable record.
       </p>
 
       {/* Actions */}

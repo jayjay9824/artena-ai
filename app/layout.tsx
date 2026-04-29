@@ -11,13 +11,20 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "ARTENA AI — Cultural Intelligence",
+  title: "AXVELA AI — Cultural Intelligence",
   description:
-    "ARTENA AI is a learning-driven cultural intelligence platform for art, culture, artists, exhibitions, and taste learning.",
+    "AXVELA AI is a learning-driven cultural intelligence platform for art, culture, artists, exhibitions, and taste learning.",
+  applicationName: "AXVELA AI",
   openGraph: {
-    title: "ARTENA AI",
+    title: "AXVELA AI",
+    siteName: "AXVELA AI",
     description: "Cultural Intelligence, Refined.",
     type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "AXVELA AI",
+    description: "Cultural Intelligence, Refined.",
   },
 };
 

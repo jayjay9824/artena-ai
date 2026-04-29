@@ -27,9 +27,9 @@ function ArtworkImage({ url, title, artist }: { url: string | null; title: strin
 
 /* ── Verified badge (in gallery block) ─────────────────────────── */
 const BADGE_META: Record<VerifiedTier, { label: string; color: string }> = {
-  approved: { label: "ARTENA Verified Gallery", color: "#8A6A3F" },
+  approved: { label: "AXVELA Verified Gallery", color: "#8A6A3F" },
   premium:  { label: "Premium Gallery",         color: "#0D0D0D" },
-  partner:  { label: "ARTENA Partner Gallery",  color: "#B5860A" },
+  partner:  { label: "AXVELA Partner Gallery",  color: "#B5860A" },
 };
 
 function GalleryBadge({ tier }: { tier: VerifiedTier | false }) {
@@ -223,7 +223,7 @@ export function ListingDetail({ listing, userTier, onBack, onViewGallery }: List
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
             <path d="M9 2L4 7L9 12" stroke="#888" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          ARTENA Gallery
+          AXVELA Gallery
         </button>
       </div>
 

@@ -75,7 +75,7 @@ export function GalleryDashboard({ galleryId, galleryName }: DashboardProps) {
               fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
             }}
           >
-            ARTENA AI · Gallery Console
+            AXVELA AI · Gallery Console
           </a>
           <h1 style={{
             fontSize: 28, fontWeight: 700, color: "#1C1A17",
@@ -90,7 +90,7 @@ export function GalleryDashboard({ galleryId, galleryName }: DashboardProps) {
               fontSize: 13, color: "#6F6F6F", margin: 0,
               letterSpacing: ".005em",
             }}>
-              Interest, intent, and lead signals from ARTENA collectors.
+              Interest, intent, and lead signals from AXVELA collectors.
             </p>
             <a
               href="/console/bulk-upload"

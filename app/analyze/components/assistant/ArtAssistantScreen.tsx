@@ -5,7 +5,9 @@ import type { MarketIntelligenceData } from "../MarketIntelligenceReport";
 import type { ChatMessage, QuestionType } from "../../../types/assistant";
 import { trackEvent, makeArtworkId } from "../../lib/analytics";
 import { pickAskChips } from "../../lib/suggestedQuestions";
-import { trackEvent as trackArtena } from "../../../services/tracking/trackEvent";
+import { deriveAnalysisResult } from "../../lib/objectCategory";
+import { deriveRecognition } from "../../lib/recognition";
+import { trackEvent as trackAxvela } from "../../../services/tracking/trackEvent";
 import { useAskHistory } from "../../hooks/useAskHistory";
 import { useLanguage } from "../../../i18n/useLanguage";
 
@@ -103,7 +105,7 @@ export function ArtAssistantScreen({
   }));
 
   /* BLOCK B — every Ask is tied to artwork_id. Used for both the
-     legacy analytics surface and the PART 5 ARTENA tracker. */
+     legacy analytics surface and the PART 5 AXVELA tracker. */
   const artworkId = useMemo(
     () => makeArtworkId({
       title:  analysis.title,
@@ -112,6 +114,20 @@ export function ArtAssistantScreen({
     }),
     [analysis.title, analysis.artist, analysis.year],
   );
+
+  /* STEP 4 — Object metadata for the AI system prompt. Lets the
+     server gate market answers and add an uncertainty caveat
+     without exposing internal Claude calls to the client. */
+  const askContext = useMemo(() => {
+    const dispatch    = deriveAnalysisResult(analysis);
+    const recognition = deriveRecognition(analysis);
+    return {
+      objectCategory:      dispatch.objectCategory,
+      isMarketRelevant:    dispatch.isMarketRelevant,
+      marketDataAvailable: dispatch.marketDataAvailable,
+      recognitionStatus:   recognition.recognitionStatus,
+    };
+  }, [analysis]);
 
   /* BLOCK C — past Q/A for this artwork (frozen at mount). New
      exchanges from this session persist via append() but stay out of
@@ -125,7 +141,7 @@ export function ArtAssistantScreen({
     if (historyExpandedRef.current) return;
     if (past.length === 0) return;
     historyExpandedRef.current = true;
-    trackArtena("HISTORY_VIEW_EXPANDED", { artwork_id: artworkId });
+    trackAxvela("HISTORY_VIEW_EXPANDED", { artwork_id: artworkId });
   }, [past.length, artworkId]);
 
   /* BLOCK D — HISTORY_SCROLL_DEPTH fires once when the past header
@@ -141,7 +157,7 @@ export function ArtAssistantScreen({
       for (const entry of entries) {
         if (entry.isIntersecting && !scrollLoggedRef.current) {
           scrollLoggedRef.current = true;
-          trackArtena("HISTORY_SCROLL_DEPTH", { artwork_id: artworkId });
+          trackAxvela("HISTORY_SCROLL_DEPTH", { artwork_id: artworkId });
           obs.disconnect();
           break;
         }
@@ -156,7 +172,7 @@ export function ArtAssistantScreen({
   useEffect(() => {
     if (askOpenedRef.current) return;
     askOpenedRef.current = true;
-    trackArtena("ASK_OPEN", { artwork_id: artworkId });
+    trackAxvela("ASK_OPEN", { artwork_id: artworkId });
   }, [artworkId]);
 
   /* BLOCK B — ASK_RESPONSE_VIEWED whenever an assistant message is
@@ -167,7 +183,7 @@ export function ArtAssistantScreen({
     if (!lastAssistant) return;
     if (lastAssistantSeenRef.current === lastAssistant.id) return;
     lastAssistantSeenRef.current = lastAssistant.id;
-    trackArtena("ASK_RESPONSE_VIEWED", { artwork_id: artworkId });
+    trackAxvela("ASK_RESPONSE_VIEWED", { artwork_id: artworkId });
   }, [messages, artworkId]);
 
   // Lock body scroll while open
@@ -220,20 +236,20 @@ export function ArtAssistantScreen({
       trackEvent("ai_suggested_chip_used", { artworkId, text: trimmed, questionType: type });
     }
 
-    /* BLOCK B — ARTENA tracker (PART 5 schema). Carries artwork_id +
+    /* BLOCK B — AXVELA tracker (PART 5 schema). Carries artwork_id +
        question_text on every Ask edge so intent rolls up by canonical
        work. FOLLOW_UP_ASK detection counts existing user messages —
        if there's already at least one, this is a follow-up. */
     const userMessagesSoFar = messages.filter(m => m.role === "user").length;
     const isFollowUp        = userMessagesSoFar >= 1;
     if (isFollowUp) {
-      trackArtena("FOLLOW_UP_ASK", { artwork_id: artworkId, question_text: trimmed });
+      trackAxvela("FOLLOW_UP_ASK", { artwork_id: artworkId, question_text: trimmed });
     } else if (fromSuggested) {
-      trackArtena("SUGGESTED_QUESTION_CLICKED", { artwork_id: artworkId, question_text: trimmed });
+      trackAxvela("SUGGESTED_QUESTION_CLICKED", { artwork_id: artworkId, question_text: trimmed });
     } else {
-      trackArtena("CUSTOM_QUESTION_SUBMITTED", { artwork_id: artworkId, question_text: trimmed });
+      trackAxvela("CUSTOM_QUESTION_SUBMITTED", { artwork_id: artworkId, question_text: trimmed });
     }
-    trackArtena("ASK", { artwork_id: artworkId, question_text: trimmed });
+    trackAxvela("ASK", { artwork_id: artworkId, question_text: trimmed });
 
     const nextMessages = [...messages, userMsg];
     setMessages(nextMessages);
@@ -249,6 +265,7 @@ export function ArtAssistantScreen({
           analysis,
           reportData: reportData ?? null,
           messages: nextMessages.map(m => ({ role: m.role, content: m.content })),
+          context: askContext,
         }),
       });
 
@@ -292,7 +309,7 @@ export function ArtAssistantScreen({
       setIsStreaming(false);
       setStreaming("");
     }
-  }, [messages, isStreaming, analysis, reportData, artworkId, append]);
+  }, [messages, isStreaming, analysis, reportData, artworkId, append, askContext]);
 
   /* ── Auto-send the chip-tapped question on mount ────────────────────── */
   // Guarded by a ref so React strict-mode double-mount doesn't double-send.
@@ -409,7 +426,7 @@ export function ArtAssistantScreen({
             </span>
           </div>
 
-          {/* ARTENA logo line — clickable, links to home */}
+          {/* AXVELA logo line — clickable, links to home */}
           <a
             href="/"
             style={{
@@ -420,7 +437,7 @@ export function ArtAssistantScreen({
               fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
             }}
           >
-            ARTENA AI · Ask
+            AXVELA AI · Ask
           </a>
         </div>
 

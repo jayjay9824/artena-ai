@@ -68,7 +68,7 @@ function ValuationPageInner() {
       {/* Nav */}
       <div style={{ background: "#FFF", borderBottom: "1px solid #EBEBEB", padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
         <a href="/" style={{ textDecoration: "none" }}>
-          <span style={{ fontSize: 13, fontWeight: 800, color: "#000", letterSpacing: ".04em", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>ARTENA</span>
+          <span style={{ fontSize: 13, fontWeight: 800, color: "#000", letterSpacing: ".04em", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>AXVELA</span>
         </a>
         <div style={{ display: "flex", gap: 28 }}>
           <a href="/analyze" style={{ fontSize: 11, color: "#888", textDecoration: "none", letterSpacing: ".06em" }}>ANALYZE</a>
@@ -86,7 +86,7 @@ function ValuationPageInner() {
             Market Value Estimator
           </h1>
           <p style={{ fontSize: 14, color: "#888", margin: 0, lineHeight: 1.7, maxWidth: 560 }}>
-            Powered by ARTENA's Explainable Market Intelligence Engine — combining 40+ comparable sales across Seoul, New York, London, and Hong Kong with AI-driven analysis.
+            Powered by AXVELA's Explainable Market Intelligence Engine — combining 40+ comparable sales across Seoul, New York, London, and Hong Kong with AI-driven analysis.
           </p>
         </div>
 
@@ -149,7 +149,7 @@ function ValuationPageInner() {
 
               <div style={{ paddingTop: 8, display: "flex", justifyContent: "center" }}>
                 <span style={{ fontSize: 10, color: "#CCC", letterSpacing: ".08em" }}>
-                  ARTENA Intelligence Layer · For informational purposes only · Not financial advice
+                  AXVELA Intelligence Layer · For informational purposes only · Not financial advice
                 </span>
               </div>
             </div>
