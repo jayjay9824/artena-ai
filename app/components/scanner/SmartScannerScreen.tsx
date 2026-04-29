@@ -12,6 +12,7 @@ import { CameraPreview } from "./CameraPreview";
 import { FocusFrame, type FocusFrameState } from "./FocusFrame";
 import { QRPurposeOverlay } from "./QRPurposeOverlay";
 import { QRNoticeSheet } from "./QRNoticeSheet";
+import { ConfirmCaptureCard } from "./ConfirmCaptureCard";
 import type {
   ScanSuccessPayload, ScannerState, QRDetection,
 } from "../../types/scanner";
@@ -98,8 +99,8 @@ export function SmartScannerScreen({
   const { t } = useLanguage();
   const { permissionStatus, requestPermission } = useCameraPermission();
   const { videoRef, startCamera, stopCamera, isCameraActive } = useCameraLifecycle();
-  const { scannerState, detectionTarget, confidence, forceCapture } =
-    useSmartScanner({ mockDetectionEnabled: true });
+  const { scannerState, detectionTarget, confidence, forceCapture, reset } =
+    useSmartScanner({ mockDetectionEnabled: true, requireConfirmation: true });
   const lowLight = useLowLightDetection(videoRef, isCameraActive);
 
   const [flashOn,      setFlashOn]      = useState(false);
@@ -260,6 +261,23 @@ export function SmartScannerScreen({
     capturedViaTapRef.current = true;
     setTapToCapture(false);
     forceCapture();
+  };
+
+  /* User-confirmed analyze (confirm-before-analyze gate). The scanner
+     paused at the detected state waiting for this tap. From here,
+     forceCapture() drives locking → success → existing capture
+     pipeline (frame freeze, haptic, transition, onScanSuccess). */
+  const handleConfirmAnalyze = () => {
+    logScannerEvent("user_confirmed_analyze", { target: detectionTarget });
+    forceCapture();
+  };
+
+  /* Rescan — drop the current detection and re-run the cycle. */
+  const handleRescan = () => {
+    logScannerEvent("user_rescan_requested");
+    successHandledRef.current = false;
+    capturedViaTapRef.current = false;
+    reset();
   };
 
   /**
@@ -511,6 +529,22 @@ export function SmartScannerScreen({
           />
         </>
       )}
+
+      {/* Confirm-before-analyze. Surface the gate while the scanner
+          is paused at a detected state. Hidden during exit / capture. */}
+      <AnimatePresence>
+        {(scannerState === "artwork_detected" ||
+          scannerState === "label_detected"   ||
+          scannerState === "qr_detected") &&
+          !isExiting && !frozenFrame && qrDetections.length === 0 && (
+          <ConfirmCaptureCard
+            key="confirm-capture"
+            onConfirm={handleConfirmAnalyze}
+            onRescan={handleRescan}
+            confidence={confidence}
+          />
+        )}
+      </AnimatePresence>
 
       {/* STEP 3 — multi-QR AR overlay. Caller feeds qrDetections;
           mock cycle leaves it empty so this stays inert by default. */}

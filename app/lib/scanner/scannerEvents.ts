@@ -19,7 +19,11 @@ export type ScannerEvent =
   | "target_locked"
   | "detection_failed"
   | "fallback_selected"
-  | "quick_view_generated";
+  | "quick_view_generated"
+  /* Confirm-before-analyze gate. Tracks whether the user actively
+     opted into analysis vs. recomposed and rescanned. */
+  | "user_confirmed_analyze"
+  | "user_rescan_requested";
 
 export function logScannerEvent(
   event: ScannerEvent,

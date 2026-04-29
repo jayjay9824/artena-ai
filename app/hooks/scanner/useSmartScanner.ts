@@ -18,6 +18,14 @@ interface UseSmartScannerOptions {
    * its own pacing and always succeeds).
    */
   failTimeoutMs?: number;
+  /**
+   * Confirm-before-analyze: when true, the timeline stops at the
+   * detected state and never auto-progresses to locking/success.
+   * The caller surfaces a confirm UI and drives the rest of the
+   * pipeline via forceCapture(). When false (default), the cycle
+   * runs end-to-end as before.
+   */
+  requireConfirmation?: boolean;
 }
 
 interface UseSmartScannerReturn {
@@ -72,7 +80,11 @@ const CONFIDENCE_MAX = 95;
 /* ── Hook ─────────────────────────────────────────────────────────── */
 
 export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScannerReturn {
-  const { mockDetectionEnabled = false, failTimeoutMs = 5000 } = opts;
+  const {
+    mockDetectionEnabled = false,
+    failTimeoutMs        = 5000,
+    requireConfirmation  = false,
+  } = opts;
 
   const [scannerState,    setScannerState]    = useState<ScannerState>("idle");
   const [detectionTarget, setDetectionTarget] = useState<DetectionTarget>("none");
@@ -92,8 +104,17 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
     setDetectionTarget("none");
     setConfidence(0);
 
+    // Confirm-before-analyze: pause the timeline at the first
+    // detected state. The caller surfaces a confirm UI; tapping
+    // it calls forceCapture() which drives locking → success.
+    const steps = requireConfirmation
+      ? MOCK_TIMELINE.filter(s =>
+          s.state === "detecting" || s.state === "artwork_detected"
+        )
+      : MOCK_TIMELINE;
+
     const timers: ReturnType<typeof setTimeout>[] = [];
-    for (const step of MOCK_TIMELINE) {
+    for (const step of steps) {
       const t = setTimeout(() => {
         setScannerState(step.state);
         setDetectionTarget(step.target);
@@ -106,7 +127,7 @@ export function useSmartScanner(opts: UseSmartScannerOptions = {}): UseSmartScan
       timers.forEach(clearTimeout);
       timersRef.current = timersRef.current.filter(t => !timers.includes(t));
     };
-  }, [mockDetectionEnabled, cycleId]);
+  }, [mockDetectionEnabled, cycleId, requireConfirmation]);
 
   /* Confidence jitter — only while a detection state is active.
      Spec: 70..95, one decimal, subtle motion. Frozen on locking+. */

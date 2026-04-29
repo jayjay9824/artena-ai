@@ -196,6 +196,13 @@ const ko: Dictionary = {
   "recognition.image_only_limited":      "이미지만으로는 정확한 식별이 어렵습니다.",
   "recognition.label_to_improve":        "작품 설명 라벨을 촬영하면 정확도가 높아집니다.",
   "scanner.scan_label_mode":             "S C A N   L A B E L",
+
+  /* ── confirm-before-analyze (camera) ───────────────────── */
+  "scanner.confirm_caption":             "작품 감지됨",
+  "scanner.confirm_question":            "이 작품을 분석할까요?",
+  "scanner.confirm_cta":                 "분석 시작",
+  "scanner.confirm_rescan":              "다시 스캔",
+
   "profile.title":        "프로필",
   "profile.tagline":      "나의 AXVELA",
   "profile.saved_count":  "저장한 작품",
@@ -447,6 +454,13 @@ const en: Dictionary = {
   "recognition.image_only_limited":      "Image-only recognition is limited.",
   "recognition.label_to_improve":        "Scan the artwork label to improve accuracy.",
   "scanner.scan_label_mode":             "S C A N   L A B E L",
+
+  /* ── confirm-before-analyze (camera) ───────────────────── */
+  "scanner.confirm_caption":             "Artwork detected",
+  "scanner.confirm_question":            "Analyze this artwork?",
+  "scanner.confirm_cta":                 "Analyze",
+  "scanner.confirm_rescan":              "Rescan",
+
   "profile.title":        "Profile",
   "profile.tagline":      "Your AXVELA",
   "profile.saved_count":  "Saved works",
