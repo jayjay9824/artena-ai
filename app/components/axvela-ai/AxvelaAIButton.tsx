@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import { motion } from "framer-motion";
+import { AnimatePresence, motion } from "framer-motion";
 import { Sparkles } from "lucide-react";
 import { useLanguage } from "../../i18n/useLanguage";
 
@@ -9,22 +9,31 @@ const FONT_HEAD = "'KakaoBigSans', -apple-system, BlinkMacSystemFont, 'SF Pro Di
 const STYLE_ID = "axvela-ai-cta-styles";
 
 /**
- * Phase 1 idle styling — "premium AI mode entry", not a button.
+ * Phase 1 styling + Phase 2 press / ripple / activation feedback.
  *
- *   • Dark glass body (rgba 15/15/20 .78 + 18px backdrop blur)
- *   • Hairline violet border (rgba 168/85/247 .35)
- *   • Subtle top-down purple highlight gradient layered onto the
- *     dark glass — gives the material a faint sheen without
- *     turning into a neon rectangle
- *   • Three-layer shadow:
- *       - a deep drop (0 12px 36px black .45) for floating weight
- *       - a soft violet halo (0 0 26px violet .26) for life
- *       - an inner top highlight (inset 0 1px 0 white .08) for the
- *         hand-finished glass edge
+ * Idle (Phase 1):
+ *   • Dark glass body, hairline violet border, three-layer shadow
+ *   • aiMaterialBreath keyframe — scale 1 → 1.012 → 1 over 4s
  *
- * The aiMaterialBreath keyframe animates scale 1 → 1.012 → 1
- * along with a subtle violet halo intensification, four-second
- * cycle. Reads as "living glass material" not a pulsing CTA.
+ * Press (Phase 2):
+ *   • whileTap scale 0.96 (ride atop the breath transform — framer
+ *     wins during press, the keyframe resumes on release)
+ *   • aiPressFlash class layers a momentary stronger violet halo
+ *     so the press registers visually within ~140ms
+ *
+ * Ripple (Phase 2):
+ *   • One-shot expanding violet ring keyed off rippleKey, scale
+ *     0.9 → 2.0, opacity 0.45 → 0, 600ms ease-out
+ *
+ * Activation handoff (Phase 2):
+ *   • While the parent's isModeOn is true the button accepts no
+ *     further clicks — `disabled` short-circuits onClick. The
+ *     visual styling is unchanged so the button reads as the
+ *     transition source, the still center of the dim/blur shift.
+ *
+ * Reduced motion:
+ *   • prefers-reduced-motion: reduce → idle keyframe + ripple are
+ *     suppressed entirely.
  */
 const KEYFRAMES = `
 @keyframes aiMaterialBreath {
@@ -46,12 +55,11 @@ const KEYFRAMES = `
 
 .axvela-ai-cta {
   animation: aiMaterialBreath 4s ease-in-out infinite;
-  /* Initial shadow so the button reads as glass even before
-     the keyframe's first tick lands. */
   box-shadow:
     0 12px 36px rgba(0, 0, 0, 0.45),
     0 0 26px rgba(168, 85, 247, 0.26),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  will-change: transform, box-shadow;
 }
 .axvela-ai-cta:hover {
   border-color: rgba(168, 85, 247, 0.55);
@@ -61,20 +69,51 @@ const KEYFRAMES = `
   outline-offset: 4px;
 }
 
+/* Press flash — momentary halo bump while finger is down. The
+   transition smooths re-entry to the breath-driven shadow on
+   release; box-shadow is high specificity vs. the keyframe. */
+.axvela-ai-cta--pressed {
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.55),
+    0 0 44px rgba(168, 85, 247, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.12) !important;
+  transition: box-shadow 140ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .axvela-ai-cta {
     animation: none !important;
     transform: none !important;
+    will-change: auto;
   }
+  .axvela-ai-ripple { display: none !important; }
 }
 `;
 
 interface Props {
-  onOpen: () => void;
+  /** Activation entrypoint. Wired to the parent's "AI mode" state
+   *  machine; the parent decides whether to start the transition,
+   *  open an overlay, etc. */
+  onActivate: () => void;
+  /** True while activation is in progress or AI mode is active.
+   *  The button visuals are unchanged so it stays the focal point,
+   *  but onClick is short-circuited to prevent re-entry. */
+  disabled?: boolean;
+  /** Bumped by the parent on each activation request so child
+   *  ripple can re-key in sync with the orb ripple. Falls back to
+   *  the local press counter if not supplied. */
+  rippleKey?: number;
 }
 
-export function AxvelaAIButton({ onOpen }: Props) {
+export function AxvelaAIButton({ onActivate, disabled = false, rippleKey }: Props) {
   const { t } = useLanguage();
+
+  const [isPressed,    setIsPressed]    = React.useState(false);
+  const [localRippleK, setLocalRippleK] = React.useState(0);
+
+  // Use the parent's rippleKey when provided so the orb + button
+  // ripples fire on the same React key, otherwise track locally.
+  const effectiveRippleKey = rippleKey ?? localRippleK;
 
   React.useEffect(() => {
     if (typeof document === "undefined") return;
@@ -85,25 +124,34 @@ export function AxvelaAIButton({ onOpen }: Props) {
     document.head.appendChild(tag);
   }, []);
 
+  const handleClick = () => {
+    if (disabled) return;
+    setLocalRippleK(k => k + 1);
+    onActivate();
+  };
+
+  const className = `axvela-ai-cta${isPressed ? " axvela-ai-cta--pressed" : ""}`;
+
   return (
     <motion.button
       type="button"
       aria-label="Open AXVELA AI assistant"
-      onClick={onOpen}
-      className="axvela-ai-cta"
+      onClick={handleClick}
+      onTapStart={() => setIsPressed(true)}
+      onTap={() => setIsPressed(false)}
+      onTapCancel={() => setIsPressed(false)}
+      className={className}
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay: 0.6, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-      whileTap={{ scale: 0.985 }}
+      whileTap={{ scale: 0.96, transition: { duration: 0.13, ease: "easeOut" } }}
+      disabled={disabled}
       style={{
         position:         "relative",
         zIndex:           10,
         height:           56,
         minWidth:         160,
         padding:          "0 32px",
-        // Subtle top-down purple highlight stacked on top of the
-        // dark glass color — gives the material a faint inner sheen
-        // without ever crossing into neon territory.
         background:
           "linear-gradient(180deg, rgba(168,85,247,0.10) 0%, rgba(168,85,247,0) 38%), " +
           "rgba(15, 15, 20, 0.78)",
@@ -111,7 +159,7 @@ export function AxvelaAIButton({ onOpen }: Props) {
         WebkitBackdropFilter:  "blur(18px) saturate(115%)",
         border:           "1px solid rgba(168, 85, 247, 0.35)",
         borderRadius:     9999,
-        cursor:           "pointer",
+        cursor:           disabled ? "default" : "pointer",
         color:            "#FFFFFF",
         fontFamily:       FONT_HEAD,
         WebkitTapHighlightColor: "transparent",
@@ -119,6 +167,9 @@ export function AxvelaAIButton({ onOpen }: Props) {
         alignItems:       "center",
         justifyContent:   "center",
         gap:              10,
+        // The button itself is the ripple anchor — keep it relative
+        // so the absolute ripple element sits inside the visual
+        // bounds.
       }}
     >
       <Sparkles
@@ -136,6 +187,29 @@ export function AxvelaAIButton({ onOpen }: Props) {
       }}>
         {t("axvela.cta.title")}
       </span>
+
+      {/* Ripple — one-shot violet ring expanding outward. Re-keyed
+          per click so AnimatePresence cleanly tears down + remounts. */}
+      <AnimatePresence>
+        {effectiveRippleKey > 0 && (
+          <motion.span
+            key={effectiveRippleKey}
+            className="axvela-ai-ripple"
+            initial={{ scale: 0.9, opacity: 0.45 }}
+            animate={{ scale: 2.0, opacity: 0    }}
+            exit={{    opacity: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            style={{
+              position:     "absolute",
+              inset:        -2,
+              borderRadius: 9999,
+              border:       "1.5px solid rgba(168, 85, 247, 0.6)",
+              pointerEvents: "none",
+              willChange:    "transform, opacity",
+            }}
+          />
+        )}
+      </AnimatePresence>
     </motion.button>
   );
 }

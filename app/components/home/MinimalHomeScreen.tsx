@@ -1,5 +1,6 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ScanOrb } from "./ScanOrb";
 import { HomeDock } from "./HomeDock";
 import { OceanBackground } from "./OceanBackground";
@@ -18,6 +19,11 @@ const TEXT = {
   profile:    "Profile",
 } as const;
 
+/* Phase 2 activation choreography — single duration drives every
+   surface so the home reads as one coordinated mode shift. */
+const ACTIVATE_MS  = 600;
+const ORB_RIPPLE_MS = 800;
+
 interface Props {
   onOpenScanner:  () => void;
   onCollection:   () => void;
@@ -28,18 +34,26 @@ interface Props {
 }
 
 /**
- * AXVELA AI — full home replacement.
+ * AXVELA AI — minimal home with Phase 2 activation transition.
  *
- * Four blocks only:
- *   1. Top brand    "AXVELA" + "AI ART ANALYSIS"
- *   2. Scan orb     centered black 240px CTA inside 380px dotted ring
- *   3. Home dock    Collection · Camera (FAB) · Profile
- *   4. Camera FAB   mirrors the Scan orb route
+ *   1. Top brand mark
+ *   2. ScanOrb + AXVELA AI pill stack
+ *   3. Bottom dock (Collection · Profile)
  *
- * Replaces the legacy card-based Home + 5-tab BottomNav. Existing
- * features (upload / text search / QR) move to the Scanner surface;
- * underlying routes (/collection, /my, /report, /taste, etc) remain
- * reachable.
+ * AI mode state machine (Phase 2):
+ *
+ *   idle           — default; aiMaterialBreath on the pill
+ *   isActivating   — 600ms transition window; ripple fires, ocean
+ *                    blurs/dims, orb scales up + fades, purple haze
+ *                    overlays the surface
+ *   isAIMode       — terminal "mode is on" flag; today we use it to
+ *                    hand off to the existing chat modal. The home
+ *                    stays in the dimmed/blurred state behind the
+ *                    modal so reopening reads as a continuation.
+ *                    Reset on modal close.
+ *
+ * The chat modal is the current "AI Overlay" — Phase 3 will replace
+ * this with the dedicated overlay surface.
  */
 export function MinimalHomeScreen({
   onOpenScanner,
@@ -47,10 +61,19 @@ export function MinimalHomeScreen({
   onProfile,
   onFileSelected,
 }: Props) {
-  /* AXVELA AI floating launcher — opens a context-free chat modal
-     for general art-domain questions. Lives only on the home; the
-     scanner / report / quick-view surfaces don't render it. */
-  const [axvelaOpen, setAxvelaOpen] = useState(false);
+  /* Modal mount state (existing). */
+  const [axvelaOpen,   setAxvelaOpen]   = useState(false);
+
+  /* Phase 2 activation state machine. */
+  const [isActivating, setIsActivating] = useState(false);
+  const [isAIMode,     setIsAIMode]     = useState(false);
+  const [rippleKey,    setRippleKey]    = useState(0);
+
+  /* Track the activation timer so unmount tears it down cleanly. */
+  const activateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (activateTimerRef.current) clearTimeout(activateTimerRef.current);
+  }, []);
 
   /* Invisible clipboard-paste path. Power users still get instant
      analyze when pasting a screenshot anywhere on the home surface. */
@@ -70,6 +93,51 @@ export function MinimalHomeScreen({
     return () => window.removeEventListener("paste", handler);
   }, [onFileSelected]);
 
+  const handleActivate = () => {
+    if (isActivating || isAIMode) return;
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+        navigator.vibrate(10);
+      }
+    } catch { /* unsupported — silent */ }
+
+    setRippleKey(k => k + 1);
+    setIsActivating(true);
+    activateTimerRef.current = setTimeout(() => {
+      setIsActivating(false);
+      setIsAIMode(true);
+      setAxvelaOpen(true);  // hands off to existing chat overlay
+      activateTimerRef.current = null;
+    }, ACTIVATE_MS);
+  };
+
+  const handleModalClose = () => {
+    setAxvelaOpen(false);
+    // Drop AI mode so the button reactivates and the home returns
+    // to its idle state. Phase 3 may keep AI mode "on" longer.
+    setIsAIMode(false);
+  };
+
+  // Drive every surface from one boolean — keeps the choreography
+  // synced even if state transitions race.
+  const isModeOn = isActivating || isAIMode;
+
+  /* Animation knob bundles per surface. Centralizing them here
+     keeps the JSX legible and makes the choreography easy to tune. */
+  const oceanAnim = isModeOn
+    ? { scale: 1.05, filter: "blur(12px)", opacity: 0.40 }
+    : { scale: 1,    filter: "blur(0px)",  opacity: 1.00 };
+
+  const orbAnim = isModeOn
+    ? { scale: 1.10, opacity: 0.65 }
+    : { scale: 1,    opacity: 1    };
+
+  const dimAnim = isModeOn
+    ? { opacity: 0.35 }
+    : { opacity: 1    };
+
+  const transition = { duration: ACTIVATE_MS / 1000, ease: [0.16, 1, 0.3, 1] as const };
+
   return (
     <div style={{
       width:        "100%",
@@ -85,13 +153,27 @@ export function MinimalHomeScreen({
       alignItems:   "center",
       paddingBottom: "calc(140px + env(safe-area-inset-bottom, 0px))",
     }}>
-      {/* ── 0. Aerial ocean background (z-index 0) ──────────────── */}
-      <OceanBackground />
+      {/* ── 0. Aerial ocean background — wrapped so activation can
+              scale + blur + dim it as one unit. ────────────────── */}
+      <motion.div
+        animate={oceanAnim}
+        transition={transition}
+        style={{
+          position: "absolute",
+          inset:    0,
+          zIndex:   0,
+          willChange: "transform, filter, opacity",
+        }}
+      >
+        <OceanBackground />
+      </motion.div>
 
       {/* ── 1. Top brand mark (logo, no wordmark text) ──────────── */}
-      <a
+      <motion.a
         href="/"
         aria-label="AXVELA AI"
+        animate={dimAnim}
+        transition={transition}
         style={{
           display:        "block",
           textDecoration: "none",
@@ -99,6 +181,7 @@ export function MinimalHomeScreen({
           position:       "relative" as const,
           zIndex:         1,
           lineHeight:     0,
+          willChange:     "opacity",
         }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -112,19 +195,19 @@ export function MinimalHomeScreen({
             width:     140,
             height:    140,
             objectFit: "contain",
-            // Soft drop shadow so the dark X reads cleanly even when
-            // the ocean band underneath turns very dark.
             filter:    "drop-shadow(0 2px 12px rgba(0,0,0,0.18))",
           }}
         />
-      </a>
+      </motion.a>
 
-      {/* ── 2. Center stack — ScanOrb + AXVELA AI pill ──────────── */}
+      {/* ── 2. Center stack — ScanOrb + AXVELA AI pill ──────────────
+              z-index 100 so the pill remains the still center of
+              the activation transition, sitting above the
+              fixed-position purple haze (z 50) and the dock
+              (also z 50). The orb fades to 0.65 opacity but
+              still paints above the haze, letting the haze
+              tint read through it. ─────────────────────────── */}
       <div style={{
-        // Column stack so the AXVELA AI pill sits directly under
-        // the ScanOrb with a small breathing gap. The wrapper is
-        // anchored to the top of the available flex space so the
-        // pair reads as a single composed unit rather than drifting.
         flex:           1,
         display:        "flex",
         flexDirection:  "column",
@@ -134,22 +217,98 @@ export function MinimalHomeScreen({
         paddingTop:     16,
         gap:            6,
         position:       "relative" as const,
-        zIndex:         1,
+        zIndex:         100,
       }}>
-        <ScanOrb onClick={onOpenScanner} label={TEXT.scanLabel} />
-        <AxvelaAIButton onOpen={() => setAxvelaOpen(true)} />
+        {/* Orb wrapper — animates scale/opacity, hosts a one-shot
+            ripple ring keyed off rippleKey. */}
+        <motion.div
+          animate={orbAnim}
+          transition={transition}
+          style={{
+            position:  "relative",
+            willChange: "transform, opacity",
+          }}
+        >
+          <ScanOrb onClick={onOpenScanner} label={TEXT.scanLabel} />
+
+          <AnimatePresence>
+            {rippleKey > 0 && (
+              <motion.span
+                key={`orb-ripple-${rippleKey}`}
+                initial={{ scale: 0.9, opacity: 0.25 }}
+                animate={{ scale: 1.6, opacity: 0    }}
+                exit={{    opacity: 0 }}
+                transition={{ duration: ORB_RIPPLE_MS / 1000, ease: "easeOut" }}
+                aria-hidden
+                style={{
+                  position:      "absolute",
+                  inset:         0,
+                  borderRadius:  "50%",
+                  border:        "1px solid rgba(168, 85, 247, 0.45)",
+                  pointerEvents: "none",
+                  willChange:    "transform, opacity",
+                }}
+              />
+            )}
+          </AnimatePresence>
+        </motion.div>
+
+        {/* Pill — Phase 2 wires onActivate (state machine) instead
+            of opening the modal directly. The button stays at full
+            opacity / its idle scale so it reads as the focal
+            point during the dim shift. */}
+        <AxvelaAIButton
+          onActivate={handleActivate}
+          disabled={isModeOn}
+          rippleKey={rippleKey}
+        />
       </div>
 
       {/* ── 3. Bottom dock — Collection · Profile ───────────────── */}
-      <HomeDock
-        onCollection={onCollection}
-        onProfile={onProfile}
-        collectionLabel={TEXT.collection}
-        profileLabel={TEXT.profile}
-      />
+      <motion.div
+        animate={dimAnim}
+        transition={transition}
+        style={{
+          position: "relative",
+          zIndex:   1,
+          willChange: "opacity",
+        }}
+      >
+        <HomeDock
+          onCollection={onCollection}
+          onProfile={onProfile}
+          collectionLabel={TEXT.collection}
+          profileLabel={TEXT.profile}
+        />
+      </motion.div>
 
-      {/* ── 4. AXVELA AI chat modal (still mounted at the root) ── */}
-      <AxvelaAIChatModal open={axvelaOpen} onClose={() => setAxvelaOpen(false)} />
+      {/* ── 4. Purple haze overlay — sits above the dimmed home
+              + dock, but below the still-bright center stack
+              (z-100). Renders as the activation light bath that
+              the pill is the source of. ────────────────────── */}
+      <AnimatePresence>
+        {isModeOn && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 0.30 }}
+            exit={{    opacity: 0 }}
+            transition={{ duration: ACTIVATE_MS / 1000, ease: "easeOut" }}
+            aria-hidden
+            style={{
+              position:      "fixed",
+              inset:         0,
+              zIndex:        50,
+              pointerEvents: "none",
+              background:
+                "radial-gradient(circle at 50% 55%, rgba(168, 85, 247, 0.55) 0%, rgba(168, 85, 247, 0) 70%)",
+              willChange:    "opacity",
+            }}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* ── 5. AXVELA AI chat modal (current AI Overlay stand-in) */}
+      <AxvelaAIChatModal open={axvelaOpen} onClose={handleModalClose} />
     </div>
   );
 }
