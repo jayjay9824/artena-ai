@@ -2,6 +2,7 @@
 import React, { useEffect } from "react";
 import { ScanOrb } from "./ScanOrb";
 import { HomeDock } from "./HomeDock";
+import { OceanBackground } from "./OceanBackground";
 
 const FONT      = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
 const FONT_HEAD = "'KakaoBigSans',   -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif";
@@ -69,7 +70,7 @@ export function MinimalHomeScreen({
       maxWidth:     430,
       margin:       "0 auto",
       minHeight:    "100dvh",
-      background:   "#FAFAF8",
+      background:   "#0E3E5F",
       position:     "relative",
       overflow:     "hidden",
       fontFamily:   FONT,
@@ -78,6 +79,9 @@ export function MinimalHomeScreen({
       alignItems:   "center",
       paddingBottom: "calc(140px + env(safe-area-inset-bottom, 0px))",
     }}>
+      {/* ── 0. Aerial ocean background (z-index 0) ──────────────── */}
+      <OceanBackground />
+
       {/* ── 1. Top brand ─────────────────────────────────────────── */}
       <a
         href="/"
@@ -86,6 +90,8 @@ export function MinimalHomeScreen({
           textDecoration: "none",
           textAlign:      "center" as const,
           marginTop:      "calc(72px + env(safe-area-inset-top, 0px))",
+          position:       "relative" as const,
+          zIndex:         1,
         }}
       >
         <p style={{
@@ -122,6 +128,8 @@ export function MinimalHomeScreen({
         // Pulls the orb visually below the geometric center of the
         // viewport — spec: "원은 화면 중앙보다 약간 아래에 위치".
         marginTop:      24,
+        position:       "relative" as const,
+        zIndex:         1,
       }}>
         <ScanOrb onClick={onOpenScanner} label={TEXT.scanLabel} />
       </div>
