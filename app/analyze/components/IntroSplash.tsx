@@ -50,6 +50,12 @@ export function IntroSplash({ onReady, onComplete }: IntroSplashProps) {
   const [minIntroElapsed, setMinIntroElapsed] = useState(false);
   const [introDone,       setIntroDone]       = useState(false);
   const [introMounted,    setIntroMounted]    = useState(true);
+  // Mount-fade gate — initial render has the splash at opacity 0
+  // so the body's dark ocean shows through. One rAF later we flip
+  // to 1, letting the existing 800ms opacity transition cross-fade
+  // the white intro UP from the ocean. Kills the "ocean → flash of
+  // white" hard cut the user reported in KakaoTalk WebView.
+  const [introFadedIn,    setIntroFadedIn]    = useState(false);
 
   // Stable handles so the lifecycle effects don't re-fire on
   // identity changes from the parent.
@@ -57,6 +63,14 @@ export function IntroSplash({ onReady, onComplete }: IntroSplashProps) {
   onCompleteRef.current = onComplete;
   const onReadyRef    = useRef(onReady);
   onReadyRef.current  = onReady;
+
+  /* Mount fade-in — defer to next frame so the SSR/initial paint
+   * has the splash at opacity 0 (ocean shows through), then
+   * triggers the CSS opacity transition to 1. */
+  useEffect(() => {
+    const r = requestAnimationFrame(() => setIntroFadedIn(true));
+    return () => cancelAnimationFrame(r);
+  }, []);
 
   /* Phase 0 → 1 — kick off the logo fade-in. Timing unchanged. */
   useEffect(() => {
@@ -166,7 +180,13 @@ export function IntroSplash({ onReady, onComplete }: IntroSplashProps) {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          opacity: phase === 2 ? 0 : 1,
+          // Three-state opacity: 0 on first paint (ocean visible),
+          // 1 once mount-rAF fires (cross-fades white up), 0 again
+          // on phase 2 (cross-fades back down to home).
+          opacity:
+            phase === 2     ? 0
+            : introFadedIn  ? 1
+            :                 0,
           pointerEvents: phase === 2 ? "none" : "auto",
         }}
       >

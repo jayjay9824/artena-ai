@@ -89,6 +89,24 @@ export default function RootLayout({
     <html lang="en" className={inter.variable}>
       <head>
         {/*
+          Critical CSS — inlined in <head> so the very first paint
+          is dark blue + ocean. KakaoTalk's in-app WebView
+          occasionally paints a frame from the system white default
+          before external CSS / inline body styles apply; this
+          guarantees html + body is dark from byte 1, killing the
+          white flash users were seeing when opening shared URLs.
+        */}
+        <style dangerouslySetInnerHTML={{ __html: `
+          html, body {
+            background-color: #2c4a6b;
+            background-image: url('/ocean-background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            margin: 0;
+          }
+        ` }} />
+        {/*
           High-priority preload so the browser fetches the ocean
           poster in parallel with the JS bundle. KakaoTalk in-app
           honors this hint, so the image is decoded by the time
