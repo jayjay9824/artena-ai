@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useRouter } from "next/navigation";
 import { useMyActivity } from "../context/MyActivityContext";
 import { useCollection } from "../collection/hooks/useCollection";
 import { BottomNav } from "../components/BottomNav";
@@ -17,6 +18,7 @@ const FONT_HEAD = "'KakaoBigSans', -apple-system, BlinkMacSystemFont, sans-serif
  * still write into it). Profile must not compete with Scan.
  */
 function MyPage() {
+  const router = useRouter();
   const { state } = useMyActivity();
   const { items: analysisItems } = useCollection();
   const { t, lang, toggleLanguage } = useLanguage();
@@ -79,38 +81,68 @@ function MyPage() {
           </p>
         </div>
 
-        {/* Saved count summary */}
-        <div style={{
-          margin:         "0 22px",
-          padding:        "22px 22px",
-          background:     "#FAFAF7",
-          border:         "0.5px solid #ECEAE2",
-          borderRadius:   16,
-          display:        "flex",
-          alignItems:     "baseline",
-          justifyContent: "space-between",
-          gap:            12,
-        }}>
-          <span style={{
-            fontSize:      11,
-            color:         "#8A6A3F",
-            letterSpacing: "0.18em",
-            textTransform: "uppercase" as const,
-            fontWeight:    600,
-          }}>
-            {t("profile.saved_count")}
-          </span>
-          <span style={{
-            fontSize:           28,
-            fontWeight:         700,
-            color:              "#0D0D0D",
-            fontFamily:         FONT_HEAD,
-            letterSpacing:      "-0.02em",
-            fontVariantNumeric: "tabular-nums" as const,
-            lineHeight:         1,
-          }}>
-            {savedCount}
-          </span>
+        {/* Saved count summary — STEP 1 (Profile card click fix).
+            Card is a real <button>, never a <div>+onClick. The
+            safety style block below disables Android Chrome's
+            text-selection / Google search bottom-sheet that used
+            to fire when users tapped the count text. Disabled at
+            0 so empty profiles can't navigate into an empty
+            Collection.
+            Wrapper preserves the original 22px side margins; the
+            button fills the remaining width with box-sizing so
+            padding stays inside. */}
+        <div style={{ padding: "0 22px" }}>
+          <button
+            type="button"
+            onClick={() => router.push("/collection")}
+            disabled={savedCount === 0}
+            aria-label={`저장한 작품 ${savedCount}개 보기`}
+            style={{
+              width:          "100%",
+              padding:        "22px 22px",
+              background:     "#FAFAF7",
+              border:         "0.5px solid #ECEAE2",
+              borderRadius:   16,
+              display:        "flex",
+              alignItems:     "baseline",
+              justifyContent: "space-between",
+              gap:            12,
+              boxSizing:      "border-box" as const,
+              textAlign:      "left" as const,
+              cursor:         savedCount === 0 ? "default" : "pointer",
+              opacity:        savedCount === 0 ? 0.5 : 1,
+              fontFamily:     FONT,
+              transition:     "background .12s, border-color .12s, opacity .12s",
+              // Block Android Chrome's text-selection / Google
+              // search bottom-sheet from firing on tap.
+              userSelect:               "none",
+              WebkitUserSelect:         "none",
+              WebkitTouchCallout:       "none" as const,
+              WebkitTapHighlightColor:  "transparent",
+              touchAction:              "manipulation",
+            }}
+          >
+            <span style={{
+              fontSize:      11,
+              color:         "#8A6A3F",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase" as const,
+              fontWeight:    600,
+            }}>
+              {t("profile.saved_count")}
+            </span>
+            <span style={{
+              fontSize:           28,
+              fontWeight:         700,
+              color:              "#0D0D0D",
+              fontFamily:         FONT_HEAD,
+              letterSpacing:      "-0.02em",
+              fontVariantNumeric: "tabular-nums" as const,
+              lineHeight:         1,
+            }}>
+              {savedCount}
+            </span>
+          </button>
         </div>
 
         {/* Settings — language only. Profile stays minimal. */}
