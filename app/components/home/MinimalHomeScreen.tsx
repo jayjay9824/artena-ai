@@ -4,8 +4,10 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ScanOrb } from "./ScanOrb";
 import { HomeDock } from "./HomeDock";
 import { OceanBackground } from "./OceanBackground";
+import { InAppBrowserWarningModal } from "./InAppBrowserWarningModal";
 import { AxvelaAIButton } from "../axvela-ai/AxvelaAIButton";
 import { AIModeOverlay } from "../axvela-ai/AIModeOverlay";
+import { isInAppBrowser } from "../../utils/browserDetect";
 
 const FONT = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
 
@@ -68,6 +70,12 @@ export function MinimalHomeScreen({
   const [isAIMode,     setIsAIMode]     = useState(false);
   const [rippleKey,    setRippleKey]    = useState(0);
 
+  /* In-app browser SCAN gate. KakaoTalk / Naver / Instagram / FB /
+     LINE WebViews can't run getUserMedia, so we surface a warning
+     before the user hits a black screen. Modal opens on SCAN tap
+     when isInAppBrowser() is true. */
+  const [showInAppWarning, setShowInAppWarning] = useState(false);
+
   /* Track the activation timer so unmount tears it down cleanly. */
   const activateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
@@ -113,6 +121,19 @@ export function MinimalHomeScreen({
      to idle state from the activation visuals. */
   const handleOverlayClose = () => {
     setIsAIMode(false);
+  };
+
+  /* SCAN tap — gate camera-bound UI behind an in-app browser
+     check. Inside KakaoTalk / Naver / etc. we surface the warning
+     modal instead of routing into the scanner (which would only
+     hit a black-screen failure). Outside of in-app browsers the
+     parent's onOpenScanner runs as before. */
+  const handleScanTap = () => {
+    if (isInAppBrowser()) {
+      setShowInAppWarning(true);
+      return;
+    }
+    onOpenScanner();
   };
 
   // Drive every surface from one boolean — keeps the choreography
@@ -230,7 +251,7 @@ export function MinimalHomeScreen({
             willChange: "transform, opacity",
           }}
         >
-          <ScanOrb onClick={onOpenScanner} label={TEXT.scanLabel} />
+          <ScanOrb onClick={handleScanTap} label={TEXT.scanLabel} />
 
           <AnimatePresence>
             {rippleKey > 0 && (
@@ -311,6 +332,18 @@ export function MinimalHomeScreen({
 
       {/* ── 5. AXVELA AI Mode Overlay (Phase 3) ─────────────────── */}
       <AIModeOverlay open={isAIMode} onClose={handleOverlayClose} />
+
+      {/* ── 6. In-app browser warning — opens when user taps SCAN
+              inside KakaoTalk / other in-app WebViews. Provides
+              "외부 브라우저로 열기" / "링크 복사하기" / "대신 이미지
+              업로드하기" so the camera dead-end never silently
+              traps the user. ─────────────────────────────────── */}
+      {showInAppWarning && (
+        <InAppBrowserWarningModal
+          onClose={() => setShowInAppWarning(false)}
+          onUploadFile={onFileSelected}
+        />
+      )}
     </div>
   );
 }
