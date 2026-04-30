@@ -1,14 +1,31 @@
 /**
- * Claude analysis service — single source of truth for the "full"
- * artwork / architecture / artifact analysis prompts.
+ * Hybrid analysis service — Gemini-primary, Claude-fallback.
  *
- * Both /api/analyze (sync user-facing endpoint) and
- * reportGenerationService (STEP 2 background pipeline) call into here
- * so prompt + schema changes only need to land once.
+ * The single source of truth for the "full" artwork / architecture /
+ * artifact analysis prompts. Both /api/analyze (sync user-facing
+ * endpoint, called by the camera scan UI) and reportGenerationService
+ * (background pipeline) call into here, so the engine swap below
+ * propagates without touching either caller.
+ *
+ * Flow:
+ *   1. Preprocess image (resize 1568, EXIF rotate, mozjpeg).
+ *   2. Try Gemini with the unified IMAGE_PROMPT.
+ *      - When ENABLE_GEMINI_VERIFICATION + GEMINI_API_KEY are set,
+ *        Gemini fires first.
+ *      - When either is missing, the Gemini call short-circuits to
+ *        null instantly (no network, no extra latency) — preserves
+ *        current Claude-only behavior.
+ *   3. On Gemini null (disabled / network / parse), fall back to
+ *      Claude with adaptive thinking + streaming.
+ *
+ * Both engines see the same image bytes and the same prompt, so the
+ * returned RESPONSE_SCHEMA shape is identical regardless of which
+ * engine served the request — callers don't need to branch.
  */
 
 import Anthropic from "@anthropic-ai/sdk";
 import { preprocessImageBase64 } from "./imagePreprocess";
+import { AI_CONFIG } from "./ai/config";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -188,12 +205,21 @@ export async function analyzeFromImage(
   base64: string,
   mediaType: ImageMediaType,
 ): Promise<AnalyzeResult> {
-  // Resize to ≤ 1568 px (Claude vision sweet spot), bake EXIF
-  // orientation into pixels, re-encode through mozjpeg. Cleaner
-  // input → better signature/caption legibility → fewer
-  // misidentifications.
+  // Resize to ≤ 1568 px (Claude vision sweet spot, also fine for
+  // Gemini), bake EXIF orientation into pixels, re-encode through
+  // mozjpeg. Both engines benefit from the same cleaned input.
   const cleaned = await preprocessImageBase64(base64, mediaType);
 
+  // PRIMARY — Gemini. Returns null instantly if env isn't set
+  // (Phase 1 short-circuit), so Claude-only deployments incur no
+  // extra latency. Returns null on any error / parse failure too,
+  // letting the Claude fallback below take over.
+  const geminiResult = await tryGeminiImageAnalysis(cleaned.base64, cleaned.mediaType);
+  if (geminiResult) return geminiResult;
+
+  // FALLBACK — Claude with adaptive thinking + streaming. Same
+  // prompt + schema as Gemini above, so the returned shape is
+  // identical regardless of which engine ran.
   const stream = client.messages.stream({
     model:      "claude-opus-4-7",
     max_tokens: 3500,
@@ -216,6 +242,82 @@ export async function analyzeFromImage(
     return { kind: "rejected", reason: (parsed.rejectionReason as string) || "미술 작품 이미지가 아닙니다." };
   }
   return { kind: "ok", data: parsed };
+}
+
+/**
+ * Gemini-first image path. Posts to the Generative Language REST
+ * endpoint with the same IMAGE_PROMPT used by the Claude fallback,
+ * so the returned JSON conforms to RESPONSE_SCHEMA either way.
+ *
+ * Returns null on:
+ *   - gemini.enabled === false (env opt-out — Phase 1 default)
+ *   - GEMINI_API_KEY missing
+ *   - HTTP non-2xx
+ *   - timeout (32 s — 2× the verifier timeout because this is the
+ *     full schema with arrays of works / auctions / collections)
+ *   - missing text part in the response
+ *   - JSON parse failure
+ *
+ * Never throws — caller just checks for null and falls through to
+ * Claude.
+ */
+async function tryGeminiImageAnalysis(
+  base64:    string,
+  mediaType: ImageMediaType,
+): Promise<AnalyzeResult | null> {
+  if (!AI_CONFIG.gemini.enabled || !AI_CONFIG.gemini.apiKey) return null;
+
+  try {
+    const endpoint =
+      `https://generativelanguage.googleapis.com/v1beta/models/` +
+      `${encodeURIComponent(AI_CONFIG.gemini.model)}:generateContent` +
+      `?key=${encodeURIComponent(AI_CONFIG.gemini.apiKey)}`;
+
+    const requestBody = {
+      contents: [{
+        parts: [
+          { inlineData: { mimeType: mediaType, data: base64 } },
+          { text: IMAGE_PROMPT },
+        ],
+      }],
+      generationConfig: {
+        // Force JSON output so parseClaudeJson always has clean input.
+        responseMimeType: "application/json",
+        // Low temperature keeps the structured fields stable across
+        // calls — same image should produce near-identical output.
+        temperature:      0.15,
+        // Generous ceiling for the full schema (works[], auctions[],
+        // collections[], critics[], exhibitions[] arrays).
+        maxOutputTokens:  4_000,
+      },
+    };
+
+    const res = await fetch(endpoint, {
+      method:  "POST",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify(requestBody),
+      signal:  AbortSignal.timeout(AI_CONFIG.gemini.timeout * 2),
+    });
+    if (!res.ok) return null;
+
+    const json = await res.json() as {
+      candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+    };
+    const text = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (typeof text !== "string") return null;
+
+    const parsed = parseClaudeJson(text);
+    if (parsed.isArtwork === false) {
+      return {
+        kind:   "rejected",
+        reason: (parsed.rejectionReason as string) || "미술 작품 이미지가 아닙니다.",
+      };
+    }
+    return { kind: "ok", data: parsed };
+  } catch {
+    // Any network / parse / timeout error → null → Claude fallback.
+    return null;
+  }
 }
 
 /* ── data: URI helper used by the background pipeline ──────────── */
