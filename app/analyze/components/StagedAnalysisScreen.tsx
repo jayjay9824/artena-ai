@@ -3,6 +3,7 @@ import React from "react";
 import type { AnalysisStages, QuickView as QuickViewData } from "../types/staged";
 import { QuickView } from "./QuickView";
 import { ProgressiveSections } from "./ProgressiveSections";
+import { AnalysisProcessFlow } from "./AnalysisProcessFlow";
 
 const FONT = "'KakaoSmallSans', system-ui, sans-serif";
 
@@ -67,6 +68,14 @@ export function StagedAnalysisScreen({
         >
           AXVELA AI · Cultural Intelligence
         </a>
+
+        {/* Animated process pipeline — visualises the four-stage
+            progression with motion (radiating ring on the active
+            stage, flowing connector, sweep light across the row).
+            Always rendered during the loading window so users see
+            progress before QuickView lands and as later stages
+            continue. */}
+        <AnalysisProcessFlow stages={stages} />
 
         {/* Quick View — appears when basic stage resolves */}
         {quickView && (
