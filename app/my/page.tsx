@@ -1,10 +1,9 @@
 "use client";
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMyActivity } from "../context/MyActivityContext";
-import { useCollection } from "../collection/hooks/useCollection";
 import { BottomNav } from "../components/BottomNav";
 import { useLanguage } from "../i18n/useLanguage";
+import { getSavedCount } from "../utils/savedArtworks";
 
 const FONT      = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, sans-serif";
 const FONT_HEAD = "'KakaoBigSans', -apple-system, BlinkMacSystemFont, sans-serif";
@@ -19,18 +18,36 @@ const FONT_HEAD = "'KakaoBigSans', -apple-system, BlinkMacSystemFont, sans-serif
  */
 function MyPage() {
   const router = useRouter();
-  const { state } = useMyActivity();
-  const { items: analysisItems } = useCollection();
   const { t, lang, toggleLanguage } = useLanguage();
 
-  // Saved = anything the user has stored in Collection (analysis or
-  // gallery-saved). Single concept; no Like / Save split per spec.
-  const savedCount = (() => {
-    const ids = new Set<string>();
-    for (const a of analysisItems) ids.add(a.id);
-    for (const s of state.saved)   ids.add(s.artwork_id);
-    return ids.size;
-  })();
+  // STEP 4 — count read through the savedArtworks util (single
+  // source of truth, localStorage["axvela:savedArtworks"]). The
+  // util migrates legacy collection_v1 data on first read so
+  // returning users still see their existing saves. We re-read
+  // on focus + visibilitychange so saving on another screen and
+  // coming back here updates the count without a reload.
+  const [savedCount, setSavedCount] = useState(0);
+
+  const refreshCount = useCallback(() => {
+    setSavedCount(getSavedCount());
+  }, []);
+
+  useEffect(() => {
+    refreshCount();
+    const onFocus     = () => refreshCount();
+    const onVisChange = () => { if (!document.hidden) refreshCount(); };
+    const onStorage   = (e: StorageEvent) => {
+      if (!e.key || e.key === "axvela:savedArtworks") refreshCount();
+    };
+    window.addEventListener("focus",            onFocus);
+    document.addEventListener("visibilitychange", onVisChange);
+    window.addEventListener("storage",           onStorage);
+    return () => {
+      window.removeEventListener("focus",            onFocus);
+      document.removeEventListener("visibilitychange", onVisChange);
+      window.removeEventListener("storage",           onStorage);
+    };
+  }, [refreshCount]);
 
   return (
     <>

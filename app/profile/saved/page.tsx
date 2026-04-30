@@ -1,111 +1,66 @@
 "use client";
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useCollection }  from "../../collection/hooks/useCollection";
-import { useMyActivity }  from "../../context/MyActivityContext";
+import {
+  getSavedArtworks,
+  type SavedArtwork,
+} from "../../utils/savedArtworks";
 
 const FONT      = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, sans-serif";
 const FONT_HEAD = "'KakaoBigSans', -apple-system, BlinkMacSystemFont, sans-serif";
 
 /**
- * Saved artworks list — wired from the Profile saved-count card.
+ * Saved artworks list — opened from the Profile saved-count card.
  *
- * Spec data contract: read SavedArtwork[] from
- * localStorage["axvela:savedArtworks"]. Reality: the existing
- * codebase already persists saved analyses in two older stores —
- *   1. artena_collection_v1   (via useCollection)
- *   2. MyActivityContext.saved (in-memory + its own LS key)
+ * Reads exclusively from utils/savedArtworks (single source of
+ * truth, localStorage["axvela:savedArtworks"]). The util takes
+ * care of legacy collection_v1 → new key migration on first read,
+ * so users with previously saved analyses still see them here.
  *
- * To honour the spec without wiping live user data, the page reads
- * all three sources, normalises them to the spec's SavedArtwork
- * shape, and dedupes by id. New writes can target the spec key
- * directly; existing data stays visible until callers migrate.
+ * Refresh strategy: re-reads the store on focus and on
+ * visibilitychange, so saving an artwork on another surface and
+ * tab-switching back in here surfaces the new item without a
+ * manual reload.
  *
- * Click on a card → /analyze?artworkId={id}, the existing
- * deep-link entry that AppShell honours (analyze/page.tsx already
- * looks up artworkId in the collection store and lands on the
- * Quick Report). The spec's "/artwork/{id}" wording maps to this
- * existing route.
+ * Click on a card → /analyze?artworkId={id}. The analyze page
+ * already honours that deep-link to restore the Quick Report; the
+ * spec's "/artwork/{id}" wording maps to this existing route.
  */
 
-const SAVED_LS_KEY = "axvela:savedArtworks";
-
-interface SavedArtwork {
-  id:            string;
-  title:         string;
-  artist:        string;
-  thumbnailUrl:  string;
-  savedAt:       string;
-  analysisData?: unknown;
-}
-
-function readSpecKey(): SavedArtwork[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(SAVED_LS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as SavedArtwork[]) : [];
-  } catch {
-    return [];
-  }
-}
-
 export default function SavedArtworksPage() {
-  const router  = useRouter();
-  const { items: analysisItems, hydrated: collectionHydrated } = useCollection();
-  const { state } = useMyActivity();
+  const router = useRouter();
+  const [saved,    setSaved]    = useState<SavedArtwork[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
-  const [specItems, setSpecItems] = useState<SavedArtwork[]>([]);
-  const [hydrated,  setHydrated]  = useState(false);
-
-  useEffect(() => {
-    setSpecItems(readSpecKey());
-    setHydrated(true);
-  }, []);
-
-  /** Merge the three stores into one normalised list, dedup'd by id,
-   *  sorted savedAt desc so the most recently saved sits first. */
-  const saved = useMemo<SavedArtwork[]>(() => {
-    const byId = new Map<string, SavedArtwork>();
-
-    // Spec primary — axvela:savedArtworks.
-    for (const a of specItems) {
-      if (!a?.id) continue;
-      byId.set(a.id, a);
-    }
-
-    // Back-compat — artena_collection_v1.
-    for (const c of analysisItems) {
-      if (byId.has(c.id)) continue;
-      byId.set(c.id, {
-        id:           c.id,
-        title:        c.analysis?.title  ?? "Untitled",
-        artist:       c.analysis?.artist ?? "Unknown",
-        thumbnailUrl: c.imagePreview ?? "",
-        savedAt:      c.savedAt ?? "",
-        analysisData: c.analysis,
-      });
-    }
-
-    // Back-compat — MyActivityContext.saved.
-    for (const s of state.saved) {
-      if (byId.has(s.artwork_id)) continue;
-      byId.set(s.artwork_id, {
-        id:           s.artwork_id,
-        title:        s.title       || "Untitled",
-        artist:       s.artist_name || "Unknown",
-        thumbnailUrl: s.image_url   ?? "",
-        savedAt:      "",
-      });
-    }
-
-    return Array.from(byId.values()).sort(
+  const refresh = useCallback(() => {
+    const items = getSavedArtworks().slice().sort(
       (a, b) => (b.savedAt || "").localeCompare(a.savedAt || ""),
     );
-  }, [specItems, analysisItems, state.saved]);
+    setSaved(items);
+  }, []);
 
-  const isReady = hydrated && collectionHydrated;
+  useEffect(() => {
+    refresh();
+    setHydrated(true);
+
+    const onFocus      = () => refresh();
+    const onVisChange  = () => { if (!document.hidden) refresh(); };
+    const onStorage    = (e: StorageEvent) => {
+      // axvela:savedArtworks may be mutated from another tab; pick it up.
+      if (!e.key || e.key === "axvela:savedArtworks") refresh();
+    };
+
+    window.addEventListener("focus",            onFocus);
+    document.addEventListener("visibilitychange", onVisChange);
+    window.addEventListener("storage",           onStorage);
+    return () => {
+      window.removeEventListener("focus",            onFocus);
+      document.removeEventListener("visibilitychange", onVisChange);
+      window.removeEventListener("storage",           onStorage);
+    };
+  }, [refresh]);
+
+  const isReady = hydrated;
   const isEmpty = isReady && saved.length === 0;
 
   return (
