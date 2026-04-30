@@ -1,6 +1,7 @@
 "use client";
 import React from "react";
 import { isKakaoInApp, openInExternalBrowser } from "../../utils/browserDetect";
+import { ImageUploadFallback } from "./ImageUploadFallback";
 
 const FONT      = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
 const FONT_HEAD = "'KakaoBigSans', -apple-system, BlinkMacSystemFont, 'SF Pro Display', system-ui, sans-serif";
@@ -35,7 +36,6 @@ interface Props {
 
 export function InAppBrowserWarningModal({ onClose, onUploadFile }: Props) {
   const isKakao = isKakaoInApp();
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleCopyLink = async () => {
     const url = typeof window !== "undefined" ? window.location.href : "";
@@ -61,24 +61,9 @@ export function InAppBrowserWarningModal({ onClose, onUploadFile }: Props) {
     }
   };
 
-  const handleUploadInstead = () => {
-    if (onUploadFile) {
-      fileInputRef.current?.click();
-    } else {
-      onClose();
-    }
-  };
-
-  const handleFileChosen = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const input = e.target;
-    const file  = input.files?.[0];
-    input.value = "";
-    if (file && onUploadFile) {
-      onUploadFile(file);
-      onClose();
-    } else {
-      onClose();
-    }
+  const handleImageSelected = (file: File) => {
+    onUploadFile?.(file);
+    onClose();
   };
 
   return (
@@ -112,9 +97,23 @@ export function InAppBrowserWarningModal({ onClose, onUploadFile }: Props) {
             링크 복사하기
           </button>
 
-          <button onClick={handleUploadInstead} style={S.tertiaryBtn}>
-            대신 이미지 업로드하기
-          </button>
+          {/* Image upload fallback — uses <input type="file"
+              capture="environment"> which works inside KakaoTalk's
+              WebView (unlike getUserMedia). Lets users who refuse
+              to bounce out of the in-app browser still complete
+              an analysis by snapping a photo or picking from the
+              gallery. */}
+          {onUploadFile ? (
+            <ImageUploadFallback
+              onImageSelected={handleImageSelected}
+              label="대신 이미지 업로드하기"
+              style={S.tertiaryBtn}
+            />
+          ) : (
+            <button onClick={onClose} style={S.tertiaryBtn}>
+              대신 이미지 업로드하기
+            </button>
+          )}
         </div>
 
         {isKakao && (
@@ -123,17 +122,6 @@ export function InAppBrowserWarningModal({ onClose, onUploadFile }: Props) {
           </p>
         )}
       </div>
-
-      {/* Hidden file input — tapped via the ref when the user picks
-          "대신 이미지 업로드하기" and the parent supplied an
-          onUploadFile callback. */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        style={{ display: "none" }}
-        onChange={handleFileChosen}
-      />
     </div>
   );
 }
