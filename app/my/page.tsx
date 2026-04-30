@@ -94,7 +94,7 @@ function MyPage() {
         <div style={{ padding: "0 22px" }}>
           <button
             type="button"
-            onClick={() => router.push("/collection")}
+            onClick={() => router.push("/profile/saved")}
             disabled={savedCount === 0}
             aria-label={`저장한 작품 ${savedCount}개 보기`}
             style={{
