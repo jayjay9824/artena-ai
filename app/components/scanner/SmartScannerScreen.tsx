@@ -96,7 +96,7 @@ export function SmartScannerScreen({
   onQRPicked,
 }: Props) {
   const { t } = useLanguage();
-  const { permissionStatus, requestPermission } = useCameraPermission();
+  const { permissionStatus, requestPermission, errorMessage } = useCameraPermission();
   const { videoRef, startCamera, stopCamera, isCameraActive } = useCameraLifecycle();
   // Auto-scan flow per user feedback (2026-04-30) — the confirm-
   // before-analyze gate ("작품 감지됨 / 이 작품을 분석할까요?")
@@ -334,6 +334,11 @@ export function SmartScannerScreen({
         onUploadImage={handleUpload}
         onSearchByText={handleSearch}
         denied={denied}
+        // Surfaces concrete recovery copy when useCameraPermission
+        // categorised the failure (in_app_unsupported, camera_in_use,
+        // camera_not_found, etc.). Falls back to the generic
+        // permission body when no error has occurred yet.
+        errorMessage={denied ? errorMessage ?? undefined : undefined}
       />
     );
   }
