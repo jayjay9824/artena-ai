@@ -154,3 +154,42 @@ body {
 .kakao-inapp .scan-button {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.30) !important;
 }
+
+/* ── Mobile tap-safety on interactive elements ─────────────────────
+   Android Chrome and iOS Safari sometimes interpret a tap on text
+   inside a clickable element as a text-selection gesture, which
+   pops the Google search bottom-sheet (Android) or the
+   copy/share callout (iOS) instead of firing the click handler.
+
+   Targeted at clickable elements only — buttons, anchors,
+   role="button" — and their descendants so the inner spans /
+   icons inherit the same tap behaviour. Inputs, textareas,
+   contenteditable regions, and anything explicitly marked
+   .selectable-text keep normal text selection. We deliberately
+   do NOT put `* { user-select: none }` on the page; only the
+   interactive subset is locked down. */
+button,
+a,
+[role="button"] {
+  -webkit-user-select:        none;
+          user-select:        none;
+  -webkit-touch-callout:      none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action:               manipulation;
+}
+
+button *,
+a *,
+[role="button"] * {
+  -webkit-user-select: none;
+          user-select: none;
+}
+
+input,
+textarea,
+[contenteditable],
+.selectable-text {
+  -webkit-user-select:   text;
+          user-select:   text;
+  -webkit-touch-callout: default;
+}
