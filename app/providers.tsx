@@ -1,10 +1,11 @@
 "use client";
-import React from "react";
+import React, { useEffect } from "react";
 import { MyActivityProvider } from "./context/MyActivityContext";
 import { TabProvider } from "./context/TabContext";
 import { AnswerModeProvider } from "./context/AnswerModeContext";
 import { LanguageProvider } from "./i18n/LanguageProvider";
 import { LanguageToggle } from "./i18n/LanguageToggle";
+import { isKakaoInApp, isInAppBrowser } from "./utils/browserDetect";
 
 /**
  * Client-side providers mounted once at the root layout so every route
@@ -18,12 +19,60 @@ import { LanguageToggle } from "./i18n/LanguageToggle";
  * AnswerModeProvider sits inside Tab/MyActivity so a mode override
  * survives tab switches but doesn't escape the app shell.
  */
+/**
+ * Tag <html> with inapp-browser / kakao-inapp classes so the rest
+ * of the tree (CSS + JS) can branch defensively. Mounted once via
+ * Providers — runs only on the client and cleans up on unmount so
+ * the classes don't leak across hot-reloads in dev. No visual
+ * change here; downstream phases will hang behavior off the
+ * classes.
+ */
+function InAppBrowserClassTag() {
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    const added: string[] = [];
+    if (isInAppBrowser()) { root.classList.add("inapp-browser"); added.push("inapp-browser"); }
+    if (isKakaoInApp())   { root.classList.add("kakao-inapp");   added.push("kakao-inapp"); }
+    return () => { added.forEach(c => root.classList.remove(c)); };
+  }, []);
+  return null;
+}
+
+/**
+ * Keep --vh synced with window.innerHeight so .app-container can
+ * use it as the most accurate height source. KakaoTalk's WebView
+ * reports inconsistent values for 100vh / 100dvh; the JS-driven
+ * value is the source of truth. Updates fire on resize and
+ * orientationchange; both listeners are torn down on unmount.
+ */
+function ViewportHeightSync() {
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const root = document.documentElement;
+    const sync = () => {
+      const vh = window.innerHeight * 0.01;
+      root.style.setProperty("--vh", `${vh}px`);
+    };
+    sync();
+    window.addEventListener("resize",            sync);
+    window.addEventListener("orientationchange", sync);
+    return () => {
+      window.removeEventListener("resize",            sync);
+      window.removeEventListener("orientationchange", sync);
+    };
+  }, []);
+  return null;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <LanguageProvider>
       <MyActivityProvider>
         <TabProvider>
           <AnswerModeProvider>
+            <InAppBrowserClassTag />
+            <ViewportHeightSync />
             {children}
             {/* Global language toggle — fixed top-right, visible app-wide
                 including SmartScanner / IntroSplash / Loading / Shared

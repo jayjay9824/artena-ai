@@ -56,8 +56,14 @@ export function OceanBackground() {
       style={{
         position: "absolute",
         inset:    0,
-        zIndex:   0,
+        zIndex:   1,
         overflow: "hidden",
+        // Decorative — never captures taps. Inner gradient veil
+        // already opts out, but the outer wrapper hosts the <video>
+        // element which is pointer-active by default; explicit
+        // pointer-events:none guarantees the ocean can't intercept
+        // a button tap above it.
+        pointerEvents: "none",
         // Fallback only — visible while the video buffers or if the
         // file is missing. Pacific deep-blue with a soft sun glint.
         background:

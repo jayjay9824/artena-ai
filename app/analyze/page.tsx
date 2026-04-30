@@ -72,7 +72,16 @@ function LoadingSpinner() {
 
 function ScanScreen() {
   const { goTo } = useTabNav();
-  const [showIntro,     setShowIntro]     = useState(true);
+  // Intro → Home cross-fade gates (Step 4):
+  //   introMounted — controls whether IntroSplash is in the tree
+  //   introDone    — controls Home layer opacity. Flips from
+  //                  IntroSplash.onReady (one rAF before Intro
+  //                  begins its own fade) so Intro and Home share
+  //                  the same fade window — Home is fully painted
+  //                  with its ocean background by the time Intro
+  //                  disappears.
+  const [introMounted, setIntroMounted] = useState(true);
+  const [introDone,    setIntroDone]    = useState(false);
   const [screen,        setScreen]        = useState("upload");
   const [error,         setError]         = useState<string | null>(null);
   const [imagePreview,  setImagePreview]  = useState<string | null>(null);
@@ -109,7 +118,29 @@ function ScanScreen() {
   // non-Scan tab.
   const offline = useOfflineQueue();
 
-  const handleIntroComplete = useCallback(() => setShowIntro(false), []);
+  // onReady fires the instant IntroSplash is about to fade out —
+  // flips Home opacity to 1 so the two layers cross-fade. onComplete
+  // fires after IntroSplash has self-unmounted; we mirror that into
+  // introMounted so any conditional rendering keyed on it stays in
+  // sync.
+  const handleIntroReady    = useCallback(() => setIntroDone(true), []);
+  const handleIntroComplete = useCallback(() => setIntroMounted(false), []);
+
+  // Step 5 — toggle `intro-active` on <html> while the home layer is
+  // still hidden behind the splash. globals.css uses this to force
+  // SCAN button opacity 0 + box-shadow none, which keeps the orb's
+  // heavy halo from compositing as a black ellipse on KakaoTalk
+  // before the ocean background paints.
+  useEffect(() => {
+    if (typeof document === "undefined") return;
+    const root = document.documentElement;
+    if (introDone) {
+      root.classList.remove("intro-active");
+    } else {
+      root.classList.add("intro-active");
+    }
+    return () => { root.classList.remove("intro-active"); };
+  }, [introDone]);
 
   // Deep-link: ?artworkId=… restores a previously-analysed artwork
   // from the local Collection store. Skips intro and lands on the
@@ -121,7 +152,11 @@ function ScanScreen() {
     if (!id) return;
     const item = collectionItems.find(i => i.id === id);
     if (!item) return;
-    setShowIntro(false);
+    // Deep-link skip — drop the intro entirely and reveal the
+    // result directly. Both gates flip together so Home is visible
+    // and the splash is unmounted in a single render.
+    setIntroMounted(false);
+    setIntroDone(true);
     setAnalysis(item.analysis as unknown as Analysis);
     setImagePreview(item.imagePreview ?? null);
     setScreen("result");
@@ -165,8 +200,9 @@ function ScanScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staged.error]);
 
-  // All hooks above run unconditionally
-  if (showIntro) return <IntroSplash onComplete={handleIntroComplete} />;
+  // Hooks above all run unconditionally. Step 4 — IntroSplash is
+  // no longer rendered as an early return; instead it overlays the
+  // Home layer below so the two cross-fade.
 
   /* ── Helpers ────────────────────────────────────────────────── */
 
@@ -587,13 +623,56 @@ function ScanScreen() {
   // Home — full replacement: ultra-minimal scan-first surface.
   // Legacy HomeScreen import kept for back-compat with code paths
   // that may compose it elsewhere; not rendered here.
+  //
+  // Step 4 cross-fade structure:
+  //   - Home wrapper is always mounted, with the ocean fallback
+  //     (color + image) painted underneath. SCAN orb sits on top
+  //     and only becomes visible (opacity 1) once introDone flips,
+  //     so the brand shadow never paints onto a blank background.
+  //   - IntroSplash overlays at z 9999, fades out + self-unmounts
+  //     once both its readiness gates clear. While fading the
+  //     splash carries pointer-events: none so it never blocks
+  //     clicks on the home below.
   return (
-    <MinimalHomeScreen
-      onOpenScanner={() => setShowScanner(true)}
-      onCollection={() => goTo("collection")}
-      onProfile={() => goTo("my")}
-      onFileSelected={loadPreview}
-    />
+    <>
+      <div
+        // Step 6 — `app-container` provides stacked min-height
+        // fallbacks (100vh → 100dvh → calc(var(--vh) * 100)) so
+        // KakaoTalk's WebView lands on the JS-driven --vh value
+        // from ViewportHeightSync and the home doesn't jump
+        // vertically during the cross-fade.
+        className="app-container"
+        // Step 7 — while hidden behind the splash the home is
+        // marked aria-hidden and pointer-events:none so screen
+        // readers don't double-announce and stray taps don't
+        // hit the SCAN button at opacity 0.
+        aria-hidden={!introDone}
+        style={{
+          position:           "relative",
+          backgroundColor:    "#2c4a6b",
+          backgroundImage:    "url('/ocean-background.jpg')",
+          backgroundSize:     "cover",
+          backgroundPosition: "center",
+          backgroundRepeat:   "no-repeat",
+          opacity:            introDone ? 1 : 0,
+          pointerEvents:      introDone ? "auto" : "none",
+          transition:         "opacity 800ms cubic-bezier(0.4, 0, 0.2, 1)",
+        }}
+      >
+        <MinimalHomeScreen
+          onOpenScanner={() => setShowScanner(true)}
+          onCollection={() => goTo("collection")}
+          onProfile={() => goTo("my")}
+          onFileSelected={loadPreview}
+        />
+      </div>
+      {introMounted && (
+        <IntroSplash
+          onReady={handleIntroReady}
+          onComplete={handleIntroComplete}
+        />
+      )}
+    </>
   );
 }
 

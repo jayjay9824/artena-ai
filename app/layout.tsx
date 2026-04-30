@@ -53,6 +53,33 @@ export const viewport: Viewport = {
   themeColor:     "#0D0D0D",
 };
 
+/**
+ * Body fallback paint — kills the KakaoTalk in-app browser white-
+ * flash during Intro → Home transition. The deep-blue color paints
+ * before any image loads; the ocean poster (a small SVG-rasterized
+ * gradient JPG, ~6 KB) decodes near-instantly and bridges the gap
+ * until OceanBackground's MP4 starts streaming. Both the color and
+ * image match the existing OceanBackground gradient exactly so
+ * there is no visible swap when the video takes over.
+ */
+const BODY_FALLBACK_STYLE: React.CSSProperties = {
+  backgroundColor:    "#2c4a6b",
+  backgroundImage:    "url('/ocean-background.jpg')",
+  backgroundSize:     "cover",
+  backgroundPosition: "center",
+  backgroundRepeat:   "no-repeat",
+};
+
+const HIDDEN_PRELOAD_IMG_STYLE: React.CSSProperties = {
+  position:      "absolute",
+  width:         1,
+  height:        1,
+  opacity:       0,
+  pointerEvents: "none",
+  top:           -9999,
+  left:          -9999,
+};
+
 export default function RootLayout({
   children,
 }: {
@@ -60,7 +87,34 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="antialiased">
+      <head>
+        {/*
+          High-priority preload so the browser fetches the ocean
+          poster in parallel with the JS bundle. KakaoTalk in-app
+          honors this hint, so the image is decoded by the time
+          Home mounts and the SCAN shadow paints.
+        */}
+        <link
+          rel="preload"
+          as="image"
+          href="/ocean-background.jpg"
+          fetchPriority="high"
+        />
+      </head>
+      <body className="antialiased" style={BODY_FALLBACK_STYLE}>
+        {/*
+          Hidden in-body preload — belt-and-suspenders for WebViews
+          that ignore <link rel="preload"> hints. The 1×1 offscreen
+          img triggers a normal image fetch + decode so the body
+          background-image is ready instantly.
+        */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/ocean-background.jpg"
+          aria-hidden="true"
+          alt=""
+          style={HIDDEN_PRELOAD_IMG_STYLE}
+        />
         <Providers>
           {children}
           <OfflineBanner />

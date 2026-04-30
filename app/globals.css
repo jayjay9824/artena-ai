@@ -102,3 +102,50 @@ body {
 .cursor-blink {
   animation: blink 0.9s ease-in-out infinite;
 }
+
+/* ── App container viewport height (KakaoTalk in-app fix) ─────────
+   KakaoTalk's WebView reports inconsistent values for `100vh` and
+   `100dvh` — the URL bar and bottom navigation can be counted twice
+   or not at all, which causes a visible vertical jump during the
+   Intro → Home transition. We stack three fallbacks so the LAST
+   supported declaration wins:
+
+   1. 100vh — universal baseline.
+   2. 100dvh — modern dynamic viewport units (Safari 15.4+, Chrome 108+).
+   3. calc(var(--vh, 1vh) * 100) — a JS-set custom property based on
+      window.innerHeight. ViewportHeightSync (in providers.tsx) keeps
+      --vh synced on resize / orientationchange. This overrides any
+      buggy dvh reporting in WebViews.
+
+   Apply to the main root wrapper that needs full-viewport height
+   stability (currently the Home cross-fade wrapper). */
+.app-container {
+  min-height: 100vh;
+  min-height: 100dvh;
+  min-height: calc(var(--vh, 1vh) * 100);
+}
+
+/* ── SCAN button shadow safety (KakaoTalk in-app fix) ──────────────
+   The SCAN orb's default 50px halo used to composite as a black
+   ellipse on KakaoTalk's in-app WebView before the ocean background
+   had finished painting. Three layered defenses:
+
+   1. Smooth opacity transition so the orb fades in with the home
+      cross-fade rather than popping.
+   2. While `.intro-active` is on <html> (Intro hasn't released the
+      home yet) the orb is fully invisible AND its shadow is
+      stripped — guarantees the halo can never paint onto the
+      blank/white frame underneath.
+   3. On `.kakao-inapp` the steady-state shadow is reduced to a
+      tighter 24px so the in-app WebView's softer shadow rasterizer
+      doesn't bleed a dark bloom around the orb. */
+.scan-button {
+  transition: opacity 700ms ease, box-shadow 300ms ease, transform .15s ease;
+}
+.intro-active .scan-button {
+  opacity: 0 !important;
+  box-shadow: none !important;
+}
+.kakao-inapp .scan-button {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.30) !important;
+}

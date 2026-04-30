@@ -45,7 +45,10 @@ export function HomeDock({
       paddingTop:    20,
       paddingLeft:   24,
       paddingRight:  24,
-      zIndex:     50,
+      // Step 7 — bottom nav target z. Sits above the ocean and the
+      // brand mark, below the center stack and the Intro splash so
+      // its glass surface never blocks the splash during transition.
+      zIndex:     20,
       fontFamily: FONT,
     }}>
       {/* Left — Collection */}

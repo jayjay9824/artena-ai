@@ -151,14 +151,18 @@ export function MinimalHomeScreen({
       paddingBottom: "calc(140px + env(safe-area-inset-bottom, 0px))",
     }}>
       {/* ── 0. Aerial ocean background — wrapped so activation can
-              scale + blur + dim it as one unit. ────────────────── */}
+              scale + blur + dim it as one unit. Decorative — the
+              wrapper carries pointer-events:none so taps land on
+              the orb / pill above instead of the motion.div here. */}
       <motion.div
+        aria-hidden
         animate={oceanAnim}
         transition={transition}
         style={{
           position: "absolute",
           inset:    0,
-          zIndex:   0,
+          zIndex:   1,
+          pointerEvents: "none",
           willChange: "transform, filter, opacity",
         }}
       >
