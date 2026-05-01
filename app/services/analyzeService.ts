@@ -26,6 +26,11 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { preprocessImageBase64 } from "./imagePreprocess";
 import { AI_CONFIG } from "./ai/config";
+import {
+  type UserLang,
+  languageInstructionFor,
+  rejectionFallbackFor,
+} from "./ai/userLang";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
@@ -182,12 +187,19 @@ function parseClaudeJson(raw: string): Record<string, unknown> {
    identifications (lesser-known works, heavy crops, low-light camera
    frames). Streaming keeps the connection alive on slow Opus 4.7
    passes; finalMessage() collects the assembled response. */
-export async function analyzeFromText(query: string): Promise<AnalyzeResult> {
+export async function analyzeFromText(
+  query:    string,
+  userLang: UserLang = "ko",
+): Promise<AnalyzeResult> {
+  const langInject = languageInstructionFor(userLang);
   const stream = client.messages.stream({
     model:      "claude-opus-4-7",
     max_tokens: 3500,
     thinking:   { type: "adaptive" },
-    messages:   [{ role: "user", content: TEXT_PROMPT(query) }],
+    messages:   [{
+      role:    "user",
+      content: `${TEXT_PROMPT(query)}\n\n${langInject}`,
+    }],
   });
   const message = await stream.finalMessage();
 
@@ -196,25 +208,34 @@ export async function analyzeFromText(query: string): Promise<AnalyzeResult> {
   const parsed = parseClaudeJson(text.text);
 
   if (parsed.isArtwork === false) {
-    return { kind: "rejected", reason: (parsed.rejectionReason as string) || "미술 작품 또는 작가 정보가 아닙니다." };
+    return {
+      kind:   "rejected",
+      reason: (parsed.rejectionReason as string) || rejectionFallbackFor(userLang),
+    };
   }
   return { kind: "ok", data: parsed };
 }
 
 export async function analyzeFromImage(
-  base64: string,
+  base64:    string,
   mediaType: ImageMediaType,
+  userLang:  UserLang = "ko",
 ): Promise<AnalyzeResult> {
   // Resize to ≤ 1568 px (Claude vision sweet spot, also fine for
   // Gemini), bake EXIF orientation into pixels, re-encode through
   // mozjpeg. Both engines benefit from the same cleaned input.
   const cleaned = await preprocessImageBase64(base64, mediaType);
+  const langInject = languageInstructionFor(userLang);
 
   // PRIMARY — Gemini. Returns null instantly if env isn't set
   // (Phase 1 short-circuit), so Claude-only deployments incur no
   // extra latency. Returns null on any error / parse failure too,
   // letting the Claude fallback below take over.
-  const geminiResult = await tryGeminiImageAnalysis(cleaned.base64, cleaned.mediaType);
+  const geminiResult = await tryGeminiImageAnalysis(
+    cleaned.base64,
+    cleaned.mediaType,
+    userLang,
+  );
   if (geminiResult) return geminiResult;
 
   // FALLBACK — Claude with adaptive thinking + streaming. Same
@@ -228,7 +249,7 @@ export async function analyzeFromImage(
       role: "user",
       content: [
         { type: "image", source: { type: "base64", media_type: cleaned.mediaType, data: cleaned.base64 } },
-        { type: "text",  text: IMAGE_PROMPT },
+        { type: "text",  text: `${IMAGE_PROMPT}\n\n${langInject}` },
       ],
     }],
   });
@@ -239,7 +260,10 @@ export async function analyzeFromImage(
   const parsed = parseClaudeJson(text.text);
 
   if (parsed.isArtwork === false) {
-    return { kind: "rejected", reason: (parsed.rejectionReason as string) || "미술 작품 이미지가 아닙니다." };
+    return {
+      kind:   "rejected",
+      reason: (parsed.rejectionReason as string) || rejectionFallbackFor(userLang),
+    };
   }
   return { kind: "ok", data: parsed };
 }
@@ -264,6 +288,7 @@ export async function analyzeFromImage(
 async function tryGeminiImageAnalysis(
   base64:    string,
   mediaType: ImageMediaType,
+  userLang:  UserLang = "ko",
 ): Promise<AnalyzeResult | null> {
   if (!AI_CONFIG.gemini.enabled || !AI_CONFIG.gemini.apiKey) return null;
 
@@ -273,11 +298,13 @@ async function tryGeminiImageAnalysis(
       `${encodeURIComponent(AI_CONFIG.gemini.model)}:generateContent` +
       `?key=${encodeURIComponent(AI_CONFIG.gemini.apiKey)}`;
 
+    const langInject = languageInstructionFor(userLang);
+
     const requestBody = {
       contents: [{
         parts: [
           { inlineData: { mimeType: mediaType, data: base64 } },
-          { text: IMAGE_PROMPT },
+          { text: `${IMAGE_PROMPT}\n\n${langInject}` },
         ],
       }],
       generationConfig: {
@@ -310,7 +337,7 @@ async function tryGeminiImageAnalysis(
     if (parsed.isArtwork === false) {
       return {
         kind:   "rejected",
-        reason: (parsed.rejectionReason as string) || "미술 작품 이미지가 아닙니다.",
+        reason: (parsed.rejectionReason as string) || rejectionFallbackFor(userLang),
       };
     }
     return { kind: "ok", data: parsed };

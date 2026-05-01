@@ -26,6 +26,29 @@ import { useCollection } from "../collection/hooks/useCollection";
 import { NoMatch } from "../components/match/NoMatch";
 import { CandidateSelection, CandidateRow } from "../components/match/CandidateSelection";
 import type { SourceType, MatchedArtwork } from "../lib/types";
+import { useLanguage } from "../i18n/useLanguage";
+import { safeT, type TranslationFn } from "../lib/i18n/safeT";
+
+/**
+ * Detect the dominant script of a string for the language-mismatch
+ * guard.
+ *
+ *   "ko"      → contains Hangul (U+AC00–U+D7A3)
+ *   "en"      → contains Latin alphabet but no Hangul
+ *   "unknown" → only digits / punctuation / mixed scripts we
+ *               can't classify confidently
+ *
+ * The Hangul check wins over Latin: a sentence like "AXVELA가
+ * 작품을 분석합니다" is Korean even though it contains the brand
+ * name in Latin. We only flag mismatches when the message is
+ * unambiguously the wrong language.
+ */
+function detectMessageLang(s: string | null | undefined): "ko" | "en" | "unknown" {
+  if (!s) return "unknown";
+  if (/[가-힣]/.test(s)) return "ko";
+  if (/[A-Za-z]/.test(s))         return "en";
+  return "unknown";
+}
 
 /* ── Types (kept local for the scan analysis shape) ───────────── */
 
@@ -72,6 +95,7 @@ function LoadingSpinner() {
 
 function ScanScreen() {
   const { goTo } = useTabNav();
+  const { t, lang } = useLanguage();
   // Intro → Home cross-fade gates (Step 4):
   //   introMounted — controls whether IntroSplash is in the tree
   //   introDone    — controls Home layer opacity. Flips from
@@ -529,7 +553,28 @@ function ScanScreen() {
         <button onClick={() => { setScreen("upload"); setImagePreview(null); setPendingFile(null); setError(null); }} style={{ width: "100%", padding: "12px 0", background: "transparent", color: "#AAA", border: "0.5px solid #E0E0E0", borderRadius: 12, cursor: "pointer", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 13 }}>
           다시 선택하기
         </button>
-        {error && <div style={{ background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}><p style={{ fontSize: 12, color: "#DC2626", margin: 0 }}>{error}</p></div>}
+        {error && (() => {
+          // STEP 8 — language-mismatch guard. If the API returned a
+          // rejection in the wrong language for the current UI, swap
+          // it for the localized rejection.generic key (via safeT so
+          // a missing dict still produces readable English).
+          const messageLang = detectMessageLang(error);
+          const mismatch =
+            (lang === "en" && messageLang === "ko") ||
+            (lang === "ko" && messageLang === "en");
+          const display = mismatch
+            ? safeT(
+                t as TranslationFn,
+                "rejection.generic",
+                "This doesn't appear to be an artwork. Please try a different image.",
+              )
+            : error;
+          return (
+            <div style={{ background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
+              <p style={{ fontSize: 12, color: "#DC2626", margin: 0 }}>{display}</p>
+            </div>
+          );
+        })()}
       </div>
     );
   }

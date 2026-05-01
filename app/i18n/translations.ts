@@ -165,6 +165,9 @@ const ko: Dictionary = {
   "stage.caption.reading_image":     "엑스벨라가 작품을 분석하고 있습니다",
   "stage.caption.background_notice": "곧 Quick View가 표시됩니다 — 시장 분석은 백그라운드에서 계속됩니다",
 
+  /* ── rejection (FIXES v3 STEP 8) ───────────────────────── */
+  "rejection.generic": "작품으로 판별되지 않았습니다. 다른 이미지로 다시 시도해주세요.",
+
   /* ── camera transition + minimal quick view ────────────── */
   "transition.analyzing": "분석 중…",
   "quick.ask":            "물어보기",
@@ -468,6 +471,9 @@ const en: Dictionary = {
   "stage.caption.comparables":       "Gathering comparable sales",
   "stage.caption.reading_image":     "AXVELA is analyzing the artwork",
   "stage.caption.background_notice": "Quick View will appear shortly — market analysis continues in background",
+
+  /* ── rejection (FIXES v3 STEP 8) ───────────────────────── */
+  "rejection.generic": "This doesn't appear to be an artwork. Please try a different image.",
 
   /* ── camera transition + minimal quick view ────────────── */
   "transition.analyzing": "Analyzing…",
