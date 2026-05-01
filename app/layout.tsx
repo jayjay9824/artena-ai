@@ -1,8 +1,17 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { OfflineBanner } from "./components/OfflineBanner";
+
+/**
+ * Strict locale union. Anything outside this set is treated as
+ * malformed cookie data and silently coerced to "ko".
+ */
+function normalizeLang(value?: string): "ko" | "en" {
+  return value === "en" ? "en" : "ko";
+}
 
 const inter = Inter({
   subsets: ["latin"],
@@ -80,13 +89,27 @@ const HIDDEN_PRELOAD_IMG_STYLE: React.CSSProperties = {
   left:          -9999,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  // Read the active locale from the request cookies so the SSR pass
+  // emits the right <html lang>. Chrome's auto-translate prompt and
+  // every screen reader key off this attribute — hardcoding "en" on
+  // a Korean page produced bogus translation banners.
+  //
+  // Read order (V3): axvela_lang → artena_language → fallback "ko".
+  // Anything outside the strict union is coerced to "ko" by
+  // normalizeLang above.
+  const cookieStore = await cookies();
+  const cookieLang =
+    cookieStore.get("axvela_lang")?.value
+    ?? cookieStore.get("artena_language")?.value;
+  const lang = normalizeLang(cookieLang);
+
   return (
-    <html lang="en" className={inter.variable}>
+    <html lang={lang} className={inter.variable}>
       <head>
         {/*
           Critical CSS — inlined in <head> so the very first paint
