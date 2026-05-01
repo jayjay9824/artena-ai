@@ -115,9 +115,25 @@ export function makeMockScannedArtwork(
 }
 
 /* Step 6 placeholder-detection sets — used by the overlay to
-   decide whether market/price suggestions are allowed. */
-export const PLACEHOLDER_ARTISTS = new Set(["Unknown artist", "작가 미상"]);
-export const PLACEHOLDER_TITLES  = new Set(["Artwork image",  "작품 이미지"]);
+   decide whether market/price suggestions are allowed. The title
+   set also covers the Step 7 server-default strings ("Title
+   pending" / "제목 확인 중") that the analyze client emits when
+   the V1 endpoint returns artist hints but no confirmed title.
+   Defensive default: when we don't actually know the title,
+   never unlock the verified market/draft set even if the server
+   says verificationStatus === "verified". */
+export const PLACEHOLDER_ARTISTS = new Set([
+  "Unknown artist",
+  "작가 미상",
+]);
+export const PLACEHOLDER_TITLES = new Set([
+  "Artwork image",
+  "작품 이미지",
+  "Title pending",
+  "제목 확인 중",
+  "Untitled",
+  "제목 미정",
+]);
 
 export function isPlaceholderArtist(artist?: string) {
   return !artist || PLACEHOLDER_ARTISTS.has(artist);
