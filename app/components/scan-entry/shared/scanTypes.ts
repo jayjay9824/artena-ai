@@ -58,6 +58,10 @@ export type ScanResult = {
   source:       ScanSource;
   status:       ScanResultStatus;
   insight?:     QuickInsight;
+  /** Optional graceful copy rendered alongside the card. Populated
+   *  on the API failure path (timeout / network error / non-2xx)
+   *  so the user knows the data is provisional. */
+  message?:     string;
   createdAt:    string;
   ts:           number;
 };

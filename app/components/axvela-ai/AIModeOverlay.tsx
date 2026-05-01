@@ -11,7 +11,6 @@ import { ScannedArtworkCard } from "../scan-entry/result-insight/ScannedArtworkC
 import { QuickInsightChips } from "../scan-entry/result-insight/QuickInsightChips";
 import { SuggestedActionGroup, type SuggestedAction } from "../scan-entry/result-insight/SuggestedActionGroup";
 import {
-  getConservativeMockInsight,
   isPlaceholderArtist,
   isPlaceholderTitle,
   type ScanResult,
@@ -19,6 +18,7 @@ import {
   type ScanSource,
   type QuickInsight,
 } from "../scan-entry/shared/scanTypes";
+import { analyzeArtworkImage } from "../../services/axvelaAnalyzeClient";
 
 /**
  * Step 6 — derive suggested follow-up prompts from a QuickInsight.
@@ -409,9 +409,11 @@ export function AIModeOverlay({ open, onClose }: Props) {
 
   /* ── Scan-first handlers (Steps 4–6) ─────────────────────────── */
 
-  const startMockAnalysis = useCallback((dataUrl: string, source: ScanSource) => {
-    const id  = nanoid();
-    const now = Date.now();
+  const startAnalysis = useCallback((dataUrl: string, source: ScanSource) => {
+    const id       = nanoid();
+    const now      = Date.now();
+    const language = (lang === "en" ? "en" : "ko") as "ko" | "en";
+
     setScanResults(prev => [
       ...prev,
       {
@@ -424,19 +426,26 @@ export function AIModeOverlay({ open, onClose }: Props) {
       },
     ]);
 
-    /* Mock pipeline — between 1.2s and 1.8s per Step 5 spec. Real
-       analyze API not wired here yet; resolves to a conservative
-       insight that always renders as Draft / unverified. */
-    const delay = 1200 + Math.floor(Math.random() * 600);
-    if (analyzeTimerRef.current) clearTimeout(analyzeTimerRef.current);
-    analyzeTimerRef.current = setTimeout(() => {
+    /* Step 7 — real analyze client. The client itself owns the 10s
+       AbortController timeout and never throws; failure paths
+       resolve to a graceful insight + message so the UI never sees
+       a raw technical error. Stale-id map is a no-op if the
+       overlay was closed before resolution. */
+    analyzeArtworkImage({
+      imageDataUrl:   dataUrl,
+      outputLanguage: language,
+    }).then(result => {
       setScanResults(prev => prev.map(r =>
         r.id === id
-          ? { ...r, status: "ready", insight: getConservativeMockInsight(lang as "ko" | "en") }
+          ? {
+              ...r,
+              status:  "ready",
+              insight: result.insight,
+              message: result.message,
+            }
           : r,
       ));
-      analyzeTimerRef.current = null;
-    }, delay);
+    });
   }, [lang]);
 
   const onFileChosen = useCallback((file: File | undefined, source: ScanSource) => {
@@ -450,10 +459,10 @@ export function AIModeOverlay({ open, onClose }: Props) {
     reader.onload = () => {
       const dataUrl = reader.result;
       if (typeof dataUrl !== "string") return;
-      startMockAnalysis(dataUrl, source);
+      startAnalysis(dataUrl, source);
     };
     reader.readAsDataURL(file);
-  }, [startMockAnalysis]);
+  }, [startAnalysis]);
 
   const openSheet = useCallback(() => {
     /* Drop keyboard so the sheet animates over a settled layout. */
@@ -812,6 +821,22 @@ export function AIModeOverlay({ open, onClose }: Props) {
                                   letterSpacing: "0.02em",
                                 }}>
                                   {draftFooterCopy}
+                                </p>
+                              )}
+                              {/* Step 7 — graceful failure copy from the
+                                  analyze client. Only set on the timeout /
+                                  network-error path; rendered as a quiet
+                                  italic line so the card still reads as
+                                  provisional, not broken. */}
+                              {r.message && (
+                                <p style={{
+                                  margin:      0,
+                                  fontSize:    12,
+                                  lineHeight:  1.55,
+                                  color:       "rgba(255, 255, 255, 0.72)",
+                                  fontStyle:   "italic",
+                                }}>
+                                  {r.message}
                                 </p>
                               )}
                             </div>
