@@ -2,11 +2,11 @@
 import React, { createContext, useCallback, useEffect, useMemo, useState } from "react";
 import {
   DEFAULT_LANGUAGE,
-  LANGUAGE_STORAGE_KEY,
   LanguageCode,
   SUPPORTED_LANGUAGES,
   translations,
 } from "./translations";
+import { readStoredLanguage, writeLanguage } from "../lib/language";
 
 /**
  * LanguageContext — global language state + t() resolver.
@@ -52,20 +52,23 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [lang, setLang] = useState<LanguageCode>(DEFAULT_LANGUAGE);
   const [hydrated, setHydrated] = useState(false);
 
-  // Hydrate from localStorage once on mount.
+  // Hydrate from the V3 storage priority once on mount —
+  // axvela_lang LS → artena_language LS → axvela_lang cookie → "ko".
+  // readStoredLanguage encapsulates the lookup chain; it never throws
+  // and always returns a valid LanguageCode, so we can call setLang
+  // unconditionally.
   useEffect(() => {
-    try {
-      const stored = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
-      if (isLanguageCode(stored)) setLang(stored);
-    } catch { /* private mode / disabled — silently ignore */ }
+    setLang(readStoredLanguage());
     setHydrated(true);
   }, []);
 
-  // Persist on change. Skipped until hydrated so the initial default
-  // doesn't clobber a stored preference.
+  // Persist on change via writeLanguage so all four surfaces stay in
+  // sync: <html lang>, axvela_lang cookie, axvela_lang LS, and the
+  // legacy artena_language LS mirror. Skipped until hydrated so the
+  // initial default doesn't clobber a stored preference.
   useEffect(() => {
     if (!hydrated) return;
-    try { window.localStorage.setItem(LANGUAGE_STORAGE_KEY, lang); } catch {}
+    writeLanguage(lang);
   }, [lang, hydrated]);
 
   const t = useCallback((key: string, params?: Record<string, string | number>) => {
