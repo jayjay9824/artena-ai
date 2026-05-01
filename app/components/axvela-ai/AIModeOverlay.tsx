@@ -1,8 +1,67 @@
 "use client";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowLeft, History, Sliders, Mic, Send, Sparkles } from "lucide-react";
+import { nanoid } from "nanoid";
 import { useLanguage } from "../../i18n/useLanguage";
+import { ScanTriggerButton } from "../scan-entry/trigger/ScanTriggerButton";
+import { ScanBottomSheet } from "../scan-entry/trigger/ScanBottomSheet";
+import { AnalysisAnimation } from "../scan-entry/scanner/AnalysisAnimation";
+import { ScannedArtworkCard } from "../scan-entry/result-insight/ScannedArtworkCard";
+import { QuickInsightChips } from "../scan-entry/result-insight/QuickInsightChips";
+import { SuggestedActionGroup, type SuggestedAction } from "../scan-entry/result-insight/SuggestedActionGroup";
+import {
+  getConservativeMockInsight,
+  isPlaceholderArtist,
+  isPlaceholderTitle,
+  type ScanResult,
+  type ScanSheetAction,
+  type ScanSource,
+  type QuickInsight,
+} from "../scan-entry/shared/scanTypes";
+
+/**
+ * Step 6 — derive suggested follow-up prompts from a QuickInsight.
+ * Verified high-confidence path unlocks market/draft prompts;
+ * everything else gets the safer "explain / similar / scan label"
+ * trio so we never imply identity or price for low-confidence data.
+ */
+function getSuggestedActionsForInsight(
+  insight: QuickInsight,
+  lang:    "ko" | "en",
+): SuggestedAction[] {
+  const ko          = lang === "ko";
+  const isHighConf  = (insight.confidence ?? 0) >= 75;
+  const realArtist  = !isPlaceholderArtist(insight.artist);
+  const realTitle   = !isPlaceholderTitle(insight.title);
+  const verifiedSet = insight.isVerified === true && isHighConf && realArtist && realTitle;
+
+  if (verifiedSet) {
+    return ko
+      ? [
+          { id: "draft",       label: "AI 도록 초안 생성"    },
+          { id: "market",      label: "최근 거래 이력 확인" },
+          { id: "other_works", label: "이 작가의 다른 작품" },
+        ]
+      : [
+          { id: "draft",       label: "Draft AI catalog text" },
+          { id: "market",      label: "Check market history"  },
+          { id: "other_works", label: "Other works by artist" },
+        ];
+  }
+
+  return ko
+    ? [
+        { id: "explain", label: "이 작품에 대해 더 알려주세요" },
+        { id: "similar", label: "비슷한 스타일의 작품 찾기"   },
+        { id: "label",   label: "라벨 함께 촬영하기"          },
+      ]
+    : [
+        { id: "explain", label: "Explain this artwork" },
+        { id: "similar", label: "Find similar styles"  },
+        { id: "label",   label: "Scan the label"       },
+      ];
+}
 
 const FONT      = "'KakaoSmallSans', system-ui, sans-serif";
 const FONT_HEAD = "'KakaoBigSans',   system-ui, sans-serif";
@@ -108,6 +167,7 @@ interface ChatMsg {
   id:      string;
   role:    "user" | "assistant";
   content: string;
+  ts:      number;
 }
 
 interface Props {
@@ -134,10 +194,17 @@ export function AIModeOverlay({ open, onClose }: Props) {
      pill never gets covered. Falls back to 100dvh otherwise. */
   const [vhPx,        setVhPx]        = useState<number | null>(null);
 
+  /* Scan-first UX state (Steps 4–6). */
+  const [sheetOpen,   setSheetOpen]   = useState(false);
+  const [scanResults, setScanResults] = useState<ScanResult[]>([]);
+
   const messagesEndRef    = useRef<HTMLDivElement>(null);
   const textareaRef       = useRef<HTMLTextAreaElement>(null);
   const closeTimerRef     = useRef<ReturnType<typeof setTimeout> | null>(null);
   const closeFromPopRef   = useRef(false);
+  const cameraInputRef    = useRef<HTMLInputElement>(null);
+  const uploadInputRef    = useRef<HTMLInputElement>(null);
+  const analyzeTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onCloseRef        = useRef(onClose);
   useEffect(() => { onCloseRef.current = onClose; }, [onClose]);
 
@@ -172,6 +239,12 @@ export function AIModeOverlay({ open, onClose }: Props) {
       setIsStreaming(false);
       setInput("");
       setIsClosing(false);
+      setSheetOpen(false);
+      setScanResults([]);
+      if (analyzeTimerRef.current) {
+        clearTimeout(analyzeTimerRef.current);
+        analyzeTimerRef.current = null;
+      }
     }, 360);
     return () => clearTimeout(id);
   }, [open]);
@@ -181,6 +254,10 @@ export function AIModeOverlay({ open, onClose }: Props) {
     if (closeTimerRef.current) {
       clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
+    }
+    if (analyzeTimerRef.current) {
+      clearTimeout(analyzeTimerRef.current);
+      analyzeTimerRef.current = null;
     }
   }, []);
 
@@ -287,7 +364,7 @@ export function AIModeOverlay({ open, onClose }: Props) {
     const trimmed = text.trim();
     if (!trimmed || isStreaming) return;
 
-    const userMsg: ChatMsg = { id: `u-${Date.now()}`, role: "user", content: trimmed };
+    const userMsg: ChatMsg = { id: `u-${Date.now()}`, role: "user", content: trimmed, ts: Date.now() };
     const next = [...messages, userMsg];
     setMessages(next);
     setInput("");
@@ -317,12 +394,12 @@ export function AIModeOverlay({ open, onClose }: Props) {
 
       setMessages(prev => [
         ...prev,
-        { id: `a-${Date.now()}`, role: "assistant", content: acc || t("axvela.modal.error") },
+        { id: `a-${Date.now()}`, role: "assistant", content: acc || t("axvela.modal.error"), ts: Date.now() },
       ]);
     } catch {
       setMessages(prev => [
         ...prev,
-        { id: `a-err-${Date.now()}`, role: "assistant", content: t("axvela.modal.error") },
+        { id: `a-err-${Date.now()}`, role: "assistant", content: t("axvela.modal.error"), ts: Date.now() },
       ]);
     } finally {
       setIsStreaming(false);
@@ -330,8 +407,111 @@ export function AIModeOverlay({ open, onClose }: Props) {
     }
   }, [messages, isStreaming, lang, t]);
 
+  /* ── Scan-first handlers (Steps 4–6) ─────────────────────────── */
+
+  const startMockAnalysis = useCallback((dataUrl: string, source: ScanSource) => {
+    const id  = nanoid();
+    const now = Date.now();
+    setScanResults(prev => [
+      ...prev,
+      {
+        id,
+        imageDataUrl: dataUrl,
+        source,
+        status:       "analyzing",
+        createdAt:    new Date(now).toISOString(),
+        ts:           now,
+      },
+    ]);
+
+    /* Mock pipeline — between 1.2s and 1.8s per Step 5 spec. Real
+       analyze API not wired here yet; resolves to a conservative
+       insight that always renders as Draft / unverified. */
+    const delay = 1200 + Math.floor(Math.random() * 600);
+    if (analyzeTimerRef.current) clearTimeout(analyzeTimerRef.current);
+    analyzeTimerRef.current = setTimeout(() => {
+      setScanResults(prev => prev.map(r =>
+        r.id === id
+          ? { ...r, status: "ready", insight: getConservativeMockInsight(lang as "ko" | "en") }
+          : r,
+      ));
+      analyzeTimerRef.current = null;
+    }, delay);
+  }, [lang]);
+
+  const onFileChosen = useCallback((file: File | undefined, source: ScanSource) => {
+    if (!file) return;
+    const accepted = ["image/jpeg", "image/png", "image/webp"];
+    /* Silent reject for unsupported types — never show technical
+       error copy. The user can simply retry from the sheet. */
+    if (file.type && !accepted.includes(file.type)) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      if (typeof dataUrl !== "string") return;
+      startMockAnalysis(dataUrl, source);
+    };
+    reader.readAsDataURL(file);
+  }, [startMockAnalysis]);
+
+  const openSheet = useCallback(() => {
+    /* Drop keyboard so the sheet animates over a settled layout. */
+    textareaRef.current?.blur();
+    setSheetOpen(true);
+  }, []);
+
+  const onSheetSelect = useCallback((action: ScanSheetAction) => {
+    setSheetOpen(false);
+    if (action === "scan") {
+      /* Defer slightly so the sheet's exit animation starts before
+         the file picker takes over the screen. */
+      setTimeout(() => cameraInputRef.current?.click(), 60);
+      return;
+    }
+    if (action === "upload") {
+      setTimeout(() => uploadInputRef.current?.click(), 60);
+      return;
+    }
+    /* "recent" — disabled / mock for now per Step 4 spec. */
+  }, []);
+
+  const onSuggestedAction = useCallback((action: SuggestedAction) => {
+    send(action.label);
+  }, [send]);
+
   const greetingMain = t("ai_overlay.greeting_main");
-  const showGreeting = messages.length === 0 && !isStreaming;
+  const showGreeting = messages.length === 0 && scanResults.length === 0 && !isStreaming;
+
+  /* Unified, time-ordered feed of chat messages + scan results so
+     scans render in the position they happened, not pinned at top
+     or bottom. */
+  type FeedItem =
+    | { kind: "msg";  ts: number; msg:  ChatMsg }
+    | { kind: "scan"; ts: number; scan: ScanResult };
+  const feed: FeedItem[] = useMemo(() => {
+    const items: FeedItem[] = [
+      ...messages.map(m     => ({ kind: "msg",  ts: m.ts, msg:  m } as FeedItem)),
+      ...scanResults.map(s  => ({ kind: "scan", ts: s.ts, scan: s } as FeedItem)),
+    ];
+    items.sort((a, b) => a.ts - b.ts);
+    return items;
+  }, [messages, scanResults]);
+
+  /* Latest READY scan drives the SuggestedActionGroup above the
+     input pill. While analyzing or fallback, no suggestions show. */
+  const latestReady = useMemo(
+    () => [...scanResults].reverse().find(r => r.status === "ready" && r.insight),
+    [scanResults],
+  );
+  const latestInsight     = latestReady?.insight;
+  const suggestedActions  = latestInsight
+    ? getSuggestedActionsForInsight(latestInsight, lang as "ko" | "en")
+    : null;
+  const showLowConfHint   = !!latestInsight && (latestInsight.confidence ?? 0) < 75;
+  const lowConfHint       = lang === "ko"
+    ? "라벨을 함께 촬영하면 정확도가 높아집니다."
+    : "Scan the label to improve accuracy.";
 
   /* Animation values — opening uses a 500ms ease-out spring feel,
      closing uses a 400ms ease-in (per Phase 4 spec). Reduced
@@ -341,6 +521,7 @@ export function AIModeOverlay({ open, onClose }: Props) {
   const exitDur  = reducedMotion ? 0.15 : 0.4;
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <motion.div
@@ -544,39 +725,101 @@ export function AIModeOverlay({ open, onClose }: Props) {
                     paddingBottom: 12,
                   }}
                 >
-                  {messages.map(m =>
-                    m.role === "user" ? (
-                      <div key={m.id} style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
-                        <div style={{
-                          maxWidth:     "82%",
-                          padding:      "10px 14px",
-                          background:   "rgba(168, 85, 247, 0.18)",
-                          border:       "0.5px solid rgba(167, 139, 250, 0.32)",
-                          borderRadius: "16px 16px 4px 16px",
-                          color:        "#FFFFFF",
-                          fontSize:     14,
-                          lineHeight:   1.6,
-                        }}>
-                          {m.content}
-                        </div>
-                      </div>
-                    ) : (
-                      <div key={m.id} style={{ marginBottom: 22 }}>
-                        <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
-                          <Sparkles size={11} strokeWidth={1.8} color="#C4B5FD" style={{ marginTop: 6, flexShrink: 0 }} />
+                  {feed.map(item => {
+                    if (item.kind === "msg") {
+                      const m = item.msg;
+                      return m.role === "user" ? (
+                        <div key={m.id} style={{ display: "flex", justifyContent: "flex-end", marginBottom: 16 }}>
                           <div style={{
-                            flex:       1,
-                            fontSize:   14,
-                            color:      "rgba(232, 232, 240, 0.95)",
-                            lineHeight: 1.75,
-                            whiteSpace: "pre-wrap" as const,
+                            maxWidth:     "82%",
+                            padding:      "10px 14px",
+                            background:   "rgba(168, 85, 247, 0.18)",
+                            border:       "0.5px solid rgba(167, 139, 250, 0.32)",
+                            borderRadius: "16px 16px 4px 16px",
+                            color:        "#FFFFFF",
+                            fontSize:     14,
+                            lineHeight:   1.6,
                           }}>
                             {m.content}
                           </div>
                         </div>
-                      </div>
-                    )
-                  )}
+                      ) : (
+                        <div key={m.id} style={{ marginBottom: 22 }}>
+                          <div style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
+                            <Sparkles size={11} strokeWidth={1.8} color="#C4B5FD" style={{ marginTop: 6, flexShrink: 0 }} />
+                            <div style={{
+                              flex:       1,
+                              fontSize:   14,
+                              color:      "rgba(232, 232, 240, 0.95)",
+                              lineHeight: 1.75,
+                              whiteSpace: "pre-wrap" as const,
+                            }}>
+                              {m.content}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    /* Scan-result inline card. While analyzing we show
+                       the captured image with the AnalysisAnimation
+                       sweep. Once ready, the white compact card +
+                       chips replace the animation in place. */
+                    const r = item.scan;
+                    if (r.status === "analyzing") {
+                      return (
+                        <motion.div
+                          key={r.id}
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ duration: reducedMotion ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }}
+                          style={{ marginBottom: 22 }}
+                        >
+                          <AnalysisAnimation imageDataUrl={r.imageDataUrl} />
+                        </motion.div>
+                      );
+                    }
+
+                    /* status === "ready" — render compact white
+                       attachment card matched to ChatGPT-like image
+                       attachments. Mock insight always shows the
+                       Draft chip + low-confidence hint. */
+                    const insight        = r.insight;
+                    const lowConf        = !!insight && (insight.confidence ?? 0) < 75;
+                    const draftFooterCopy = lang === "ko"
+                      ? "라벨을 함께 촬영하면 정확도가 높아집니다."
+                      : "Scan the label to improve accuracy.";
+
+                    return (
+                      <motion.div
+                        key={r.id}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: reducedMotion ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }}
+                        style={{ marginBottom: 22, display: "flex", justifyContent: "flex-start" }}
+                      >
+                        <div style={{ width: "100%", maxWidth: 360 }}>
+                          <ScannedArtworkCard artwork={r} />
+                          {insight && (
+                            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                              <QuickInsightChips insight={insight} variant="dark" />
+                              {lowConf && (
+                                <p style={{
+                                  margin:      0,
+                                  fontSize:    11,
+                                  lineHeight:  1.5,
+                                  color:       "rgba(255, 255, 255, 0.55)",
+                                  letterSpacing: "0.02em",
+                                }}>
+                                  {draftFooterCopy}
+                                </p>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
 
                   {isStreaming && (
                     <div style={{ marginBottom: 22 }}>
@@ -622,12 +865,42 @@ export function AIModeOverlay({ open, onClose }: Props) {
               padding:  "10px 16px calc(env(safe-area-inset-bottom, 0px) + 18px)",
             }}
           >
+            {/* Suggested follow-ups derived from the latest READY
+                scan. Hidden while no scan is on-screen so the input
+                area stays uncluttered (Step 6 rule). */}
+            {suggestedActions && (
+              <motion.div
+                key={`suggested-${latestReady?.id ?? "none"}`}
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: reducedMotion ? 0 : 0.32, ease: [0.16, 1, 0.3, 1] }}
+                style={{ marginBottom: 10 }}
+              >
+                <SuggestedActionGroup
+                  insight={latestInsight}
+                  actions={suggestedActions}
+                  onSelect={onSuggestedAction}
+                />
+                {showLowConfHint && (
+                  <p style={{
+                    margin:        "8px 2px 0",
+                    fontSize:      11,
+                    lineHeight:    1.5,
+                    color:         "rgba(255, 255, 255, 0.55)",
+                    letterSpacing: "0.02em",
+                  }}>
+                    {lowConfHint}
+                  </p>
+                )}
+              </motion.div>
+            )}
+
             <div
               style={{
                 display:        "flex",
                 alignItems:     "center",
                 gap:             8,
-                padding:        "8px 8px 8px 16px",
+                padding:        "8px 8px 8px 10px",
                 background:     "rgba(8, 8, 14, 0.72)",
                 backdropFilter:        "blur(24px) saturate(115%)",
                 WebkitBackdropFilter:  "blur(24px) saturate(115%)",
@@ -638,6 +911,15 @@ export function AIModeOverlay({ open, onClose }: Props) {
                 boxShadow:      "0 10px 32px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.07)",
               }}
             >
+              {/* Step 4 — "+" Scan-first entry. Left of mic so the
+                  send affordance stays anchored to the right. */}
+              <ScanTriggerButton
+                tone="dark"
+                onClick={openSheet}
+                ariaLabel={lang === "ko" ? "작품 스캔 또는 업로드" : "Scan or upload artwork"}
+                disabled={isStreaming}
+              />
+
               <button
                 aria-label={t("ai_overlay.mic")}
                 style={{
@@ -733,5 +1015,41 @@ export function AIModeOverlay({ open, onClose }: Props) {
         </motion.div>
       )}
     </AnimatePresence>
+
+    {/* Step 4 — Scan / Upload / Recent bottom sheet. Sibling of the
+        overlay so its z-index can stack cleanly above the dialog
+        without being clipped by the overlay's overflow:hidden. */}
+    <ScanBottomSheet
+      open={open && sheetOpen}
+      onClose={() => setSheetOpen(false)}
+      onSelect={onSheetSelect}
+    />
+
+    {/* Step 5 — hidden file inputs the sheet rows trigger. The
+        capture="environment" hint biases mobile to launch the rear
+        camera; the upload input has no capture attr so it biases
+        to the photo library. */}
+    <input
+      ref={cameraInputRef}
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      capture="environment"
+      style={{ display: "none" }}
+      onChange={(e) => {
+        onFileChosen(e.target.files?.[0], "camera");
+        e.target.value = "";
+      }}
+    />
+    <input
+      ref={uploadInputRef}
+      type="file"
+      accept="image/jpeg,image/png,image/webp"
+      style={{ display: "none" }}
+      onChange={(e) => {
+        onFileChosen(e.target.files?.[0], "upload");
+        e.target.value = "";
+      }}
+    />
+    </>
   );
 }
