@@ -153,6 +153,18 @@ const ko: Dictionary = {
   "stage.price":       "가격 추정",
   "stage.comparables": "유사 작품",
 
+  /* ── stage labels + captions (FIXES v3 STEP 6) ─────────── */
+  "stage.label.basic":               "기본 정보",
+  "stage.label.market":              "시장 분석",
+  "stage.label.price":               "가격 추정",
+  "stage.label.comparables":         "유사 사례",
+  "stage.caption.basic":             "기본 정보를 확인하고 있어요",
+  "stage.caption.market":            "시장 데이터를 살피고 있어요",
+  "stage.caption.price":             "가격대를 추정하고 있어요",
+  "stage.caption.comparables":       "유사 거래 사례를 모으고 있어요",
+  "stage.caption.reading_image":     "엑스벨라가 작품을 분석하고 있습니다",
+  "stage.caption.background_notice": "곧 Quick View가 표시됩니다 — 시장 분석은 백그라운드에서 계속됩니다",
+
   /* ── camera transition + minimal quick view ────────────── */
   "transition.analyzing": "분석 중…",
   "quick.ask":            "물어보기",
@@ -444,6 +456,18 @@ const en: Dictionary = {
   "stage.market":      "Market analysis",
   "stage.price":       "Price estimate",
   "stage.comparables": "Comparables",
+
+  /* ── stage labels + captions (FIXES v3 STEP 6) ─────────── */
+  "stage.label.basic":               "Basic info",
+  "stage.label.market":              "Market analysis",
+  "stage.label.price":               "Price estimate",
+  "stage.label.comparables":         "Comparables",
+  "stage.caption.basic":             "Reading basic information",
+  "stage.caption.market":            "Analyzing market data",
+  "stage.caption.price":             "Estimating price range",
+  "stage.caption.comparables":       "Gathering comparable sales",
+  "stage.caption.reading_image":     "AXVELA is analyzing the artwork",
+  "stage.caption.background_notice": "Quick View will appear shortly — market analysis continues in background",
 
   /* ── camera transition + minimal quick view ────────────── */
   "transition.analyzing": "Analyzing…",
