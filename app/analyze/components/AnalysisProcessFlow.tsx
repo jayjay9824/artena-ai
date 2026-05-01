@@ -2,6 +2,7 @@
 import React from "react";
 import type { AnalysisStages, StageKey, StageStatus } from "../types/staged";
 import { useLanguage } from "../../i18n/useLanguage";
+import { safeT, type TranslationFn } from "../../lib/i18n/safeT";
 
 const FONT = "'KakaoSmallSans', system-ui, sans-serif";
 
@@ -160,7 +161,7 @@ export function AnalysisProcessFlow({ stages }: { stages: AnalysisStages }) {
                 animation:   `apf-label-fade-in .35s ease ${i * 80}ms both`,
               }}
             >
-              {t(stage.labelKey) || stage.fallback}
+              {safeT(t as TranslationFn, stage.labelKey, stage.fallback)}
             </span>
           );
         })}
@@ -314,19 +315,22 @@ function StageConnector({
 
 /* ── Caption resolver ─────────────────────────────────────────── */
 
-function captionFor(stages: AnalysisStages, t: (k: string) => string): string {
+function captionFor(
+  stages: AnalysisStages,
+  t:      (k: string) => string,
+): string {
+  const tx = t as TranslationFn;
   const loading = STAGES.find(s => stages[s.key] === "loading");
   if (loading) {
-    const label = t(loading.captionKey) || loading.captionFallback;
-    return label;
+    return safeT(tx, loading.captionKey, loading.captionFallback);
   }
   if (STAGES.every(s => stages[s.key] === "ready")) {
-    return t("stage.caption.done") || "Analysis complete.";
+    return safeT(tx, "stage.caption.done",  "Analysis complete.");
   }
   if (STAGES.some(s => stages[s.key] === "error")) {
-    return t("stage.caption.error") || "Some signals are unavailable.";
+    return safeT(tx, "stage.caption.error", "Some signals are unavailable.");
   }
-  return t("stage.caption.start") || "Reading the work…";
+  return safeT(tx, "stage.caption.start", "Reading the work…");
 }
 
 /* ── Stage definitions ────────────────────────────────────────── */
@@ -342,30 +346,30 @@ interface StageDef {
 const STAGES: StageDef[] = [
   {
     key:             "basic",
-    labelKey:        "stage.basic",
-    fallback:        "Basic",
+    labelKey:        "stage.label.basic",
+    fallback:        "Basic info",
     captionKey:      "stage.caption.basic",
-    captionFallback: "기본 정보를 읽고 있습니다…",
+    captionFallback: "Reading basic information",
   },
   {
     key:             "market",
-    labelKey:        "stage.market",
-    fallback:        "Market",
+    labelKey:        "stage.label.market",
+    fallback:        "Market analysis",
     captionKey:      "stage.caption.market",
-    captionFallback: "시장 신호를 분석하고 있습니다…",
+    captionFallback: "Analyzing market data",
   },
   {
     key:             "price",
-    labelKey:        "stage.price",
-    fallback:        "Price",
+    labelKey:        "stage.label.price",
+    fallback:        "Price estimate",
     captionKey:      "stage.caption.price",
-    captionFallback: "가격 추정 범위를 계산하고 있습니다…",
+    captionFallback: "Estimating price range",
   },
   {
     key:             "comparables",
-    labelKey:        "stage.comparables",
-    fallback:        "Compare",
+    labelKey:        "stage.label.comparables",
+    fallback:        "Comparables",
     captionKey:      "stage.caption.comparables",
-    captionFallback: "유사 작품과 비교하고 있습니다…",
+    captionFallback: "Gathering comparable sales",
   },
 ];
