@@ -1,12 +1,11 @@
 "use client";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { ScanOrb } from "./ScanOrb";
 import { HomeDock } from "./HomeDock";
 import { OceanBackground } from "./OceanBackground";
 import { InAppBrowserWarningModal } from "./InAppBrowserWarningModal";
-import { AxvelaAIButton } from "../axvela-ai/AxvelaAIButton";
-import { AIModeOverlay } from "../axvela-ai/AIModeOverlay";
+import { useAIOverlay } from "../../context/AIOverlayContext";
 import { isInAppBrowser } from "../../utils/browserDetect";
 
 const FONT = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif";
@@ -24,7 +23,6 @@ const TEXT = {
 /* Phase 2 activation choreography — single duration drives every
    surface so the home reads as one coordinated mode shift. */
 const ACTIVATE_MS  = 600;
-const ORB_RIPPLE_MS = 800;
 
 interface Props {
   onOpenScanner:  () => void;
@@ -63,24 +61,18 @@ export function MinimalHomeScreen({
   onProfile,
   onFileSelected,
 }: Props) {
-  /* Phase 2 activation state machine + Phase 3 AI Mode Overlay.
-     isAIMode now directly drives AIModeOverlay visibility — the
-     legacy axvelaOpen state for AxvelaAIChatModal is gone. */
-  const [isActivating, setIsActivating] = useState(false);
-  const [isAIMode,     setIsAIMode]     = useState(false);
-  const [rippleKey,    setRippleKey]    = useState(0);
+  /* AI Mode now lives in AIOverlayContext (FIXES v3 Step 9). Home
+     reads isAIMode for the dim/blur tone shift while the overlay
+     sits on top, but the overlay itself is mounted globally at
+     the providers level — the floating AxvelaAIButton previously
+     stacked over the bottom nav has been removed. */
+  const { isAIMode } = useAIOverlay();
 
   /* In-app browser SCAN gate. KakaoTalk / Naver / Instagram / FB /
      LINE WebViews can't run getUserMedia, so we surface a warning
      before the user hits a black screen. Modal opens on SCAN tap
      when isInAppBrowser() is true. */
   const [showInAppWarning, setShowInAppWarning] = useState(false);
-
-  /* Track the activation timer so unmount tears it down cleanly. */
-  const activateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => {
-    if (activateTimerRef.current) clearTimeout(activateTimerRef.current);
-  }, []);
 
   /* Invisible clipboard-paste path. Power users still get instant
      analyze when pasting a screenshot anywhere on the home surface. */
@@ -100,29 +92,6 @@ export function MinimalHomeScreen({
     return () => window.removeEventListener("paste", handler);
   }, [onFileSelected]);
 
-  const handleActivate = () => {
-    if (isActivating || isAIMode) return;
-    try {
-      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
-        navigator.vibrate(10);
-      }
-    } catch { /* unsupported — silent */ }
-
-    setRippleKey(k => k + 1);
-    setIsActivating(true);
-    activateTimerRef.current = setTimeout(() => {
-      setIsActivating(false);
-      setIsAIMode(true);  // Phase 3 — overlay reads this directly
-      activateTimerRef.current = null;
-    }, ACTIVATE_MS);
-  };
-
-  /* Drop AI mode → overlay closes, button reactivates, home returns
-     to idle state from the activation visuals. */
-  const handleOverlayClose = () => {
-    setIsAIMode(false);
-  };
-
   /* SCAN tap — gate camera-bound UI behind an in-app browser
      check. Inside KakaoTalk / Naver / etc. we surface the warning
      modal instead of routing into the scanner (which would only
@@ -136,9 +105,9 @@ export function MinimalHomeScreen({
     onOpenScanner();
   };
 
-  // Drive every surface from one boolean — keeps the choreography
-  // synced even if state transitions race.
-  const isModeOn = isActivating || isAIMode;
+  // Single boolean drives the dim/blur visuals while the global
+  // AI overlay is open over the home.
+  const isModeOn = isAIMode;
 
   /* Animation knob bundles per surface. Centralizing them here
      keeps the JSX legible and makes the choreography easy to tune. */
@@ -241,8 +210,11 @@ export function MinimalHomeScreen({
         position:       "relative" as const,
         zIndex:         100,
       }}>
-        {/* Orb wrapper — animates scale/opacity, hosts a one-shot
-            ripple ring keyed off rippleKey. */}
+        {/* Orb wrapper — animates scale/opacity. The legacy
+            activation ripple + AxvelaAIButton pill that used to sit
+            below the orb were removed in FIXES v3 Step 9; the AI
+            entry now lives in the bottom-nav middle tab and the
+            overlay is mounted globally. */}
         <motion.div
           animate={orbAnim}
           transition={transition}
@@ -252,38 +224,7 @@ export function MinimalHomeScreen({
           }}
         >
           <ScanOrb onClick={handleScanTap} label={TEXT.scanLabel} />
-
-          <AnimatePresence>
-            {rippleKey > 0 && (
-              <motion.span
-                key={`orb-ripple-${rippleKey}`}
-                initial={{ scale: 0.9, opacity: 0.18 }}
-                animate={{ scale: 1.5, opacity: 0    }}
-                exit={{    opacity: 0 }}
-                transition={{ duration: ORB_RIPPLE_MS / 1000, ease: "easeOut" }}
-                aria-hidden
-                style={{
-                  position:      "absolute",
-                  inset:         0,
-                  borderRadius:  "50%",
-                  border:        "1px solid rgba(168, 85, 247, 0.32)",
-                  pointerEvents: "none",
-                  willChange:    "transform, opacity",
-                }}
-              />
-            )}
-          </AnimatePresence>
         </motion.div>
-
-        {/* Pill — Phase 2 wires onActivate (state machine) instead
-            of opening the modal directly. The button stays at full
-            opacity / its idle scale so it reads as the focal
-            point during the dim shift. */}
-        <AxvelaAIButton
-          onActivate={handleActivate}
-          disabled={isModeOn}
-          rippleKey={rippleKey}
-        />
       </div>
 
       {/* ── 3. Bottom dock — Collection · Profile ───────────────── */}
@@ -330,8 +271,10 @@ export function MinimalHomeScreen({
         )}
       </AnimatePresence>
 
-      {/* ── 5. AXVELA AI Mode Overlay (Phase 3) ─────────────────── */}
-      <AIModeOverlay open={isAIMode} onClose={handleOverlayClose} />
+      {/* ── 5. AXVELA AI Mode Overlay — globally mounted in
+              providers.tsx now (FIXES v3 Step 9) so any surface
+              can open it via useAIOverlay().openAI(). The home
+              just reads isAIMode for its dim/blur tone shift. */}
 
       {/* ── 6. In-app browser warning — opens when user taps SCAN
               inside KakaoTalk / other in-app WebViews. Provides

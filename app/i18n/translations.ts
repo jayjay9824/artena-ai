@@ -55,6 +55,7 @@ const ko: Dictionary = {
   "nav.recommendations": "추천",
   "nav.gallery":         "갤러리",
   "nav.my":              "프로필",
+  "nav.profile":         "프로필",
   "nav.exhibitions":     "전시 & 여행",
 
   /* ── home ──────────────────────────────────────────────── */
@@ -362,6 +363,7 @@ const en: Dictionary = {
   "nav.recommendations": "For You",
   "nav.gallery":         "Gallery",
   "nav.my":              "Profile",
+  "nav.profile":         "Profile",
   "nav.exhibitions":     "Exhibitions & Travel",
 
   /* ── home ──────────────────────────────────────────────── */

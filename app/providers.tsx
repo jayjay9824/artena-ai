@@ -3,8 +3,10 @@ import React, { useEffect } from "react";
 import { MyActivityProvider } from "./context/MyActivityContext";
 import { TabProvider } from "./context/TabContext";
 import { AnswerModeProvider } from "./context/AnswerModeContext";
+import { AIOverlayProvider, useAIOverlay } from "./context/AIOverlayContext";
 import { LanguageProvider } from "./i18n/LanguageProvider";
 import { LanguageToggle } from "./i18n/LanguageToggle";
+import { AIModeOverlay } from "./components/axvela-ai/AIModeOverlay";
 import { isKakaoInApp, isInAppBrowser } from "./utils/browserDetect";
 
 /**
@@ -65,19 +67,34 @@ function ViewportHeightSync() {
   return null;
 }
 
+/**
+ * Globally-mounted AXVELA AI overlay. Visibility is driven by
+ * AIOverlayContext so any surface (BottomNav middle tab, scanner
+ * idle prompt, etc.) can open it without owning the state itself.
+ */
+function GlobalAIOverlay() {
+  const { isAIMode, closeAI } = useAIOverlay();
+  return <AIModeOverlay open={isAIMode} onClose={closeAI} />;
+}
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <LanguageProvider>
       <MyActivityProvider>
         <TabProvider>
           <AnswerModeProvider>
-            <InAppBrowserClassTag />
-            <ViewportHeightSync />
-            {children}
-            {/* Global language toggle — fixed top-right, visible app-wide
-                including SmartScanner / IntroSplash / Loading / Shared
-                Report / all in-shell tabs. */}
-            <LanguageToggle />
+            <AIOverlayProvider>
+              <InAppBrowserClassTag />
+              <ViewportHeightSync />
+              {children}
+              {/* Global AXVELA AI overlay — single mount point, opened
+                  from BottomNav or any other entry. */}
+              <GlobalAIOverlay />
+              {/* Global language toggle — fixed top-right, visible
+                  app-wide including SmartScanner / IntroSplash /
+                  Loading / Shared Report / all in-shell tabs. */}
+              <LanguageToggle />
+            </AIOverlayProvider>
           </AnswerModeProvider>
         </TabProvider>
       </MyActivityProvider>
