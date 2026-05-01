@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
 
     const { priceRange, confidence, topComparables, basisLabel } = valuation;
 
-    const prompt = `You are ARTENA's senior market intelligence analyst, a specialist in fine art valuation with expertise in Korean and Asian contemporary markets.
+    const prompt = `You are AXVELA's senior market intelligence analyst, a specialist in fine art valuation with expertise in Korean and Asian contemporary markets.
 
 Artist: ${input.artistName}
 Title: ${input.title || "Untitled"}

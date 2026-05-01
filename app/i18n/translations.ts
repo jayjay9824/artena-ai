@@ -33,7 +33,7 @@ const ko: Dictionary = {
 
   /* ── common ────────────────────────────────────────────── */
   "common.app_name":         "AXVELA AI",
-  "common.tagline":          "Cultural Intelligence AI",
+  "common.tagline":          "컬처럴 인텔리전스",
   "common.save":             "저장",
   "common.saved":            "저장됨",
   "common.like":             "좋아요",
@@ -341,7 +341,7 @@ const en: Dictionary = {
 
   /* ── common ────────────────────────────────────────────── */
   "common.app_name":         "AXVELA AI",
-  "common.tagline":          "Cultural Intelligence AI",
+  "common.tagline":          "Cultural Intelligence",
   "common.save":             "Save",
   "common.saved":            "Saved",
   "common.like":             "Like",

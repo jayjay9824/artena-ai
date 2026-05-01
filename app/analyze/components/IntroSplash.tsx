@@ -223,7 +223,7 @@ export function IntroSplash({ onReady, onComplete }: IntroSplashProps) {
               fontWeight: 400,
             }}
           >
-            Cultural Intelligence Engine
+            Cultural Intelligence
           </p>
         </div>
       </div>
