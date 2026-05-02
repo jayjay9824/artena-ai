@@ -56,22 +56,22 @@ export function ScannedArtworkCard({ artwork, onRetry }: Props) {
       </div>
 
       {/* Metadata */}
-      <div className="px-4 py-4">
+      <div className="px-4 py-4 [overflow-wrap:anywhere] [word-break:keep-all]">
         {insight ? (
           <>
-            <h3 className="text-[15px] font-medium text-ink">
+            <h3 className="text-[15px] font-medium leading-snug text-ink [overflow-wrap:anywhere] [word-break:keep-all]">
               {insight.title ?? (lang === "ko" ? "제목 미정" : "Untitled")}
             </h3>
-            <p className="mt-0.5 text-[13px] text-muted">
+            <p className="mt-0.5 text-[13px] leading-snug text-muted [overflow-wrap:anywhere] [word-break:keep-all]">
               {[insight.artist, insight.year].filter(Boolean).join(" · ") || (lang === "ko" ? "정보 확인 중" : "Pending details")}
             </p>
             {insight.medium && (
-              <p className="mt-1 text-[12px] text-muted/80">{insight.medium}</p>
+              <p className="mt-1 text-[12px] leading-snug text-muted/80 [overflow-wrap:anywhere] [word-break:keep-all]">{insight.medium}</p>
             )}
           </>
         ) : (
           <div className="flex flex-col items-start gap-3 py-2">
-            <p className="text-[14px] text-ink">{retryCopy}</p>
+            <p className="text-[14px] leading-relaxed text-ink [overflow-wrap:anywhere] [word-break:keep-all]">{retryCopy}</p>
             {onRetry && (
               <button
                 type="button"

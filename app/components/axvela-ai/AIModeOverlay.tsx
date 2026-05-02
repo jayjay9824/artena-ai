@@ -261,10 +261,14 @@ export function AIModeOverlay({ open, onClose }: Props) {
     }
   }, []);
 
-  /* Auto-scroll to latest. */
+  /* Auto-scroll to latest. Scan-card transitions from analyzing→
+     ready add height, so we re-scroll on scanResults length AND
+     on each result's status change so the failure message at the
+     bottom of the new card never sits below the fold. */
+  const scanSignature = scanResults.map(r => `${r.id}:${r.status}`).join("|");
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length, streaming]);
+  }, [messages.length, streaming, scanSignature]);
 
   /* Textarea auto-resize. */
   useEffect(() => {
@@ -731,7 +735,11 @@ export function AIModeOverlay({ open, onClose }: Props) {
                   transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
                   style={{
                     paddingTop: 20,
-                    paddingBottom: 12,
+                    /* Step 9 — extra bottom buffer so the last scan
+                       card's footer text (failure message / low-conf
+                       hint) is never visually clipped by the input
+                       section sitting beneath the thread. */
+                    paddingBottom: 32,
                   }}
                 >
                   {feed.map(item => {
@@ -807,34 +815,47 @@ export function AIModeOverlay({ open, onClose }: Props) {
                         transition={{ duration: reducedMotion ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }}
                         style={{ marginBottom: 22, display: "flex", justifyContent: "flex-start" }}
                       >
-                        <div style={{ width: "100%", maxWidth: 360 }}>
+                        <div style={{ width: "100%", maxWidth: 380, minWidth: 0 }}>
                           <ScannedArtworkCard artwork={r} />
                           {insight && (
-                            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                            <div style={{
+                              marginTop:    10,
+                              display:      "flex",
+                              flexDirection: "column",
+                              gap:          8,
+                              minWidth:     0,
+                            }}>
                               <QuickInsightChips insight={insight} variant="dark" />
                               {lowConf && (
                                 <p style={{
-                                  margin:      0,
-                                  fontSize:    11,
-                                  lineHeight:  1.5,
-                                  color:       "rgba(255, 255, 255, 0.55)",
-                                  letterSpacing: "0.02em",
+                                  margin:        0,
+                                  fontSize:      11.5,
+                                  lineHeight:    1.6,
+                                  color:         "rgba(255, 255, 255, 0.62)",
+                                  letterSpacing: "0.01em",
+                                  wordBreak:     "keep-all",
+                                  overflowWrap:  "anywhere",
                                 }}>
                                   {draftFooterCopy}
                                 </p>
                               )}
                               {/* Step 7 — graceful failure copy from the
-                                  analyze client. Only set on the timeout /
-                                  network-error path; rendered as a quiet
-                                  italic line so the card still reads as
-                                  provisional, not broken. */}
+                                  analyze client. Step 9 fix: italic dropped
+                                  (it cramped Korean glyphs at small sizes
+                                  and clipped the descenders), font bumped
+                                  to 13px, and word-break tuned for KO so
+                                  the message never overflows on narrow
+                                  viewports. */}
                               {r.message && (
                                 <p style={{
-                                  margin:      0,
-                                  fontSize:    12,
-                                  lineHeight:  1.55,
-                                  color:       "rgba(255, 255, 255, 0.72)",
-                                  fontStyle:   "italic",
+                                  margin:        "2px 0 2px",
+                                  fontSize:      13,
+                                  lineHeight:    1.65,
+                                  color:         "rgba(255, 255, 255, 0.82)",
+                                  letterSpacing: "0.005em",
+                                  wordBreak:     "keep-all",
+                                  overflowWrap:  "anywhere",
+                                  whiteSpace:    "normal",
                                 }}>
                                   {r.message}
                                 </p>
@@ -909,10 +930,12 @@ export function AIModeOverlay({ open, onClose }: Props) {
                 {showLowConfHint && (
                   <p style={{
                     margin:        "8px 2px 0",
-                    fontSize:      11,
-                    lineHeight:    1.5,
-                    color:         "rgba(255, 255, 255, 0.55)",
-                    letterSpacing: "0.02em",
+                    fontSize:      11.5,
+                    lineHeight:    1.6,
+                    color:         "rgba(255, 255, 255, 0.62)",
+                    letterSpacing: "0.01em",
+                    wordBreak:     "keep-all",
+                    overflowWrap:  "anywhere",
                   }}>
                     {lowConfHint}
                   </p>
