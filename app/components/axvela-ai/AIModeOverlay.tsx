@@ -673,7 +673,11 @@ export function AIModeOverlay({ open, onClose }: Props) {
               position:    "relative" as const,
               zIndex:      2,
               overflowY:   "auto",
-              padding:     "0 22px",
+              /* Step 9 — reduced from 22px → 16px so narrow phones
+                 (320–360px) get an extra 12px of card width. The
+                 scan card and its message wrap cleanly without
+                 having to truncate. */
+              padding:     "0 16px",
               display:     "flex",
               flexDirection: "column",
             }}
@@ -813,9 +817,9 @@ export function AIModeOverlay({ open, onClose }: Props) {
                         initial={{ opacity: 0, y: 6 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ duration: reducedMotion ? 0 : 0.35, ease: [0.16, 1, 0.3, 1] }}
-                        style={{ marginBottom: 22, display: "flex", justifyContent: "flex-start" }}
+                        style={{ marginBottom: 22, display: "flex", justifyContent: "flex-start", minWidth: 0 }}
                       >
-                        <div style={{ width: "100%", maxWidth: 380, minWidth: 0 }}>
+                        <div style={{ width: "100%", maxWidth: 380, minWidth: 0, boxSizing: "border-box" }}>
                           <ScannedArtworkCard artwork={r} />
                           {insight && (
                             <div style={{

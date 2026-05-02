@@ -33,13 +33,15 @@ export function SuggestedActionGroup({ insight, actions, onSelect }: Props) {
       </p>
       <ul className="flex flex-wrap gap-2" role="list">
         {list.map((action) => (
-          <li key={action.id}>
+          <li key={action.id} className="max-w-full">
             <button
               type="button"
               onClick={() => onSelect(action)}
               className={[
                 "rounded-full border-[0.5px] border-border bg-white",
                 "px-3.5 py-1.5 text-[12.5px] text-ink",
+                "max-w-full text-left leading-snug",
+                "[overflow-wrap:anywhere] [word-break:keep-all] whitespace-normal",
                 "transition-colors hover:bg-black/[0.04] active:bg-black/[0.08]",
                 "focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-500/60",
               ].join(" ")}

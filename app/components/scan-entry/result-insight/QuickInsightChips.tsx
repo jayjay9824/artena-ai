@@ -50,7 +50,11 @@ export function QuickInsightChips({ insight, variant = "light" }: Props) {
 }
 
 function chipClass(tone: "draft" | "neutral" | "physical" | undefined, variant: "light" | "dark") {
-  const base = "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] tracking-[0.04em]";
+  /* max-w-full + Korean-aware wrap so a single long chip (e.g. a
+     compound artist hint from the API) never overflows its parent
+     on a 320px viewport. inline-flex keeps the pill shape; if the
+     content wraps, both lines stay inside the same chip. */
+  const base = "inline-flex items-center rounded-full px-2.5 py-1 text-[11px] tracking-[0.04em] max-w-full [overflow-wrap:anywhere] [word-break:keep-all]";
 
   if (variant === "dark") {
     if (tone === "draft") {

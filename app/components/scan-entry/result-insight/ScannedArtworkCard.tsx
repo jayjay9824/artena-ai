@@ -32,16 +32,27 @@ export function ScannedArtworkCard({ artwork, onRetry }: Props) {
 
   return (
     <article className={[
-      "w-full max-w-[420px] overflow-hidden rounded-2xl",
+      "w-full max-w-full overflow-hidden rounded-2xl",
       "border-[0.5px] border-border bg-white",
       "shadow-[0_2px_18px_-8px_rgba(0,0,0,0.18)]",
+      "box-border",
     ].join(" ")}>
-      {/* Image */}
-      <div className="relative aspect-[4/5] w-full bg-black/[0.04]">
+      {/* Image — capped at 260px on mobile so the card never
+          dominates the viewport and pushes the metadata + message
+          below the fold. Aspect-[4/5] still holds on wider
+          screens where the cap doesn't bind. */}
+      <div
+        className="relative w-full bg-black/[0.04]"
+        style={{
+          aspectRatio:  "4 / 5",
+          maxHeight:    260,
+          overflow:     "hidden",
+        }}
+      >
         <img
           src={artwork.imageDataUrl}
           alt=""
-          className="h-full w-full object-cover"
+          className="absolute inset-0 h-full w-full object-cover"
           draggable={false}
         />
         {isDraft && (
