@@ -622,25 +622,31 @@ export function ArtAssistantScreen({
           <div ref={messagesEndRef} />
         </div>
 
-        {/* BLOCK B — input bar hidden until the user has at least one
-            exchange. Empty state surfaces chips only; the textarea is
-            secondary and emerges as a follow-up affordance once the
-            conversation begins. */}
-        {messages.length > 0 && (
+        {/* BLOCK B — input bar is always visible. Original design
+            hid the textarea on the empty state in favor of the
+            suggestion chips, but users hit the chat with their own
+            question in mind and were stuck with no way to type.
+            Now the chips remain as quick-pick affordances above
+            the thread, and the textarea sits at the bottom from
+            the first frame so a custom question is always one tap
+            away. */}
         <div style={{
           background: "rgba(255,255,255,0.98)",
           backdropFilter: "blur(16px)", WebkitBackdropFilter: "blur(16px)",
           borderTop: "0.5px solid #EDEDED",
-          padding: "12px 16px 28px",
+          padding: "12px 16px calc(env(safe-area-inset-bottom, 0px) + 18px)",
           flexShrink: 0,
         }}>
-          {/* Context reminder */}
-          <p style={{
-            fontSize: 9, color: "#CCCCCC", letterSpacing: ".06em",
-            margin: "0 0 8px 4px",
-          }}>
-            ◆ {analysis.artist || "작가"} · {analysis.title || "작품"} 기준으로 답변 중
-          </p>
+          {/* Context reminder — only after the conversation has
+              started, to keep the empty state quiet. */}
+          {messages.length > 0 && (
+            <p style={{
+              fontSize: 9, color: "#CCCCCC", letterSpacing: ".06em",
+              margin: "0 0 8px 4px",
+            }}>
+              ◆ {analysis.artist || "작가"} · {analysis.title || "작품"} 기준으로 답변 중
+            </p>
+          )}
 
           <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }}>
             <textarea
@@ -695,7 +701,6 @@ export function ArtAssistantScreen({
             </button>
           </div>
         </div>
-        )}
 
       </div>
     </>
