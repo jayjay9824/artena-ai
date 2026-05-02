@@ -241,7 +241,7 @@ const ko: Dictionary = {
   /* ── AXVELA AI Mode Overlay (Phase 3) ─────────────────── */
   "ai_overlay.title":                     "AXVELA AI",
   "ai_overlay.aria_label":                "AXVELA AI 어시스턴트",
-  "ai_overlay.greeting_main":             "안녕하세요,\n지니님 ✦",
+  "ai_overlay.greeting_main":             "안녕하세요 ✦",
   "ai_overlay.greeting_pre":              "작품, 작가, 시장 맥락을 분석하고\n당신의 아트 컬렉션을 더 ",
   "ai_overlay.greeting_highlight":        "특별하게",
   "ai_overlay.greeting_post":             " 만들어 드릴게요.",
@@ -549,7 +549,7 @@ const en: Dictionary = {
   /* ── AXVELA AI Mode Overlay (Phase 3) ─────────────────── */
   "ai_overlay.title":                     "AXVELA AI",
   "ai_overlay.aria_label":                "AXVELA AI assistant",
-  "ai_overlay.greeting_main":             "Hello,\nGenie ✦",
+  "ai_overlay.greeting_main":             "Hello ✦",
   "ai_overlay.greeting_pre":              "I'll read artworks, artists, and market context\nto make your art collection ",
   "ai_overlay.greeting_highlight":        "more meaningful",
   "ai_overlay.greeting_post":             ".",
