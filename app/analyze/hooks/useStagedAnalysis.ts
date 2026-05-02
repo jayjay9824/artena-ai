@@ -43,7 +43,25 @@ function reducer(state: StagedAnalysisState, action: Action): StagedAnalysisStat
   switch (action.type) {
     case "RESET": return INITIAL_STATE;
     case "QUICK_VIEW_READY":
-      return { ...state, quickView: action.quickView, stages: { ...state.stages, basic: "ready" } };
+      /* When Quick View lands we know the full-analysis call is
+         still in flight (~10–30s remaining). Mark every downstream
+         stage as "loading" right away so AnalysisProcessFlow keeps
+         pulsing the nodes + sweeping the pipeline-wide light during
+         the wait — without this all three sit in "pending" for the
+         whole window and the screen reads as frozen. The cascade
+         on FULL_ANALYSIS still resolves them to "ready" in
+         sequence (400 / 900 / 1400ms) for the staggered check. */
+      return {
+        ...state,
+        quickView: action.quickView,
+        stages: {
+          ...state.stages,
+          basic:       "ready",
+          market:      "loading",
+          price:       "loading",
+          comparables: "loading",
+        },
+      };
     case "STAGE":
       return { ...state, stages: { ...state.stages, [action.stage]: action.status } };
     case "FULL_ANALYSIS":
