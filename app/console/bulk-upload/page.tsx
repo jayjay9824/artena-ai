@@ -34,7 +34,7 @@ export default function BulkUploadPage() {
 
   return (
     <div style={{
-      minHeight: "100vh",
+      minHeight: "calc(var(--vh, 1vh) * 100)",
       background: "#F8F7F4",
       fontFamily: FONT,
     }}>

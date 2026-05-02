@@ -3,7 +3,7 @@ import Link from "next/link";
 export default function ReportNotFound() {
   return (
     <div style={{
-      minHeight: "100vh", background: "#F8F7F4",
+      minHeight: "calc(var(--vh, 1vh) * 100)", background: "#F8F7F4",
       display: "flex", alignItems: "center", justifyContent: "center",
       padding: "0 28px", textAlign: "center" as const,
       fontFamily: "'KakaoSmallSans', system-ui, sans-serif",

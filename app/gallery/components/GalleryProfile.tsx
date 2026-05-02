@@ -176,7 +176,7 @@ export function GalleryProfile({ gallery, listings, onBack, onSelectListing }: G
   const availableWorks = listings.filter(l => l.gallery.gallery_id === gallery.gallery_id);
 
   return (
-    <div style={{ background: "#FFFFFF", minHeight: "100vh", maxWidth: 640, margin: "0 auto", fontFamily: FONT, overflowX: "hidden", paddingBottom: 80 }}>
+    <div style={{ background: "#FFFFFF", minHeight: "calc(var(--vh, 1vh) * 100)", maxWidth: 640, margin: "0 auto", fontFamily: FONT, overflowX: "hidden", paddingBottom: 80 }}>
 
       {/* Cover */}
       <CoverArea gallery={gallery} />

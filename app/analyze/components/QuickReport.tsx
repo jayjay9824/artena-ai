@@ -520,7 +520,7 @@ export function QuickReport({
 
       <div style={{
         maxWidth: 640, margin: "0 auto", background: "#FFFFFF",
-        minHeight: "100vh", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+        minHeight: "calc(var(--vh, 1vh) * 100)", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
         position: "relative" as const, paddingBottom: 96,
         boxSizing: "border-box" as const, overflowX: "hidden",
       }}>

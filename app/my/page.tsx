@@ -53,7 +53,7 @@ function MyPage() {
     <>
       <div style={{
         background:    "#FFFFFF",
-        minHeight:     "100vh",
+        minHeight: "calc(var(--vh, 1vh) * 100)",
         maxWidth:      640,
         margin:        "0 auto",
         fontFamily:    FONT,

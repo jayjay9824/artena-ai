@@ -322,11 +322,25 @@ export function MarketIntelligenceReport({
 
   useEffect(() => {
     const repWork = data.representativeWork || data.artworkOverview.title;
+    let cancelled = false;
     setWorkLoading(true);
-    fetchWikiImage(repWork).then((url) => {
-      setWorkImg(url);
-      setWorkLoading(false);
-    });
+    fetchWikiImage(repWork)
+      .then((url) => {
+        if (cancelled) return;
+        setWorkImg(url);
+        setWorkLoading(false);
+      })
+      .catch(() => {
+        /* Fail-closed — drop loading flag so the report doesn't sit
+           in a "loading representative work…" state forever when the
+           wiki fetch errors (offline, in-app browser blocking
+           cross-origin, rate limit). The card simply renders without
+           the rep image; everything else still surfaces. */
+        if (cancelled) return;
+        setWorkImg(null);
+        setWorkLoading(false);
+      });
+    return () => { cancelled = true; };
   }, [data.artworkOverview.title, data.representativeWork]);
 
   return (

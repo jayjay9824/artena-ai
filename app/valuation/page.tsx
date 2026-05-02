@@ -64,7 +64,7 @@ function ValuationPageInner() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "#F8F8F8", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>
+    <div style={{ minHeight: "calc(var(--vh, 1vh) * 100)", background: "#F8F8F8", fontFamily: "'KakaoSmallSans', system-ui, sans-serif" }}>
       {/* Nav */}
       <div style={{ background: "#FFF", borderBottom: "1px solid #EBEBEB", padding: "0 40px", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56 }}>
         <a href="/" style={{ textDecoration: "none" }}>

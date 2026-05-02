@@ -121,7 +121,7 @@ function CollectionPage() {
         maxWidth:    640,
         margin:      "0 auto",
         background:  "#FFFFFF",
-        minHeight:   "100vh",
+        minHeight: "calc(var(--vh, 1vh) * 100)",
         fontFamily:  FONT,
         paddingBottom: 110,
         boxSizing:   "border-box" as const,

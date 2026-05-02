@@ -215,7 +215,7 @@ export function ListingDetail({ listing, userTier, onBack, onViewGallery }: List
   const primary = gallery.communication_channels.find(c => c.is_primary) ?? gallery.communication_channels[0];
 
   return (
-    <div style={{ background: "#FFFFFF", minHeight: "100vh", maxWidth: 640, margin: "0 auto", fontFamily: FONT, color: "#0D0D0D", overflowX: "hidden" }}>
+    <div style={{ background: "#FFFFFF", minHeight: "calc(var(--vh, 1vh) * 100)", maxWidth: 640, margin: "0 auto", fontFamily: FONT, color: "#0D0D0D", overflowX: "hidden" }}>
 
       {/* Back */}
       <div style={{ padding: "52px 22px 0", marginBottom: 16 }}>

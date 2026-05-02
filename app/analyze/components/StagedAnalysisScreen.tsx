@@ -31,7 +31,7 @@ export function StagedAnalysisScreen({
 }) {
   return (
     <div style={{
-      maxWidth: 430, margin: "0 auto", minHeight: "100vh",
+      maxWidth: 430, margin: "0 auto", minHeight: "calc(var(--vh, 1vh) * 100)",
       background: "#F8F7F4",
       padding: "52px 18px 40px",
       boxSizing: "border-box" as const,

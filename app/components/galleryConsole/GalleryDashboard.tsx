@@ -55,7 +55,7 @@ export function GalleryDashboard({ galleryId, galleryName }: DashboardProps) {
   /* ── Layout ─────────────────────────────────────────────────── */
   return (
     <div style={{
-      minHeight: "100vh",
+      minHeight: "calc(var(--vh, 1vh) * 100)",
       background: "#F8F7F4",
       fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
     }}>

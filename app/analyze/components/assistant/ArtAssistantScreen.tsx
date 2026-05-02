@@ -667,10 +667,13 @@ export function ArtAssistantScreen({
                 border: "0.5px solid #E4E4E4",
                 borderRadius: 22,
                 padding: "11px 16px",
-                fontSize: 13, color: "#111",
+                /* 16px to dodge iOS Safari zoom-on-focus. Line-height
+                   stays compact so the textarea height doesn't grow
+                   visibly. */
+                fontSize: 16, color: "#111",
                 background: isStreaming ? "#F6F6F6" : "#F2F2F2",
                 resize: "none", outline: "none",
-                lineHeight: 1.5,
+                lineHeight: 1.45,
                 fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
                 overflowY: "auto",
                 maxHeight: 100,

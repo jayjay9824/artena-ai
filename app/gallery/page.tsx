@@ -732,7 +732,7 @@ function GalleryPage() {
       )}
 
       <div style={{
-        background: "#FFFFFF", minHeight: "100vh",
+        background: "#FFFFFF", minHeight: "calc(var(--vh, 1vh) * 100)",
         maxWidth: 640, margin: "0 auto",
         fontFamily: FONT, overflowX: "hidden", paddingBottom: 100,
       }}>
