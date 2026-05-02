@@ -21,6 +21,17 @@ const nextConfig: NextConfig = {
         destination: "/analyze",
         permanent:   false,
       },
+      /* /profile/* — the canonical profile page lives at /my (the
+         BottomNav middle-right tab routes there). Bare /profile
+         used to 404 because only /profile/saved had a page. Mirror
+         the BottomNav and redirect /profile → /my so direct URL
+         entry, external links, and back-stack history all land on
+         a real page. /profile/saved keeps its own route. */
+      {
+        source:      "/profile",
+        destination: "/my",
+        permanent:   false,
+      },
     ];
   },
 };

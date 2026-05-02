@@ -77,7 +77,18 @@ export function OceanBackground() {
         loop
         muted
         playsInline
-        preload="auto"
+        /* preload="metadata" — the file is 14MB. With preload="auto"
+           every visit blasts the whole MP4 over the wire; users who
+           bounce or navigate before play() resolves left a
+           net::ERR_ABORTED in the network log and burned mobile data
+           for nothing. metadata loads only the codec / duration
+           headers (~few KB); playback streams from there. */
+        preload="metadata"
+        /* Poster paints instantly while the video buffers — same
+           ocean-background.jpg the layout.tsx already preloads at
+           page level, so this is a free reuse of an in-cache asset
+           (~6KB) instead of a black frame. */
+        poster="/ocean-background.jpg"
         // Browser support quirks — order matters: source > src attr.
         // Some Android builds prefer an explicit <source>.
         style={{
