@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import ScanButton from '@/components/ui/ScanButton';
 import MainInputBar from '@/components/layout/MainInputBar';
 import ScanSheet from '@/components/scan/ScanSheet';
 import AnalyzingScreen from '@/components/scan/AnalyzingScreen';
 import ResultScreen from '@/components/result/ResultScreen';
+import { readFileAsDataUrl, extractFromDataUrl } from '@/lib/image';
 import type { Insight } from '@/lib/types';
 
 type Phase = 'idle' | 'sheet' | 'analyzing' | 'result';
@@ -24,28 +25,80 @@ const MOCK_INSIGHT: Insight = {
 export default function Home() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [insight, setInsight] = useState<Insight | null>(null);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const openSheet = useCallback(() => setPhase('sheet'), []);
   const closeSheet = useCallback(() => setPhase('idle'), []);
-  const startAnalyzing = useCallback(() => setPhase('analyzing'), []);
+
+  // Sheet handlers — close sheet, then open the appropriate file picker.
+  // The synchronous .click() inside the same event handler keeps the
+  // browser permission gesture intact.
+  const triggerScan = useCallback(() => {
+    setPhase('idle');
+    cameraInputRef.current?.click();
+  }, []);
+  const triggerUpload = useCallback(() => {
+    setPhase('idle');
+    fileInputRef.current?.click();
+  }, []);
+
+  // File chosen — read as data URL, store, transition to analyzing.
+  // Errors here are non-fatal: we still go to analyzing and the API
+  // service falls back to a neutral report.
+  const onFile = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = ''; // reset so picking the same file again triggers change
+      if (!file) return;
+      try {
+        const dataUrl = await readFileAsDataUrl(file);
+        setImageDataUrl(dataUrl);
+        setPhase('analyzing');
+      } catch {
+        setImageDataUrl(null);
+        setPhase('analyzing');
+      }
+    },
+    [],
+  );
+
   const closeResult = useCallback(() => {
     setPhase('idle');
     setInsight(null);
+    setImageDataUrl(null);
   }, []);
 
-  // analyzing → call /api/axvela/report → result
-  // analyzing screen is shown for at least MIN_ANALYZING_MS regardless of
-  // API speed, so the cross-fade never flashes.
+  // analyzing → call /api/axvela/report (with image when present) → result.
+  // Image base64 is sent in the body but never logged on either side.
+  // Promise.all enforces a minimum analyzing display so the cross-fade
+  // never flashes regardless of API speed.
   useEffect(() => {
     if (phase !== 'analyzing') return;
 
     let cancelled = false;
     const controller = new AbortController();
 
+    type Body = {
+      outputLanguage: 'ko' | 'en';
+      imageBase64?: string;
+      imageMimeType?: string;
+    };
+    const body: Body = { outputLanguage: 'ko' };
+    if (imageDataUrl) {
+      const parts = extractFromDataUrl(imageDataUrl);
+      if (parts) {
+        body.imageBase64 = parts.base64;
+        body.imageMimeType = parts.mimeType;
+      }
+    }
+
     const apiCall = fetch('/api/axvela/report', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ outputLanguage: 'ko' }),
+      body: JSON.stringify(body),
       signal: controller.signal,
     })
       .then((r) => (r.ok ? r.json() : null))
@@ -56,9 +109,7 @@ export default function Home() {
     Promise.all([apiCall, minDelay]).then(([data]) => {
       if (cancelled) return;
       const next: Insight =
-        data && data.success && data.insight
-          ? data.insight
-          : MOCK_INSIGHT;
+        data && data.success && data.insight ? data.insight : MOCK_INSIGHT;
       setInsight(next);
       setPhase('result');
     });
@@ -67,7 +118,7 @@ export default function Home() {
       cancelled = true;
       controller.abort();
     };
-  }, [phase]);
+  }, [phase, imageDataUrl]);
 
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-[#070708] text-white">
@@ -115,17 +166,37 @@ export default function Home() {
         </footer>
       </div>
 
+      {/* Hidden file inputs — camera-preferred and gallery */}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={onFile}
+        className="hidden"
+        aria-hidden
+      />
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={onFile}
+        className="hidden"
+        aria-hidden
+      />
+
       {/* Overlays */}
       <ScanSheet
         open={phase === 'sheet'}
         onClose={closeSheet}
-        onScan={startAnalyzing}
-        onUpload={startAnalyzing}
+        onScan={triggerScan}
+        onUpload={triggerUpload}
       />
       <AnalyzingScreen active={phase === 'analyzing'} />
       <ResultScreen
         active={phase === 'result'}
         insight={insight}
+        imageDataUrl={imageDataUrl}
         onClose={closeResult}
       />
     </main>

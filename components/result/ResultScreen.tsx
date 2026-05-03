@@ -21,10 +21,11 @@ const ACTIONS_HIGH = [
 type Props = {
   active: boolean;
   insight: Insight | null;
+  imageDataUrl?: string | null;
   onClose: () => void;
 };
 
-export default function ResultScreen({ active, insight, onClose }: Props) {
+export default function ResultScreen({ active, insight, imageDataUrl, onClose }: Props) {
   return (
     <AnimatePresence>
       {active && insight && (
@@ -49,7 +50,7 @@ export default function ResultScreen({ active, insight, onClose }: Props) {
           />
 
           <Header onClose={onClose} />
-          <Body insight={insight} />
+          <Body insight={insight} imageDataUrl={imageDataUrl ?? null} />
         </motion.div>
       )}
     </AnimatePresence>
@@ -76,7 +77,7 @@ function Header({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Body({ insight }: { insight: Insight }) {
+function Body({ insight, imageDataUrl }: { insight: Insight; imageDataUrl: string | null }) {
   const [inputValue, setInputValue] = useState('');
   const isLow = insight.confidence < CONFIDENCE_THRESHOLD;
   const actions = isLow ? ACTIONS_LOW : ACTIONS_HIGH;
@@ -84,7 +85,7 @@ function Body({ insight }: { insight: Insight }) {
   return (
     <>
       <div className="flex-1 overflow-y-auto px-5 pb-32">
-        {/* Hero — mock 4:5 artwork card, center aligned */}
+        {/* Hero — uploaded image when present, else 4:5 mock card */}
         <motion.div
           initial={{ y: 16, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -92,15 +93,26 @@ function Body({ insight }: { insight: Insight }) {
           className="mx-auto overflow-hidden rounded-xl bg-white/[0.025] ring-1 ring-white/[0.08]"
         >
           <div className="relative aspect-[4/5] w-full">
-            <div
-              aria-hidden
-              className="absolute inset-0"
-              style={{
-                background:
-                  'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 70%)',
-              }}
-            />
-            <Brackets />
+            {imageDataUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={imageDataUrl}
+                alt=""
+                className="absolute inset-0 h-full w-full object-cover"
+              />
+            ) : (
+              <>
+                <div
+                  aria-hidden
+                  className="absolute inset-0"
+                  style={{
+                    background:
+                      'linear-gradient(135deg, rgba(255,255,255,0.04) 0%, rgba(255,255,255,0) 70%)',
+                  }}
+                />
+                <Brackets />
+              </>
+            )}
           </div>
         </motion.div>
 
