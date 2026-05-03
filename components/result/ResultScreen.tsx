@@ -1,9 +1,10 @@
 'use client';
 
 import { motion, AnimatePresence } from 'framer-motion';
-import { ChevronLeft, Plus } from 'lucide-react';
-import { useState } from 'react';
-import type { Insight } from '@/lib/types';
+import { ChevronLeft, Plus, ArrowUp } from 'lucide-react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import type { ArtworkReport } from '@/lib/types';
+import { extractFromDataUrl } from '@/lib/image';
 
 const CONFIDENCE_THRESHOLD = 75;
 
@@ -18,14 +19,21 @@ const ACTIONS_HIGH = [
   '작가의 다른 작품 보기',
 ];
 
+type ChatMessage = { role: 'user' | 'assistant'; text: string };
+
 type Props = {
   active: boolean;
-  insight: Insight | null;
+  insight: ArtworkReport | null;
   imageDataUrl?: string | null;
   onClose: () => void;
 };
 
-export default function ResultScreen({ active, insight, imageDataUrl, onClose }: Props) {
+export default function ResultScreen({
+  active,
+  insight,
+  imageDataUrl,
+  onClose,
+}: Props) {
   return (
     <AnimatePresence>
       {active && insight && (
@@ -36,7 +44,6 @@ export default function ResultScreen({ active, insight, imageDataUrl, onClose }:
           transition={{ duration: 0.4 }}
           className="fixed inset-0 z-[70] flex flex-col bg-[#070708] text-white"
         >
-          {/* Matching premium gradient backdrop */}
           <div
             aria-hidden
             className="pointer-events-none absolute inset-0 -z-10"
@@ -77,10 +84,87 @@ function Header({ onClose }: { onClose: () => void }) {
   );
 }
 
-function Body({ insight, imageDataUrl }: { insight: Insight; imageDataUrl: string | null }) {
+function Body({
+  insight,
+  imageDataUrl,
+}: {
+  insight: ArtworkReport;
+  imageDataUrl: string | null;
+}) {
   const [inputValue, setInputValue] = useState('');
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [isSending, setIsSending] = useState(false);
+
   const isLow = insight.confidence < CONFIDENCE_THRESHOLD;
   const actions = isLow ? ACTIONS_LOW : ACTIONS_HIGH;
+
+  const scrollEndRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (chatHistory.length > 0) {
+      scrollEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+  }, [chatHistory.length]);
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || isSending) return;
+
+      setIsSending(true);
+      setInputValue('');
+      setChatHistory((h) => [...h, { role: 'user', text: trimmed }]);
+
+      type Body = {
+        outputLanguage: 'ko' | 'en';
+        imageBase64?: string;
+        imageMimeType?: string;
+        userQuestion: string;
+      };
+      const body: Body = { outputLanguage: 'ko', userQuestion: trimmed };
+      if (imageDataUrl) {
+        const parts = extractFromDataUrl(imageDataUrl);
+        if (parts) {
+          body.imageBase64 = parts.base64;
+          body.imageMimeType = parts.mimeType;
+        }
+      }
+
+      let aiText = '';
+      try {
+        const res = await fetch('/api/axvela/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data?.success && data.insight) {
+            aiText =
+              data.insight.interpretation ||
+              data.insight.quickInsight ||
+              '';
+          }
+        }
+      } catch {
+        /* silent — fall through to neutral fallback */
+      }
+
+      if (!aiText) {
+        aiText = '지금은 응답을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+      }
+
+      setChatHistory((h) => [...h, { role: 'assistant', text: aiText }]);
+      setIsSending(false);
+    },
+    [imageDataUrl, isSending],
+  );
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage(inputValue);
+    }
+  };
 
   return (
     <>
@@ -129,7 +213,7 @@ function Body({ insight, imageDataUrl }: { insight: Insight; imageDataUrl: strin
           <span>Quick Insight</span>
         </motion.div>
 
-        {/* Chips — 2x2 grid, max 4. Not interactive. */}
+        {/* Chips — 2x2, max 4, not interactive */}
         <motion.div
           initial={{ y: 12, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
@@ -142,7 +226,7 @@ function Body({ insight, imageDataUrl }: { insight: Insight; imageDataUrl: strin
           <Chip label="Medium" value={insight.medium} />
         </motion.div>
 
-        {/* Helper — only when confidence is below the threshold */}
+        {/* Helper — only when confidence is low */}
         {isLow && (
           <motion.p
             initial={{ y: 8, opacity: 0 }}
@@ -154,11 +238,28 @@ function Body({ insight, imageDataUrl }: { insight: Insight; imageDataUrl: strin
           </motion.p>
         )}
 
-        {/* Suggested actions — confidence-aware list */}
+        {/* Interpretation — line-clamp-3 with fade + 더 보기 */}
+        {insight.interpretation && (
+          <Interpretation text={insight.interpretation} />
+        )}
+
+        {/* Artist context — optional, smaller, lighter */}
+        {insight.artistContext && (
+          <motion.p
+            initial={{ y: 8, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            transition={{ duration: 0.45, delay: 0.4 }}
+            className="mt-3 text-[12px] font-light leading-relaxed text-white/40"
+          >
+            {insight.artistContext}
+          </motion.p>
+        )}
+
+        {/* Suggested actions — confidence-aware. Tap → send. */}
         <motion.div
           initial={{ y: 12, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
-          transition={{ duration: 0.45, delay: 0.34 }}
+          transition={{ duration: 0.45, delay: 0.46 }}
           className="mt-7"
         >
           <div className="text-[11px] font-light tracking-[0.18em] text-white/35">
@@ -172,20 +273,50 @@ function Body({ insight, imageDataUrl }: { insight: Insight; imageDataUrl: strin
               <button
                 key={a}
                 type="button"
-                onClick={() => setInputValue(a)}
+                disabled={isSending}
+                onClick={() => sendMessage(a)}
                 className="shrink-0 rounded-full bg-white/[0.04] px-4 py-2.5
                            text-[13px] font-light text-white/80
                            ring-1 ring-white/[0.08] transition
-                           active:scale-95 active:bg-white/[0.07]"
+                           active:scale-95 active:bg-white/[0.07]
+                           disabled:opacity-40"
               >
                 {a}
               </button>
             ))}
           </div>
         </motion.div>
+
+        {/* Chat history — appears below as messages exchange */}
+        {chatHistory.length > 0 && (
+          <div className="mt-8 space-y-5">
+            {chatHistory.map((m, i) => (
+              <div key={i}>
+                <div
+                  className={`text-[10px] font-light tracking-[0.22em] text-white/30 ${
+                    m.role === 'user' ? 'text-right' : ''
+                  }`}
+                >
+                  {m.role === 'user' ? 'YOU' : 'AXVELA'}
+                </div>
+                <p
+                  className={`mt-1 text-[14px] font-light leading-relaxed ${
+                    m.role === 'user'
+                      ? 'text-right text-white/85'
+                      : 'text-white/75'
+                  }`}
+                >
+                  {m.text}
+                </p>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div ref={scrollEndRef} aria-hidden />
       </div>
 
-      {/* Input bar — sticky bottom, fades into base */}
+      {/* Input bar — sticky, fades into base */}
       <footer
         className="absolute inset-x-0 bottom-0
                    bg-gradient-to-t from-[#070708] via-[#070708]/95 to-transparent
@@ -208,13 +339,82 @@ function Body({ insight, imageDataUrl }: { insight: Insight; imageDataUrl: strin
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
+            onKeyDown={onKeyDown}
+            disabled={isSending}
             placeholder="이 작품에 대해 물어보세요"
             className="flex-1 bg-transparent px-1 text-[15px] font-light
-                       text-white/90 placeholder:text-white/30 focus:outline-none"
+                       text-white/90 placeholder:text-white/30 focus:outline-none
+                       disabled:opacity-50"
           />
+          {inputValue.trim().length > 0 && (
+            <button
+              type="button"
+              onClick={() => sendMessage(inputValue)}
+              disabled={isSending}
+              aria-label="전송"
+              className="flex h-10 w-10 shrink-0 items-center justify-center
+                         rounded-full bg-white/[0.08] ring-1 ring-white/[0.12]
+                         transition active:scale-95
+                         disabled:opacity-40"
+            >
+              <ArrowUp className="h-4 w-4 text-white/85" strokeWidth={2} />
+            </button>
+          )}
         </div>
       </footer>
     </>
+  );
+}
+
+function Interpretation({ text }: { text: string }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!expanded) {
+      // measure clamped state
+      setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    }
+  }, [text, expanded]);
+
+  return (
+    <motion.div
+      initial={{ y: 12, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, delay: 0.34 }}
+      className="mt-6"
+    >
+      <div className="relative">
+        <p
+          ref={ref}
+          className={`text-[14px] font-light leading-relaxed text-white/85 ${
+            expanded ? '' : 'line-clamp-3'
+          }`}
+        >
+          {text}
+        </p>
+        {!expanded && overflowing && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-7
+                       bg-gradient-to-t from-[#070708] to-transparent"
+          />
+        )}
+      </div>
+      {overflowing && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-2 text-[12px] font-light text-white/55
+                     transition active:opacity-60"
+        >
+          {expanded ? '접기' : '더 보기'}
+        </button>
+      )}
+    </motion.div>
   );
 }
 

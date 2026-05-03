@@ -7,24 +7,28 @@ import ScanSheet from '@/components/scan/ScanSheet';
 import AnalyzingScreen from '@/components/scan/AnalyzingScreen';
 import ResultScreen from '@/components/result/ResultScreen';
 import { readFileAsDataUrl, extractFromDataUrl } from '@/lib/image';
-import type { Insight } from '@/lib/types';
+import type { ArtworkReport } from '@/lib/types';
 
 type Phase = 'idle' | 'sheet' | 'analyzing' | 'result';
 
 const MIN_ANALYZING_MS = 1500;
 
-const MOCK_INSIGHT: Insight = {
+const MOCK_INSIGHT: ArtworkReport = {
   artist: 'Unknown artist',
   title: 'Artwork image',
   year: 'Analysis pending',
   medium: 'Image-based analysis',
   confidence: 62,
   isVerified: false,
+  quickInsight: '이미지 기반 해석을 준비 중입니다.',
+  interpretation:
+    '시각 단서가 충분하지 않아 상세 해석을 보여드리지 못했습니다. 라벨을 함께 촬영하시면 보다 정확한 해석이 가능합니다.',
+  artistContext: '',
 };
 
 export default function Home() {
   const [phase, setPhase] = useState<Phase>('idle');
-  const [insight, setInsight] = useState<Insight | null>(null);
+  const [insight, setInsight] = useState<ArtworkReport | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -33,9 +37,6 @@ export default function Home() {
   const openSheet = useCallback(() => setPhase('sheet'), []);
   const closeSheet = useCallback(() => setPhase('idle'), []);
 
-  // Sheet handlers — close sheet, then open the appropriate file picker.
-  // The synchronous .click() inside the same event handler keeps the
-  // browser permission gesture intact.
   const triggerScan = useCallback(() => {
     setPhase('idle');
     cameraInputRef.current?.click();
@@ -45,13 +46,10 @@ export default function Home() {
     fileInputRef.current?.click();
   }, []);
 
-  // File chosen — read as data URL, store, transition to analyzing.
-  // Errors here are non-fatal: we still go to analyzing and the API
-  // service falls back to a neutral report.
   const onFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
-      e.target.value = ''; // reset so picking the same file again triggers change
+      e.target.value = '';
       if (!file) return;
       try {
         const dataUrl = await readFileAsDataUrl(file);
@@ -71,10 +69,6 @@ export default function Home() {
     setImageDataUrl(null);
   }, []);
 
-  // analyzing → call /api/axvela/report (with image when present) → result.
-  // Image base64 is sent in the body but never logged on either side.
-  // Promise.all enforces a minimum analyzing display so the cross-fade
-  // never flashes regardless of API speed.
   useEffect(() => {
     if (phase !== 'analyzing') return;
 
@@ -108,7 +102,7 @@ export default function Home() {
 
     Promise.all([apiCall, minDelay]).then(([data]) => {
       if (cancelled) return;
-      const next: Insight =
+      const next: ArtworkReport =
         data && data.success && data.insight ? data.insight : MOCK_INSIGHT;
       setInsight(next);
       setPhase('result');
@@ -137,7 +131,6 @@ export default function Home() {
       />
 
       <div className="flex min-h-[100dvh] flex-col">
-        {/* Top — wordmark */}
         <header className="px-6 pt-[calc(env(safe-area-inset-top)+24px)]">
           <div className="text-center text-[11px] font-light text-white/40">
             <span className="tracking-[0.32em]">AXVELA</span>
@@ -145,7 +138,6 @@ export default function Home() {
           </div>
         </header>
 
-        {/* Center — Scan CTA + caption */}
         <section className="flex flex-1 flex-col items-center justify-center px-6">
           <ScanButton onClick={openSheet} />
 
@@ -160,7 +152,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Bottom — input bar */}
         <footer className="px-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
           <MainInputBar onPlusClick={openSheet} />
         </footer>
@@ -185,7 +176,6 @@ export default function Home() {
         aria-hidden
       />
 
-      {/* Overlays */}
       <ScanSheet
         open={phase === 'sheet'}
         onClose={closeSheet}
