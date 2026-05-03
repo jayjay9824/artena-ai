@@ -419,7 +419,9 @@ export async function streamClaudeArtworkReport(
   params: ReportParams,
   callbacks: StreamCallbacks,
 ): Promise<ArtworkReport> {
-  const apiKey = process.env.CLAUDE_API_KEY;
+  // Accept either CLAUDE_API_KEY (preferred) or ANTHROPIC_API_KEY for
+  // backward compatibility with existing Vercel project envs.
+  const apiKey = process.env.CLAUDE_API_KEY ?? process.env.ANTHROPIC_API_KEY;
   if (!apiKey || !hasMeaningfulInput(params)) {
     const fb = fallback(params.outputLanguage);
     callbacks.onHeader?.(toHeader(fb));
