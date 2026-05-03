@@ -8,7 +8,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { ArtworkReport, Verification } from '@/lib/types';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-5';
-const REQUEST_TIMEOUT_MS = 10_000;
+const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_TOKENS = 16_000;
 
 /* ─────────────────────────────────────────────
@@ -31,6 +31,27 @@ export type ReportParams = {
   outputLanguage: 'ko' | 'en';
   /** Upstream identification result from Gemini. Optional. */
   verification?: Verification;
+};
+
+/* Streaming surfaces — emitted in this order, exactly once each. */
+export type HeaderShape = {
+  artist: string;
+  title: string;
+  year: string;
+  medium: string;
+  quickInsight: string;
+  confidence: number;
+  isVerified: boolean;
+};
+
+export type FooterShape = {
+  artistContext: string;
+};
+
+export type StreamCallbacks = {
+  onHeader?: (header: HeaderShape) => void;
+  onTextDelta?: (delta: string) => void;
+  onFooter?: (footer: FooterShape) => void;
 };
 
 type ImageMime = 'image/jpeg' | 'image/png' | 'image/gif' | 'image/webp';
@@ -64,8 +85,8 @@ const SYSTEM_KO = `당신은 AXVELA AI — 작품 해석 엔진입니다. 일반
   - medium: "Image-based analysis"
 
 검증 데이터 처리 (입력에 verification 블록이 포함된 경우 — 우선 적용)
-- verification.confidence가 75 이상이면 verification.artist와 verification.title을 결과에 그대로 반영합니다. 자체적으로 다른 작가/제목을 추측해 사용하지 않습니다. confidence는 verification.confidence와 비슷하게 설정합니다.
-- verification.confidence가 75 미만이면 verification 결과를 신뢰하지 않습니다 — artist/title은 위 기본값을 사용하고, confidence는 75 미만으로 설정하며, interpretation에 "라벨을 함께 촬영하면 보다 정확한 해석이 가능합니다" 류의 안내를 자연스럽게 포함합니다.
+- verification.confidence가 75 이상이면 verification.artist와 verification.title을 결과에 그대로 반영합니다. 자체적으로 다른 작가/제목을 추측해 사용하지 않습니다.
+- verification.confidence가 75 미만이면 verification 결과를 신뢰하지 않습니다 — artist/title은 위 기본값을 사용하고, interpretation에 "라벨을 함께 촬영하면 보다 정확한 해석이 가능합니다" 류의 안내를 자연스럽게 포함합니다.
 - verification.labelText가 있으면 해석에 참고만 합니다 (단, labelText 내용을 단정적 사실로 단언하지 않습니다).
 
 공통 규칙
@@ -75,7 +96,7 @@ const SYSTEM_KO = `당신은 AXVELA AI — 작품 해석 엔진입니다. 일반
 - 한국어로만 응답합니다. 영어 단어를 섞지 않습니다.
 
 출력 형식
-다음 JSON 객체 하나만 출력합니다. 코드펜스, 마크다운, 추가 설명 일체 금지.
+다음 JSON 객체 하나만 출력합니다. 코드펜스, 마크다운, 추가 설명 일체 금지. 필드 순서는 반드시 아래 순서를 지켜 주세요 (스트리밍 처리에 영향을 줍니다).
 
 {
   "artist": "string",
@@ -112,8 +133,8 @@ Identification (when no verification block is present)
   - medium: "Image-based analysis"
 
 Verification handling (when a verification block IS present — takes precedence)
-- If verification.confidence ≥ 75: use verification.artist and verification.title verbatim. Do not substitute your own guess. Set confidence near verification.confidence.
-- If verification.confidence < 75: do not trust the verification — use the defaults above, set confidence below 75, and naturally suggest in interpretation that scanning the label will yield a more accurate reading.
+- If verification.confidence ≥ 75: use verification.artist and verification.title verbatim. Do not substitute your own guess.
+- If verification.confidence < 75: do not trust the verification — use the defaults above, and naturally suggest in interpretation that scanning the label will yield a more accurate reading.
 - If verification.labelText is present: use it as context only — do not assert its contents as fact.
 
 Common rules
@@ -123,7 +144,7 @@ Language
 - Respond in English only. Do not mix Korean.
 
 Output format
-Output ONLY this JSON object. No code fences, no markdown, no surrounding text.
+Output ONLY this JSON object. No code fences, no markdown, no surrounding text. The field order MUST match the schema below (streaming depends on it).
 
 {
   "artist": "string",
@@ -168,8 +189,6 @@ function buildUserContent(params: ReportParams): UserContentBlock[] {
 
   const lines: string[] = [];
 
-  // Verification block (Gemini upstream) — placed first so the model sees
-  // it before the interpretation request.
   if (params.verification) {
     const v = params.verification;
     const block = [
@@ -263,7 +282,70 @@ function coerceReport(raw: unknown): ArtworkReport | null {
     interpretation,
     artistContext: typeof r.artistContext === 'string' ? r.artistContext.trim() : '',
     confidence,
-    isVerified: false, // never trust model on this — system-controlled (route layer)
+    isVerified: false, // system-controlled, set in route layer
+  };
+}
+
+/* Partial-JSON field extractor — reads "field":"..." even when the
+ * closing quote has not arrived yet. Returns whatever string content
+ * has streamed so far, plus a `complete` flag once the closing quote
+ * is observed. Trailing partial escapes are intentionally kept out
+ * of the result so we never emit half-decoded characters.
+ */
+function extractField(buf: string, field: string): { value: string; complete: boolean } {
+  const startMarker = `"${field}":"`;
+  const idx = buf.indexOf(startMarker);
+  if (idx === -1) return { value: '', complete: false };
+  let i = idx + startMarker.length;
+  let result = '';
+  let complete = false;
+
+  while (i < buf.length) {
+    const ch = buf[i];
+    if (ch === '"') {
+      complete = true;
+      break;
+    }
+    if (ch === '\\') {
+      if (i + 1 >= buf.length) break; // partial escape — wait
+      const next = buf[i + 1];
+      if (next === 'n') result += '\n';
+      else if (next === 't') result += '\t';
+      else if (next === 'r') result += '\r';
+      else if (next === '"') result += '"';
+      else if (next === '\\') result += '\\';
+      else if (next === '/') result += '/';
+      else if (next === 'u') {
+        if (i + 6 > buf.length) break; // partial \u escape
+        const hex = buf.slice(i + 2, i + 6);
+        if (/^[0-9a-fA-F]{4}$/.test(hex)) {
+          result += String.fromCharCode(parseInt(hex, 16));
+          i += 6;
+          continue;
+        }
+        break;
+      } else {
+        result += next;
+      }
+      i += 2;
+      continue;
+    }
+    result += ch;
+    i++;
+  }
+
+  return { value: result, complete };
+}
+
+function toHeader(report: ArtworkReport): HeaderShape {
+  return {
+    artist: report.artist,
+    title: report.title,
+    year: report.year,
+    medium: report.medium,
+    quickInsight: report.quickInsight,
+    confidence: report.confidence,
+    isVerified: report.isVerified,
   };
 }
 
@@ -301,57 +383,102 @@ function fallback(language: 'ko' | 'en'): ArtworkReport {
 }
 
 /* ─────────────────────────────────────────────
-   Main entry — never throws
+   Streaming entry — never throws
    ───────────────────────────────────────────── */
 
-export async function generateClaudeArtworkReport(
+export async function streamClaudeArtworkReport(
   params: ReportParams,
+  callbacks: StreamCallbacks,
 ): Promise<ArtworkReport> {
   const apiKey = process.env.CLAUDE_API_KEY;
-  if (!apiKey) {
-    console.warn('[claudeReportService] CLAUDE_API_KEY missing — returning fallback.');
-    return fallback(params.outputLanguage);
-  }
-
-  if (!hasMeaningfulInput(params)) {
-    return fallback(params.outputLanguage);
+  if (!apiKey || !hasMeaningfulInput(params)) {
+    const fb = fallback(params.outputLanguage);
+    callbacks.onHeader?.(toHeader(fb));
+    callbacks.onTextDelta?.(fb.interpretation);
+    callbacks.onFooter?.({ artistContext: fb.artistContext });
+    return fb;
   }
 
   const model = process.env.CLAUDE_MODEL || DEFAULT_MODEL;
   const system = params.outputLanguage === 'ko' ? SYSTEM_KO : SYSTEM_EN;
   const userContent = buildUserContent(params);
-
   const client = new Anthropic({ apiKey });
 
+  let buffer = '';
+  let headerSent = false;
+  let lastInterpretation = '';
+
+  const abortCtrl = new AbortController();
+  const timer = setTimeout(() => abortCtrl.abort(), REQUEST_TIMEOUT_MS);
+
   try {
-    const response = await client.messages.create(
+    const stream = client.messages.stream(
       {
         model,
         max_tokens: MAX_TOKENS,
         system: [
-          {
-            type: 'text',
-            text: system,
-            cache_control: { type: 'ephemeral' },
-          },
+          { type: 'text', text: system, cache_control: { type: 'ephemeral' } },
         ],
         messages: [{ role: 'user', content: userContent }],
       },
-      { timeout: REQUEST_TIMEOUT_MS },
+      { signal: abortCtrl.signal },
     );
 
-    let text = '';
-    for (const block of response.content) {
-      if (block.type === 'text') {
-        text = block.text;
-        break;
+    for await (const event of stream) {
+      if (
+        event.type === 'content_block_delta' &&
+        event.delta.type === 'text_delta'
+      ) {
+        buffer += event.delta.text;
+
+        // Header: emit once we see "interpretation": — by then artist/
+        // title/year/medium/quickInsight have all completed (schema order).
+        if (!headerSent && buffer.includes('"interpretation":')) {
+          callbacks.onHeader?.({
+            artist: extractField(buffer, 'artist').value || 'Unknown artist',
+            title: extractField(buffer, 'title').value || 'Artwork image',
+            year: extractField(buffer, 'year').value || 'Analysis pending',
+            medium:
+              extractField(buffer, 'medium').value || 'Image-based analysis',
+            quickInsight: extractField(buffer, 'quickInsight').value || '',
+            confidence: 50, // placeholder — overridden by route's verification merge
+            isVerified: false,
+          });
+          headerSent = true;
+        }
+
+        if (headerSent) {
+          const current = extractField(buffer, 'interpretation');
+          if (current.value.length > lastInterpretation.length) {
+            const delta = current.value.slice(lastInterpretation.length);
+            callbacks.onTextDelta?.(delta);
+            lastInterpretation = current.value;
+          }
+        }
       }
     }
-    if (!text) return fallback(params.outputLanguage);
 
+    // Finalize — extract artistContext from the completed message.
+    const final = await stream.finalMessage();
+    const text = final.content.find((b) => b.type === 'text')?.text ?? '';
     const parsed = safeParseJSON(text);
-    const report = coerceReport(parsed);
-    return report ?? fallback(params.outputLanguage);
+    const report = coerceReport(parsed) ?? fallback(params.outputLanguage);
+
+    // Header emit fallback (very short responses that bypass our marker).
+    if (!headerSent) {
+      callbacks.onHeader?.(toHeader(report));
+      headerSent = true;
+    }
+
+    // Flush any remaining interpretation tail (defensive — usually a no-op).
+    if (report.interpretation.length > lastInterpretation.length) {
+      const tail = report.interpretation.slice(lastInterpretation.length);
+      callbacks.onTextDelta?.(tail);
+      lastInterpretation = report.interpretation;
+    }
+
+    callbacks.onFooter?.({ artistContext: report.artistContext });
+    return report;
   } catch (error) {
     if (error instanceof Anthropic.RateLimitError) {
       console.warn('[claudeReportService] rate-limited');
@@ -360,8 +487,30 @@ export async function generateClaudeArtworkReport(
     } else if (error instanceof Anthropic.APIError) {
       console.warn(`[claudeReportService] api ${error.status}: ${error.message}`);
     } else {
-      console.warn('[claudeReportService] error:', error);
+      console.warn(
+        '[claudeReportService] stream error:',
+        error instanceof Error ? error.message : 'unknown',
+      );
     }
-    return fallback(params.outputLanguage);
+    const fb = fallback(params.outputLanguage);
+    if (!headerSent) callbacks.onHeader?.(toHeader(fb));
+    if (lastInterpretation.length === 0) callbacks.onTextDelta?.(fb.interpretation);
+    callbacks.onFooter?.({ artistContext: fb.artistContext });
+    return fb;
+  } finally {
+    clearTimeout(timer);
   }
+}
+
+/* ─────────────────────────────────────────────
+   Non-streaming entry — kept for callers that
+   don't need progressive output (none in app right
+   now; preserved as a stable building block).
+   ───────────────────────────────────────────── */
+
+export async function generateClaudeArtworkReport(
+  params: ReportParams,
+): Promise<ArtworkReport> {
+  // Streaming entry already returns the full reconstructed report.
+  return streamClaudeArtworkReport(params, {});
 }

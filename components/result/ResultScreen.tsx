@@ -24,6 +24,8 @@ type ChatMessage = { role: 'user' | 'assistant'; text: string };
 type Props = {
   active: boolean;
   insight: ArtworkReport | null;
+  streamingText?: string | null;
+  isStreaming?: boolean;
   imageDataUrl?: string | null;
   onClose: () => void;
 };
@@ -31,6 +33,8 @@ type Props = {
 export default function ResultScreen({
   active,
   insight,
+  streamingText,
+  isStreaming,
   imageDataUrl,
   onClose,
 }: Props) {
@@ -57,7 +61,12 @@ export default function ResultScreen({
           />
 
           <Header onClose={onClose} />
-          <Body insight={insight} imageDataUrl={imageDataUrl ?? null} />
+          <Body
+            insight={insight}
+            streamingText={streamingText ?? null}
+            isStreaming={Boolean(isStreaming)}
+            imageDataUrl={imageDataUrl ?? null}
+          />
         </motion.div>
       )}
     </AnimatePresence>
@@ -86,9 +95,13 @@ function Header({ onClose }: { onClose: () => void }) {
 
 function Body({
   insight,
+  streamingText,
+  isStreaming,
   imageDataUrl,
 }: {
   insight: ArtworkReport;
+  streamingText: string | null;
+  isStreaming: boolean;
   imageDataUrl: string | null;
 }) {
   const [inputValue, setInputValue] = useState('');
@@ -97,6 +110,11 @@ function Body({
 
   const isLow = insight.confidence < CONFIDENCE_THRESHOLD;
   const actions = isLow ? ACTIONS_LOW : ACTIONS_HIGH;
+
+  // Live interpretation while streaming, static when settled.
+  const interpretationText = isStreaming
+    ? streamingText ?? ''
+    : insight.interpretation;
 
   const scrollEndRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -112,7 +130,13 @@ function Body({
 
       setIsSending(true);
       setInputValue('');
-      setChatHistory((h) => [...h, { role: 'user', text: trimmed }]);
+
+      // Append user + empty assistant placeholder; stream into the latter.
+      setChatHistory((h) => [
+        ...h,
+        { role: 'user', text: trimmed },
+        { role: 'assistant', text: '' },
+      ]);
 
       type Body = {
         outputLanguage: 'ko' | 'en';
@@ -130,30 +154,66 @@ function Body({
       }
 
       let aiText = '';
+
       try {
         const res = await fetch('/api/axvela/report', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(body),
         });
-        if (res.ok) {
-          const data = await res.json();
-          if (data?.success && data.insight) {
-            aiText =
-              data.insight.interpretation ||
-              data.insight.quickInsight ||
-              '';
+        if (!res.ok || !res.body) throw new Error('bad response');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+
+          const lines = buf.split('\n');
+          buf = lines.pop() ?? '';
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let event: { type: string; data: unknown };
+            try {
+              event = JSON.parse(line);
+            } catch {
+              continue;
+            }
+            if (event.type !== 'text') continue; // chat ignores header/footer
+
+            const delta = typeof event.data === 'string' ? event.data : '';
+            aiText += delta;
+
+            // Update the trailing assistant message in place.
+            setChatHistory((h) => {
+              if (h.length === 0) return h;
+              const c = h.slice();
+              const last = c[c.length - 1];
+              if (last && last.role === 'assistant') {
+                c[c.length - 1] = { role: 'assistant', text: aiText };
+              }
+              return c;
+            });
           }
         }
       } catch {
-        /* silent — fall through to neutral fallback */
+        /* silent — fallback below */
       }
 
       if (!aiText) {
-        aiText = '지금은 응답을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+        const fb = '지금은 응답을 준비하지 못했습니다. 잠시 후 다시 시도해 주세요.';
+        setChatHistory((h) => {
+          if (h.length === 0) return h;
+          const c = h.slice();
+          c[c.length - 1] = { role: 'assistant', text: fb };
+          return c;
+        });
       }
 
-      setChatHistory((h) => [...h, { role: 'assistant', text: aiText }]);
       setIsSending(false);
     },
     [imageDataUrl, isSending],
@@ -244,17 +304,17 @@ function Body({
           </motion.p>
         )}
 
-        {/* Interpretation — line-clamp-3 with fade + 더 보기 */}
-        {insight.interpretation && (
-          <Interpretation text={insight.interpretation} />
+        {/* Interpretation — live grow during stream, line-clamp once settled */}
+        {(interpretationText || isStreaming) && (
+          <Interpretation text={interpretationText} isLive={isStreaming} />
         )}
 
-        {/* Artist context — optional, smaller, lighter */}
-        {insight.artistContext && (
+        {/* Artist context — only on settled state with non-empty value */}
+        {!isStreaming && insight.artistContext && (
           <motion.p
             initial={{ y: 8, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
-            transition={{ duration: 0.45, delay: 0.4 }}
+            transition={{ duration: 0.45, delay: 0.05 }}
             className="mt-3 text-[12px] font-light leading-relaxed text-white/40"
           >
             {insight.artistContext}
@@ -279,7 +339,7 @@ function Body({
               <button
                 key={a}
                 type="button"
-                disabled={isSending}
+                disabled={isSending || isStreaming}
                 onClick={() => sendMessage(a)}
                 className="shrink-0 rounded-full bg-white/[0.04] px-4 py-2.5
                            text-[13px] font-light text-white/80
@@ -293,7 +353,7 @@ function Body({
           </div>
         </motion.div>
 
-        {/* Chat history — appears below as messages exchange */}
+        {/* Chat history */}
         {chatHistory.length > 0 && (
           <div className="mt-8 space-y-5">
             {chatHistory.map((m, i) => (
@@ -322,7 +382,6 @@ function Body({
         <div ref={scrollEndRef} aria-hidden />
       </div>
 
-      {/* Input bar — sticky, fades into base */}
       <footer
         className="absolute inset-x-0 bottom-0
                    bg-gradient-to-t from-[#070708] via-[#070708]/95 to-transparent
@@ -372,25 +431,45 @@ function Body({
   );
 }
 
-function Interpretation({ text }: { text: string }) {
+function Interpretation({ text, isLive }: { text: string; isLive: boolean }) {
   const ref = useRef<HTMLParagraphElement>(null);
   const [expanded, setExpanded] = useState(false);
   const [overflowing, setOverflowing] = useState(false);
 
   useEffect(() => {
+    if (isLive) return; // skip measurement during live updates — premium feel, no flicker
     const el = ref.current;
     if (!el) return;
     if (!expanded) {
-      // measure clamped state
       setOverflowing(el.scrollHeight > el.clientHeight + 1);
     }
-  }, [text, expanded]);
+  }, [text, expanded, isLive]);
 
+  // While streaming: show full text, no clamp, no toggle.
+  if (isLive) {
+    return (
+      <motion.div
+        initial={{ y: 12, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.45, delay: 0.34 }}
+        className="mt-6"
+      >
+        <p
+          ref={ref}
+          className="text-[14px] font-light leading-relaxed text-white/85"
+        >
+          {text}
+        </p>
+      </motion.div>
+    );
+  }
+
+  // Settled: line-clamp-3 with bottom fade + 더 보기 toggle.
   return (
     <motion.div
       initial={{ y: 12, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.45, delay: 0.34 }}
+      transition={{ duration: 0.45, delay: 0.05 }}
       className="mt-6"
     >
       <div className="relative">

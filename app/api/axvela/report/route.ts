@@ -1,10 +1,10 @@
-import { NextResponse } from 'next/server';
-import { generateClaudeArtworkReport } from '@/services/ai/claudeReportService';
+import { streamClaudeArtworkReport } from '@/services/ai/claudeReportService';
 import { verifyArtwork } from '@/services/ai/geminiVerificationService';
-import type { ArtworkReport } from '@/lib/types';
 
 // Anthropic SDK requires Node runtime — not edge.
 export const runtime = 'nodejs';
+
+const VERIFICATION_THRESHOLD = 75;
 
 type ReportRequest = {
   imageBase64?: string;
@@ -19,13 +19,6 @@ type ReportRequest = {
   userQuestion?: string;
   outputLanguage?: 'ko' | 'en';
 };
-
-export type ReportResponse = {
-  success: true;
-  insight: ArtworkReport;
-};
-
-const VERIFICATION_THRESHOLD = 75;
 
 function isLanguage(v: unknown): v is 'ko' | 'en' {
   return v === 'ko' || v === 'en';
@@ -67,47 +60,89 @@ export async function POST(req: Request) {
     ? data.outputLanguage
     : 'ko';
 
-  // Step 1 — Gemini verification (image-only, sequential precondition for Claude).
-  // verifyArtwork returns null on missing key, timeout, or any failure → flow
-  // degrades gracefully to Claude-only.
+  // Step 1 — Gemini verification (blocking precondition; happens before the
+  // stream opens, so the first byte to the client lands once Claude starts).
   const verification =
     imageBase64 && imageMimeType
       ? await verifyArtwork({ imageBase64, imageMimeType })
       : null;
 
-  // Step 2 — Claude interpretation (with verification context when available).
-  const claudeReport = await generateClaudeArtworkReport({
-    imageBase64,
-    imageMimeType,
-    insight: pickInsightHint(data.insight),
-    userQuestion,
-    outputLanguage,
-    verification: verification ?? undefined,
+  // Step 2 — Open NDJSON stream and pump Claude through it.
+  const encoder = new TextEncoder();
+  const readable = new ReadableStream({
+    async start(controller) {
+      let closed = false;
+      const send = (event: object) => {
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(JSON.stringify(event) + '\n'));
+        } catch {
+          /* controller may already be closed */
+        }
+      };
+
+      try {
+        await streamClaudeArtworkReport(
+          {
+            imageBase64,
+            imageMimeType,
+            insight: pickInsightHint(data.insight),
+            userQuestion,
+            outputLanguage,
+            verification: verification ?? undefined,
+          },
+          {
+            onHeader: (header) => {
+              // Verification merge — system owns confidence + isVerified, and
+              // (when high-confidence) artist/title.
+              const merged = { ...header };
+              if (verification) {
+                merged.confidence = verification.confidence;
+                merged.isVerified =
+                  verification.confidence >= VERIFICATION_THRESHOLD;
+
+                if (verification.confidence >= VERIFICATION_THRESHOLD) {
+                  if (verification.artist) merged.artist = verification.artist;
+                  if (verification.title) merged.title = verification.title;
+                }
+              }
+              send({ type: 'header', data: merged });
+            },
+            onTextDelta: (delta) => {
+              send({ type: 'text', data: delta });
+            },
+            onFooter: (footer) => {
+              send({ type: 'footer', data: footer });
+            },
+          },
+        );
+      } catch {
+        // streamClaudeArtworkReport never throws, but defense in depth.
+      } finally {
+        closed = true;
+        try {
+          controller.close();
+        } catch {
+          /* already closed */
+        }
+      }
+    },
   });
 
-  // Step 3 — Final merge.
-  // Verification owns confidence + isVerified + (when high-confidence) artist/title.
-  // Claude owns interpretation/artistContext/year/medium.
-  const finalInsight: ArtworkReport = { ...claudeReport };
-  if (verification) {
-    finalInsight.confidence = verification.confidence;
-    finalInsight.isVerified = verification.confidence >= VERIFICATION_THRESHOLD;
-
-    if (verification.confidence >= VERIFICATION_THRESHOLD) {
-      if (verification.artist) finalInsight.artist = verification.artist;
-      if (verification.title) finalInsight.title = verification.title;
-    }
-  }
-
-  return NextResponse.json<ReportResponse>({
-    success: true,
-    insight: finalInsight,
+  return new Response(readable, {
+    headers: {
+      'Content-Type': 'application/x-ndjson; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'X-Content-Type-Options': 'nosniff',
+      // Disable any reverse-proxy buffering (e.g. nginx) that would defeat streaming.
+      'X-Accel-Buffering': 'no',
+    },
   });
 }
 
 export async function GET() {
-  return NextResponse.json(
-    { error: 'Method not allowed' },
-    { status: 405 },
-  );
+  return new Response(JSON.stringify({ error: 'Method not allowed' }), {
+    status: 405,
+    headers: { 'Content-Type': 'application/json' },
+  });
 }

@@ -29,6 +29,8 @@ const MOCK_INSIGHT: ArtworkReport = {
 export default function Home() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [insight, setInsight] = useState<ArtworkReport | null>(null);
+  const [streamingText, setStreamingText] = useState('');
+  const [isStreaming, setIsStreaming] = useState(false);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
@@ -67,50 +69,137 @@ export default function Home() {
     setPhase('idle');
     setInsight(null);
     setImageDataUrl(null);
+    setStreamingText('');
+    setIsStreaming(false);
   }, []);
 
+  // analyzing → stream /api/axvela/report (NDJSON) → progressive result.
+  // Header event flips us to phase='result' (after MIN_ANALYZING_MS).
+  // text events grow streamingText. footer event finalizes insight.
   useEffect(() => {
     if (phase !== 'analyzing') return;
 
     let cancelled = false;
     const controller = new AbortController();
 
-    type Body = {
-      outputLanguage: 'ko' | 'en';
-      imageBase64?: string;
-      imageMimeType?: string;
-    };
-    const body: Body = { outputLanguage: 'ko' };
-    if (imageDataUrl) {
-      const parts = extractFromDataUrl(imageDataUrl);
-      if (parts) {
-        body.imageBase64 = parts.base64;
-        body.imageMimeType = parts.mimeType;
-      }
-    }
+    let header: ArtworkReport | null = null;
+    let interpretationAcc = '';
+    let minDelayDone = false;
+    let transitioned = false;
 
-    const apiCall = fetch('/api/axvela/report', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    })
-      .then((r) => (r.ok ? r.json() : null))
-      .catch(() => null);
-
-    const minDelay = new Promise<void>((r) => setTimeout(r, MIN_ANALYZING_MS));
-
-    Promise.all([apiCall, minDelay]).then(([data]) => {
-      if (cancelled) return;
-      const next: ArtworkReport =
-        data && data.success && data.insight ? data.insight : MOCK_INSIGHT;
-      setInsight(next);
+    const tryTransition = () => {
+      if (transitioned || !header || !minDelayDone || cancelled) return;
+      transitioned = true;
+      setInsight(header);
+      setStreamingText(interpretationAcc);
+      setIsStreaming(true);
       setPhase('result');
-    });
+    };
+
+    const minDelayTimer = setTimeout(() => {
+      minDelayDone = true;
+      tryTransition();
+    }, MIN_ANALYZING_MS);
+
+    (async () => {
+      try {
+        type Body = {
+          outputLanguage: 'ko' | 'en';
+          imageBase64?: string;
+          imageMimeType?: string;
+        };
+        const body: Body = { outputLanguage: 'ko' };
+        if (imageDataUrl) {
+          const parts = extractFromDataUrl(imageDataUrl);
+          if (parts) {
+            body.imageBase64 = parts.base64;
+            body.imageMimeType = parts.mimeType;
+          }
+        }
+
+        const res = await fetch('/api/axvela/report', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        if (!res.ok || !res.body) throw new Error('bad response');
+
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buf = '';
+
+        while (!cancelled) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += decoder.decode(value, { stream: true });
+
+          const lines = buf.split('\n');
+          buf = lines.pop() ?? '';
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            let event: { type: string; data: unknown };
+            try {
+              event = JSON.parse(line);
+            } catch {
+              continue;
+            }
+
+            if (event.type === 'header') {
+              const d = event.data as Partial<ArtworkReport>;
+              header = {
+                artist: d.artist ?? 'Unknown artist',
+                title: d.title ?? 'Artwork image',
+                year: d.year ?? 'Analysis pending',
+                medium: d.medium ?? 'Image-based analysis',
+                quickInsight: d.quickInsight ?? '',
+                interpretation: '',
+                artistContext: '',
+                confidence: typeof d.confidence === 'number' ? d.confidence : 0,
+                isVerified: Boolean(d.isVerified),
+              };
+              tryTransition();
+            } else if (event.type === 'text') {
+              const delta = typeof event.data === 'string' ? event.data : '';
+              interpretationAcc += delta;
+              if (transitioned && !cancelled) {
+                setStreamingText(interpretationAcc);
+              }
+            } else if (event.type === 'footer') {
+              const d = event.data as { artistContext?: string };
+              if (header && !cancelled) {
+                const finalReport: ArtworkReport = {
+                  ...header,
+                  interpretation: interpretationAcc,
+                  artistContext: d.artistContext ?? '',
+                };
+                setInsight(finalReport);
+                setStreamingText('');
+                setIsStreaming(false);
+              }
+            }
+          }
+        }
+      } catch {
+        // Stream failure → fall back to MOCK_INSIGHT (after min delay so the
+        // analyzing animation never flashes).
+        if (cancelled) return;
+        if (!minDelayDone) {
+          await new Promise((r) => setTimeout(r, MIN_ANALYZING_MS));
+        }
+        if (cancelled) return;
+        setInsight(MOCK_INSIGHT);
+        setStreamingText('');
+        setIsStreaming(false);
+        setPhase('result');
+      }
+    })();
 
     return () => {
       cancelled = true;
       controller.abort();
+      clearTimeout(minDelayTimer);
     };
   }, [phase, imageDataUrl]);
 
@@ -157,7 +246,6 @@ export default function Home() {
         </footer>
       </div>
 
-      {/* Hidden file inputs — camera-preferred and gallery */}
       <input
         ref={cameraInputRef}
         type="file"
@@ -186,6 +274,8 @@ export default function Home() {
       <ResultScreen
         active={phase === 'result'}
         insight={insight}
+        streamingText={isStreaming ? streamingText : null}
+        isStreaming={isStreaming}
         imageDataUrl={imageDataUrl}
         onClose={closeResult}
       />
