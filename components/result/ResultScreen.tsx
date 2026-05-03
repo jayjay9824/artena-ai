@@ -3,15 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Plus } from 'lucide-react';
 import { useState } from 'react';
-
-export type Insight = {
-  artist: string;
-  title: string;
-  year: string;
-  medium: string;
-  confidence: number;
-  isVerified: boolean;
-};
+import type { Insight } from '@/lib/types';
 
 const CONFIDENCE_THRESHOLD = 75;
 

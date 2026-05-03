@@ -5,11 +5,12 @@ import ScanButton from '@/components/ui/ScanButton';
 import MainInputBar from '@/components/layout/MainInputBar';
 import ScanSheet from '@/components/scan/ScanSheet';
 import AnalyzingScreen from '@/components/scan/AnalyzingScreen';
-import ResultScreen, { type Insight } from '@/components/result/ResultScreen';
+import ResultScreen from '@/components/result/ResultScreen';
+import type { Insight } from '@/lib/types';
 
 type Phase = 'idle' | 'sheet' | 'analyzing' | 'result';
 
-const ANALYZING_DURATION_MS = 1500;
+const MIN_ANALYZING_MS = 1500;
 
 const MOCK_INSIGHT: Insight = {
   artist: 'Unknown artist',
@@ -32,14 +33,40 @@ export default function Home() {
     setInsight(null);
   }, []);
 
-  // analyzing → result transition (was: analyzing → idle in STEP 3)
+  // analyzing → call /api/axvela/report → result
+  // analyzing screen is shown for at least MIN_ANALYZING_MS regardless of
+  // API speed, so the cross-fade never flashes.
   useEffect(() => {
     if (phase !== 'analyzing') return;
-    const t = setTimeout(() => {
-      setInsight(MOCK_INSIGHT);
+
+    let cancelled = false;
+    const controller = new AbortController();
+
+    const apiCall = fetch('/api/axvela/report', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ outputLanguage: 'ko' }),
+      signal: controller.signal,
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .catch(() => null);
+
+    const minDelay = new Promise<void>((r) => setTimeout(r, MIN_ANALYZING_MS));
+
+    Promise.all([apiCall, minDelay]).then(([data]) => {
+      if (cancelled) return;
+      const next: Insight =
+        data && data.success && data.insight
+          ? data.insight
+          : MOCK_INSIGHT;
+      setInsight(next);
       setPhase('result');
-    }, ANALYZING_DURATION_MS);
-    return () => clearTimeout(t);
+    });
+
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, [phase]);
 
   return (
