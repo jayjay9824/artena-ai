@@ -1,7 +1,30 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
 import ScanButton from '@/components/ui/ScanButton';
 import MainInputBar from '@/components/layout/MainInputBar';
+import ScanSheet from '@/components/scan/ScanSheet';
+import AnalyzingScreen from '@/components/scan/AnalyzingScreen';
+
+type Phase = 'idle' | 'sheet' | 'analyzing';
+
+const ANALYZING_DURATION_MS = 1500;
 
 export default function Home() {
+  const [phase, setPhase] = useState<Phase>('idle');
+
+  const openSheet = useCallback(() => setPhase('sheet'), []);
+  const closeSheet = useCallback(() => setPhase('idle'), []);
+  const startAnalyzing = useCallback(() => setPhase('analyzing'), []);
+
+  // Auto-return to idle after the mock analyzing window.
+  // STEP 4 will replace this with a transition to the result screen.
+  useEffect(() => {
+    if (phase !== 'analyzing') return;
+    const t = setTimeout(() => setPhase('idle'), ANALYZING_DURATION_MS);
+    return () => clearTimeout(t);
+  }, [phase]);
+
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-[#070708] text-white">
       {/* Premium dark gradient backdrop —
@@ -29,7 +52,7 @@ export default function Home() {
 
         {/* Center — Scan CTA + caption */}
         <section className="flex flex-1 flex-col items-center justify-center px-6">
-          <ScanButton />
+          <ScanButton onClick={openSheet} />
 
           <div className="mt-12 text-center">
             <p className="text-[15px] font-light leading-relaxed text-white/75">
@@ -44,9 +67,18 @@ export default function Home() {
 
         {/* Bottom — input bar */}
         <footer className="px-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
-          <MainInputBar />
+          <MainInputBar onPlusClick={openSheet} />
         </footer>
       </div>
+
+      {/* Overlays */}
+      <ScanSheet
+        open={phase === 'sheet'}
+        onClose={closeSheet}
+        onScan={startAnalyzing}
+        onUpload={startAnalyzing}
+      />
+      <AnalyzingScreen active={phase === 'analyzing'} />
     </main>
   );
 }
