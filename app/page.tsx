@@ -6,10 +6,13 @@ import MainInputBar from '@/components/layout/MainInputBar';
 import ScanSheet from '@/components/scan/ScanSheet';
 import AnalyzingScreen from '@/components/scan/AnalyzingScreen';
 import ResultScreen from '@/components/result/ResultScreen';
+import CollectionScreen from '@/components/collection/CollectionScreen';
 import { readFileAsDataUrl, extractFromDataUrl } from '@/lib/image';
+import { saveScan, type ScanHistoryItem } from '@/lib/scanHistory';
 import type { ArtworkReport } from '@/lib/types';
 
-type Phase = 'idle' | 'sheet' | 'analyzing' | 'result';
+type Phase = 'idle' | 'sheet' | 'analyzing' | 'result' | 'collection';
+type ResultOrigin = 'scan' | 'collection';
 
 const MIN_ANALYZING_MS = 1500;
 
@@ -32,6 +35,7 @@ export default function Home() {
   const [streamingText, setStreamingText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [resultOrigin, setResultOrigin] = useState<ResultOrigin>('scan');
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -47,6 +51,9 @@ export default function Home() {
     setPhase('idle');
     fileInputRef.current?.click();
   }, []);
+  const triggerRecent = useCallback(() => {
+    setPhase('collection');
+  }, []);
 
   const onFile = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,26 +63,42 @@ export default function Home() {
       try {
         const dataUrl = await readFileAsDataUrl(file);
         setImageDataUrl(dataUrl);
+        setResultOrigin('scan');
         setPhase('analyzing');
       } catch {
         setImageDataUrl(null);
+        setResultOrigin('scan');
         setPhase('analyzing');
       }
     },
     [],
   );
 
-  const closeResult = useCallback(() => {
-    setPhase('idle');
-    setInsight(null);
-    setImageDataUrl(null);
+  // Re-open a saved scan from the collection.
+  // Uses cached insight + thumbnail image — no API call, no streaming.
+  const openHistoryItem = useCallback((item: ScanHistoryItem) => {
+    setInsight(item.insight);
+    setImageDataUrl(item.imageDataUrl);
     setStreamingText('');
     setIsStreaming(false);
+    setResultOrigin('collection');
+    setPhase('result');
   }, []);
 
-  // analyzing → stream /api/axvela/report (NDJSON) → progressive result.
-  // Header event flips us to phase='result' (after MIN_ANALYZING_MS).
-  // text events grow streamingText. footer event finalizes insight.
+  const closeResult = useCallback(() => {
+    const back = resultOrigin === 'collection' ? 'collection' : 'idle';
+    setPhase(back);
+    setInsight(null);
+    setStreamingText('');
+    setIsStreaming(false);
+    if (back === 'idle') setImageDataUrl(null);
+  }, [resultOrigin]);
+
+  const closeCollection = useCallback(() => {
+    setPhase('idle');
+  }, []);
+
+  // analyzing → stream /api/axvela/report (NDJSON) → progressive result
   useEffect(() => {
     if (phase !== 'analyzing') return;
 
@@ -177,13 +200,18 @@ export default function Home() {
                 setInsight(finalReport);
                 setStreamingText('');
                 setIsStreaming(false);
+
+                // Save to history (best-effort, async, never throws).
+                // Skip when no image (text-only) or when confidence is 0
+                // (service-internal fallback) to keep history meaningful.
+                if (imageDataUrl && finalReport.confidence > 0) {
+                  void saveScan(imageDataUrl, finalReport);
+                }
               }
             }
           }
         }
       } catch {
-        // Stream failure → fall back to MOCK_INSIGHT (after min delay so the
-        // analyzing animation never flashes).
         if (cancelled) return;
         if (!minDelayDone) {
           await new Promise((r) => setTimeout(r, MIN_ANALYZING_MS));
@@ -205,8 +233,6 @@ export default function Home() {
 
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-[#070708] text-white">
-      {/* Premium dark gradient backdrop —
-          top halo (cool gray) + bottom violet wash + base fade */}
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10"
@@ -269,6 +295,7 @@ export default function Home() {
         onClose={closeSheet}
         onScan={triggerScan}
         onUpload={triggerUpload}
+        onRecent={triggerRecent}
       />
       <AnalyzingScreen active={phase === 'analyzing'} />
       <ResultScreen
@@ -278,6 +305,11 @@ export default function Home() {
         isStreaming={isStreaming}
         imageDataUrl={imageDataUrl}
         onClose={closeResult}
+      />
+      <CollectionScreen
+        active={phase === 'collection'}
+        onClose={closeCollection}
+        onSelect={openHistoryItem}
       />
     </main>
   );

@@ -36,3 +36,42 @@ export function readFileAsDataUrl(file: File): Promise<string> {
     reader.readAsDataURL(file);
   });
 }
+
+/**
+ * Resize a data: URL to fit within maxWidth × maxHeight while preserving
+ * aspect ratio. Returns a JPEG data: URL at the given quality.
+ *
+ * Used to keep scan-history thumbnails small enough for localStorage
+ * (~50–150 KB each), so we can hold ~30 items inside the ~5 MB quota.
+ */
+export function resizeDataUrl(
+  dataUrl: string,
+  maxWidth = 480,
+  maxHeight = 600,
+  quality = 0.8,
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(maxWidth / img.width, maxHeight / img.height, 1);
+      const w = Math.max(1, Math.round(img.width * ratio));
+      const h = Math.max(1, Math.round(img.height * ratio));
+      const canvas = document.createElement('canvas');
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) {
+        reject(new Error('no canvas context'));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      try {
+        resolve(canvas.toDataURL('image/jpeg', quality));
+      } catch (err) {
+        reject(err as Error);
+      }
+    };
+    img.onerror = () => reject(new Error('image load failed'));
+    img.src = dataUrl;
+  });
+}

@@ -9,9 +9,16 @@ type Props = {
   onClose: () => void;
   onScan: () => void;
   onUpload: () => void;
+  onRecent?: () => void;
 };
 
-export default function ScanSheet({ open, onClose, onScan, onUpload }: Props) {
+export default function ScanSheet({
+  open,
+  onClose,
+  onScan,
+  onUpload,
+  onRecent,
+}: Props) {
   const handleDragEnd = (_: unknown, info: PanInfo) => {
     if (info.offset.y > 80 || info.velocity.y > 500) onClose();
   };
@@ -62,7 +69,8 @@ export default function ScanSheet({ open, onClose, onScan, onUpload }: Props) {
               <Row
                 icon={<Clock className="h-[18px] w-[18px]" strokeWidth={1.5} />}
                 label="최근 스캔 보기"
-                disabled
+                onClick={onRecent}
+                disabled={!onRecent}
               />
             </div>
           </motion.div>
