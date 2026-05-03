@@ -18,3 +18,14 @@ export type ArtworkReport = Insight & {
   interpretation: string;
   artistContext: string;
 };
+
+/**
+ * Gemini verification result — identification only.
+ * The verification layer never produces interpretation text.
+ */
+export type Verification = {
+  artist: string | null;
+  title: string | null;
+  confidence: number; // 0–100
+  labelText?: string;
+};

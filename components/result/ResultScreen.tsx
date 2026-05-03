@@ -211,6 +211,12 @@ function Body({
           <span>{insight.confidence}% Match</span>
           <span className="text-white/20">·</span>
           <span>Quick Insight</span>
+          {insight.isVerified && (
+            <>
+              <span className="text-white/20">·</span>
+              <span className="text-white/70">Verified</span>
+            </>
+          )}
         </motion.div>
 
         {/* Chips — 2x2, max 4, not interactive */}
