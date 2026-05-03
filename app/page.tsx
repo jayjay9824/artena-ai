@@ -14,7 +14,10 @@ import {
   refreshTasteProfile,
   type TasteProfile,
 } from '@/lib/tasteProfile';
-import { generateRecommendations } from '@/lib/recommendation';
+import {
+  generateRecommendations,
+  type Recommendation,
+} from '@/lib/recommendation';
 import type { ArtworkReport } from '@/lib/types';
 
 type Phase = 'idle' | 'sheet' | 'analyzing' | 'result' | 'collection';
@@ -47,6 +50,8 @@ export default function Home() {
   const [tasteProfile, setTasteProfile] = useState<TasteProfile | null>(() =>
     typeof window !== 'undefined' ? getTasteProfile() : null,
   );
+  // Home input value — controlled so recommendation taps can prefill it.
+  const [inputValue, setInputValue] = useState('');
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -261,6 +266,13 @@ export default function Home() {
     [tasteProfile],
   );
 
+  // Recommendation tap → prefill the home input. No chat surface lives on
+  // home today, so we fill only (per spec). When a chat surface is wired
+  // here in a future step, this is the call site to also auto-send.
+  const handleRecClick = useCallback((rec: Recommendation) => {
+    setInputValue(`${rec.artist}의 작품을 보여줘`);
+  }, []);
+
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-[#070708] text-white">
       <div
@@ -315,7 +327,15 @@ export default function Home() {
               </div>
               <div className="mt-2 space-y-2">
                 {recommendations.map((r, i) => (
-                  <div key={`${r.artist}-${i}`}>
+                  <button
+                    key={`${r.artist}-${i}`}
+                    type="button"
+                    onClick={() => handleRecClick(r)}
+                    aria-label={`${r.artist}의 작품 검색`}
+                    className="block w-full bg-transparent text-center
+                               transition hover:opacity-80
+                               active:opacity-50 focus:outline-none"
+                  >
                     <div className="text-[12px] font-light text-white/80">
                       {r.artist}{' '}
                       <span className="text-white/25">·</span>{' '}
@@ -324,12 +344,16 @@ export default function Home() {
                     <div className="mt-0.5 text-[10px] font-light text-white/30">
                       {r.reason}
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
           )}
-          <MainInputBar onPlusClick={openSheet} />
+          <MainInputBar
+            onPlusClick={openSheet}
+            value={inputValue}
+            onChange={setInputValue}
+          />
         </footer>
       </div>
 
