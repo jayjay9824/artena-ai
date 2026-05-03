@@ -5,23 +5,40 @@ import ScanButton from '@/components/ui/ScanButton';
 import MainInputBar from '@/components/layout/MainInputBar';
 import ScanSheet from '@/components/scan/ScanSheet';
 import AnalyzingScreen from '@/components/scan/AnalyzingScreen';
+import ResultScreen, { type Insight } from '@/components/result/ResultScreen';
 
-type Phase = 'idle' | 'sheet' | 'analyzing';
+type Phase = 'idle' | 'sheet' | 'analyzing' | 'result';
 
 const ANALYZING_DURATION_MS = 1500;
 
+const MOCK_INSIGHT: Insight = {
+  artist: 'Unknown artist',
+  title: 'Artwork image',
+  year: 'Analysis pending',
+  medium: 'Image-based analysis',
+  confidence: 62,
+  isVerified: false,
+};
+
 export default function Home() {
   const [phase, setPhase] = useState<Phase>('idle');
+  const [insight, setInsight] = useState<Insight | null>(null);
 
   const openSheet = useCallback(() => setPhase('sheet'), []);
   const closeSheet = useCallback(() => setPhase('idle'), []);
   const startAnalyzing = useCallback(() => setPhase('analyzing'), []);
+  const closeResult = useCallback(() => {
+    setPhase('idle');
+    setInsight(null);
+  }, []);
 
-  // Auto-return to idle after the mock analyzing window.
-  // STEP 4 will replace this with a transition to the result screen.
+  // analyzing → result transition (was: analyzing → idle in STEP 3)
   useEffect(() => {
     if (phase !== 'analyzing') return;
-    const t = setTimeout(() => setPhase('idle'), ANALYZING_DURATION_MS);
+    const t = setTimeout(() => {
+      setInsight(MOCK_INSIGHT);
+      setPhase('result');
+    }, ANALYZING_DURATION_MS);
     return () => clearTimeout(t);
   }, [phase]);
 
@@ -79,6 +96,11 @@ export default function Home() {
         onUpload={startAnalyzing}
       />
       <AnalyzingScreen active={phase === 'analyzing'} />
+      <ResultScreen
+        active={phase === 'result'}
+        insight={insight}
+        onClose={closeResult}
+      />
     </main>
   );
 }
