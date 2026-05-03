@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import ScanButton from '@/components/ui/ScanButton';
 import MainInputBar from '@/components/layout/MainInputBar';
 import ScanSheet from '@/components/scan/ScanSheet';
@@ -9,6 +9,11 @@ import ResultScreen from '@/components/result/ResultScreen';
 import CollectionScreen from '@/components/collection/CollectionScreen';
 import { readFileAsDataUrl, extractFromDataUrl } from '@/lib/image';
 import { saveScan, type ScanHistoryItem } from '@/lib/scanHistory';
+import {
+  getTasteProfile,
+  refreshTasteProfile,
+  type TasteProfile,
+} from '@/lib/tasteProfile';
 import type { ArtworkReport } from '@/lib/types';
 
 type Phase = 'idle' | 'sheet' | 'analyzing' | 'result' | 'collection';
@@ -36,6 +41,11 @@ export default function Home() {
   const [isStreaming, setIsStreaming] = useState(false);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   const [resultOrigin, setResultOrigin] = useState<ResultOrigin>('scan');
+  // Lazy initializer — read from localStorage synchronously on first render
+  // to avoid a layout flash when the taste row first appears.
+  const [tasteProfile, setTasteProfile] = useState<TasteProfile | null>(() =>
+    typeof window !== 'undefined' ? getTasteProfile() : null,
+  );
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -74,8 +84,6 @@ export default function Home() {
     [],
   );
 
-  // Re-open a saved scan from the collection.
-  // Uses cached insight + thumbnail image — no API call, no streaming.
   const openHistoryItem = useCallback((item: ScanHistoryItem) => {
     setInsight(item.insight);
     setImageDataUrl(item.imageDataUrl);
@@ -98,7 +106,8 @@ export default function Home() {
     setPhase('idle');
   }, []);
 
-  // analyzing → stream /api/axvela/report (NDJSON) → progressive result
+  // analyzing → stream /api/axvela/report (NDJSON) → progressive result.
+  // After footer event: persist scan and refresh taste profile (best-effort).
   useEffect(() => {
     if (phase !== 'analyzing') return;
 
@@ -201,11 +210,13 @@ export default function Home() {
                 setStreamingText('');
                 setIsStreaming(false);
 
-                // Save to history (best-effort, async, never throws).
-                // Skip when no image (text-only) or when confidence is 0
-                // (service-internal fallback) to keep history meaningful.
                 if (imageDataUrl && finalReport.confidence > 0) {
-                  void saveScan(imageDataUrl, finalReport);
+                  // Save to history, then recompute taste profile from the
+                  // new history. Both are best-effort and never throw.
+                  void saveScan(imageDataUrl, finalReport).then(() => {
+                    if (cancelled) return;
+                    setTasteProfile(refreshTasteProfile());
+                  });
                 }
               }
             }
@@ -230,6 +241,17 @@ export default function Home() {
       clearTimeout(minDelayTimer);
     };
   }, [phase, imageDataUrl]);
+
+  // Subtle taste row — top artist · top style · top medium.
+  // Hidden when nothing aggregated (e.g. only low-confidence scans).
+  const tasteSummary = useMemo(() => {
+    if (!tasteProfile) return [] as string[];
+    return [
+      tasteProfile.topArtists[0],
+      tasteProfile.topStyles[0],
+      tasteProfile.preferredMediums[0],
+    ].filter((v): v is string => Boolean(v));
+  }, [tasteProfile]);
 
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-[#070708] text-white">
@@ -268,6 +290,16 @@ export default function Home() {
         </section>
 
         <footer className="px-4 pb-[calc(env(safe-area-inset-bottom)+16px)]">
+          {tasteSummary.length > 0 && (
+            <div className="mb-3 px-2 text-center">
+              <div className="text-[10px] font-light tracking-[0.22em] text-white/30">
+                당신의 취향 <span className="text-white/45">✦</span>
+              </div>
+              <div className="mt-1.5 text-[12px] font-light text-white/60">
+                {tasteSummary.join(' · ')}
+              </div>
+            </div>
+          )}
           <MainInputBar onPlusClick={openSheet} />
         </footer>
       </div>
