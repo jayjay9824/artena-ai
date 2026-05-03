@@ -52,6 +52,9 @@ export default function Home() {
   );
   // Home input value — controlled so recommendation taps can prefill it.
   const [inputValue, setInputValue] = useState('');
+  // Question to send when entering 'analyzing' from a recommendation tap.
+  // Captured by the analyzing useEffect closure on phase transition.
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -79,10 +82,12 @@ export default function Home() {
       try {
         const dataUrl = await readFileAsDataUrl(file);
         setImageDataUrl(dataUrl);
+        setPendingQuestion(null);    // image scan — drop any prior rec question
         setResultOrigin('scan');
         setPhase('analyzing');
       } catch {
         setImageDataUrl(null);
+        setPendingQuestion(null);
         setResultOrigin('scan');
         setPhase('analyzing');
       }
@@ -105,6 +110,7 @@ export default function Home() {
     setInsight(null);
     setStreamingText('');
     setIsStreaming(false);
+    setPendingQuestion(null);
     if (back === 'idle') setImageDataUrl(null);
   }, [resultOrigin]);
 
@@ -145,6 +151,7 @@ export default function Home() {
           outputLanguage: 'ko' | 'en';
           imageBase64?: string;
           imageMimeType?: string;
+          userQuestion?: string;
         };
         const body: Body = { outputLanguage: 'ko' };
         if (imageDataUrl) {
@@ -153,6 +160,9 @@ export default function Home() {
             body.imageBase64 = parts.base64;
             body.imageMimeType = parts.mimeType;
           }
+        }
+        if (pendingQuestion) {
+          body.userQuestion = pendingQuestion;
         }
 
         const res = await fetch('/api/axvela/report', {
@@ -266,11 +276,16 @@ export default function Home() {
     [tasteProfile],
   );
 
-  // Recommendation tap → prefill the home input. No chat surface lives on
-  // home today, so we fill only (per spec). When a chat surface is wired
-  // here in a future step, this is the call site to also auto-send.
+  // Recommendation tap → prefill input + jump straight into the analyzing
+  // → result flow with the question as userQuestion. No image is sent;
+  // the service runs Claude with question-only input.
   const handleRecClick = useCallback((rec: Recommendation) => {
-    setInputValue(`${rec.artist}의 작품을 보여줘`);
+    const text = `${rec.artist}의 작품을 보여줘`;
+    setInputValue(text);
+    setPendingQuestion(text);
+    setImageDataUrl(null);
+    setResultOrigin('scan');
+    setPhase('analyzing');
   }, []);
 
   return (
@@ -324,6 +339,9 @@ export default function Home() {
             <div className="mb-3 px-2 text-center">
               <div className="text-[10px] font-light tracking-[0.22em] text-white/30">
                 당신을 위한 작품 <span className="text-white/45">✦</span>
+              </div>
+              <div className="mt-1 text-[9px] font-light text-white/20">
+                탭하여 바로 보기
               </div>
               <div className="mt-2 space-y-2">
                 {recommendations.map((r, i) => (
