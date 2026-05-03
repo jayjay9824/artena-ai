@@ -1,5 +1,9 @@
 import { streamClaudeArtworkReport } from '@/services/ai/claudeReportService';
 import { verifyArtwork } from '@/services/ai/geminiVerificationService';
+import {
+  getArtistData,
+  extractArtistName,
+} from '@/services/artworkDataService';
 
 // Anthropic SDK requires Node runtime — not edge.
 export const runtime = 'nodejs';
@@ -67,6 +71,23 @@ export async function POST(req: Request) {
       ? await verifyArtwork({ imageBase64, imageMimeType })
       : null;
 
+  // Step 1.5 — Pick an artist name to look up.
+  // Priority: high-confidence verification > question heuristic > none.
+  let artistName: string | null = null;
+  if (
+    verification &&
+    verification.confidence >= VERIFICATION_THRESHOLD &&
+    verification.artist
+  ) {
+    artistName = verification.artist;
+  } else if (userQuestion) {
+    artistName = extractArtistName(userQuestion);
+  }
+
+  // Step 1.6 — Fetch real artist data from external source. Best-effort,
+  // returns null on any failure → falls through to AI-only.
+  const artistData = artistName ? await getArtistData(artistName) : null;
+
   // Step 2 — Open NDJSON stream and pump Claude through it.
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
@@ -81,6 +102,12 @@ export async function POST(req: Request) {
         }
       };
 
+      // Emit artistData early — UI can render the section while Claude
+      // is still streaming the interpretation.
+      if (artistData) {
+        send({ type: 'artistData', data: artistData });
+      }
+
       try {
         await streamClaudeArtworkReport(
           {
@@ -90,11 +117,10 @@ export async function POST(req: Request) {
             userQuestion,
             outputLanguage,
             verification: verification ?? undefined,
+            artistData: artistData ?? undefined,
           },
           {
             onHeader: (header) => {
-              // Verification merge — system owns confidence + isVerified, and
-              // (when high-confidence) artist/title.
               const merged = { ...header };
               if (verification) {
                 merged.confidence = verification.confidence;
@@ -105,6 +131,11 @@ export async function POST(req: Request) {
                   if (verification.artist) merged.artist = verification.artist;
                   if (verification.title) merged.title = verification.title;
                 }
+              }
+              // If artistData arrived from a question-only flow (no
+              // verification), still surface the canonical artist name.
+              if (!verification && artistData?.artist) {
+                merged.artist = artistData.artist;
               }
               send({ type: 'header', data: merged });
             },
@@ -134,7 +165,6 @@ export async function POST(req: Request) {
       'Content-Type': 'application/x-ndjson; charset=utf-8',
       'Cache-Control': 'no-cache, no-transform',
       'X-Content-Type-Options': 'nosniff',
-      // Disable any reverse-proxy buffering (e.g. nginx) that would defeat streaming.
       'X-Accel-Buffering': 'no',
     },
   });

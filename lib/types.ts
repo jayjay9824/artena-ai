@@ -29,3 +29,15 @@ export type Verification = {
   confidence: number; // 0–100
   labelText?: string;
 };
+
+/**
+ * Real artist data fetched from an external source (Wikipedia today).
+ * Used as ground-truth context for Claude — never invented.
+ */
+export type ArtistData = {
+  artist: string;
+  bio: string;
+  styles: string[];
+  sampleWorks: string[];
+  source: 'wikipedia' | 'wikiart';
+};

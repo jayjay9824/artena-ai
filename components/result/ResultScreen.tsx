@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Plus, ArrowUp } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { ArtworkReport } from '@/lib/types';
+import type { ArtworkReport, ArtistData } from '@/lib/types';
 import { extractFromDataUrl } from '@/lib/image';
 
 const CONFIDENCE_THRESHOLD = 75;
@@ -27,6 +27,7 @@ type Props = {
   streamingText?: string | null;
   isStreaming?: boolean;
   imageDataUrl?: string | null;
+  artistData?: ArtistData | null;
   onClose: () => void;
 };
 
@@ -36,6 +37,7 @@ export default function ResultScreen({
   streamingText,
   isStreaming,
   imageDataUrl,
+  artistData,
   onClose,
 }: Props) {
   return (
@@ -66,6 +68,7 @@ export default function ResultScreen({
             streamingText={streamingText ?? null}
             isStreaming={Boolean(isStreaming)}
             imageDataUrl={imageDataUrl ?? null}
+            artistData={artistData ?? null}
           />
         </motion.div>
       )}
@@ -98,11 +101,13 @@ function Body({
   streamingText,
   isStreaming,
   imageDataUrl,
+  artistData,
 }: {
   insight: ArtworkReport;
   streamingText: string | null;
   isStreaming: boolean;
   imageDataUrl: string | null;
+  artistData: ArtistData | null;
 }) {
   const [inputValue, setInputValue] = useState('');
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
@@ -321,6 +326,9 @@ function Body({
           </motion.p>
         )}
 
+        {/* Artist info — real bio from external source (Wikipedia) */}
+        {artistData && artistData.bio && <ArtistInfo data={artistData} />}
+
         {/* Suggested actions — confidence-aware. Tap → send. */}
         <motion.div
           initial={{ y: 12, opacity: 0 }}
@@ -428,6 +436,69 @@ function Body({
         </div>
       </footer>
     </>
+  );
+}
+
+function ArtistInfo({ data }: { data: ArtistData }) {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    if (!expanded) {
+      setOverflowing(el.scrollHeight > el.clientHeight + 1);
+    }
+  }, [data.bio, expanded]);
+
+  return (
+    <motion.div
+      initial={{ y: 12, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, delay: 0.05 }}
+      className="mt-7"
+    >
+      <div className="text-[11px] font-light tracking-[0.18em] text-white/35">
+        ARTIST INFO
+      </div>
+      <div className="relative mt-3">
+        <p
+          ref={ref}
+          className={`text-[13px] font-light leading-relaxed text-white/75 ${
+            expanded ? '' : 'line-clamp-3'
+          }`}
+        >
+          {data.bio}
+        </p>
+        {!expanded && overflowing && (
+          <div
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-7
+                       bg-gradient-to-t from-[#070708] to-transparent"
+          />
+        )}
+      </div>
+      {overflowing && (
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="mt-2 text-[12px] font-light text-white/55
+                     transition active:opacity-60"
+        >
+          {expanded ? '접기' : '더 보기'}
+        </button>
+      )}
+      {data.sampleWorks.length > 0 && (
+        <div className="mt-3 text-[11px] font-light leading-relaxed text-white/45">
+          <span className="text-white/30">대표 작품 — </span>
+          {data.sampleWorks.slice(0, 3).join(', ')}
+        </div>
+      )}
+      <div className="mt-1 text-[9px] font-light tracking-[0.18em] text-white/20">
+        SOURCE — {data.source.toUpperCase()}
+      </div>
+    </motion.div>
   );
 }
 

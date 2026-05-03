@@ -5,7 +5,7 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import type { ArtworkReport, Verification } from '@/lib/types';
+import type { ArtworkReport, Verification, ArtistData } from '@/lib/types';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-5';
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -31,6 +31,8 @@ export type ReportParams = {
   outputLanguage: 'ko' | 'en';
   /** Upstream identification result from Gemini. Optional. */
   verification?: Verification;
+  /** Real artist data from external source (Wikipedia). Ground truth. */
+  artistData?: ArtistData;
 };
 
 /* Streaming surfaces — emitted in this order, exactly once each. */
@@ -89,6 +91,12 @@ const SYSTEM_KO = `당신은 AXVELA AI — 작품 해석 엔진입니다. 일반
 - verification.confidence가 75 미만이면 verification 결과를 신뢰하지 않습니다 — artist/title은 위 기본값을 사용하고, interpretation에 "라벨을 함께 촬영하면 보다 정확한 해석이 가능합니다" 류의 안내를 자연스럽게 포함합니다.
 - verification.labelText가 있으면 해석에 참고만 합니다 (단, labelText 내용을 단정적 사실로 단언하지 않습니다).
 
+실제 작가 데이터 처리 (입력에 artistData 블록이 포함된 경우 — ground truth)
+- artistData.bio는 실제 외부 출처(Wikipedia 등)에서 가져온 사실 정보입니다. 작가 맥락은 본인 지식이 아닌 artistData를 우선 근거로 사용합니다.
+- artistData.styles가 있으면 스타일/사조 언급에 활용하되, 이미지의 시각 단서가 있을 때는 시각 단서를 우선합니다.
+- artistData.sampleWorks가 있으면 대표 작품으로 자연스럽게 인용할 수 있으나, 위치/연도/소장처는 단언하지 않습니다.
+- artistData가 없으면 일반 지식으로 응답합니다 (단, 추측 금지 규칙 유지).
+
 공통 규칙
 - 단정적 사실 단언 금지. "~로 보입니다" 같은 관찰 기반 서술을 사용합니다.
 
@@ -137,6 +145,12 @@ Verification handling (when a verification block IS present — takes precedence
 - If verification.confidence < 75: do not trust the verification — use the defaults above, and naturally suggest in interpretation that scanning the label will yield a more accurate reading.
 - If verification.labelText is present: use it as context only — do not assert its contents as fact.
 
+Real artist data handling (when an artistData block IS present — ground truth)
+- artistData.bio comes from a real external source (Wikipedia). Use it as the ground truth for biographical and contextual statements about the artist; prefer it over your own training knowledge if they differ.
+- If artistData.styles is present, use those style/movement labels in your wording, but defer to visible cues from the image when available.
+- If artistData.sampleWorks is present, you may cite those titles naturally; do not assert location/year/owner of any specific work.
+- When artistData is absent, fall back to your general knowledge under the no-guessing rules above.
+
 Common rules
 - Avoid factual assertions. Use observation-based phrasing ("appears to", "shows characteristics of").
 
@@ -169,7 +183,8 @@ function hasMeaningfulInput(p: ReportParams): boolean {
     (p.imageBase64 && p.imageMimeType) ||
       (p.userQuestion && p.userQuestion.trim().length > 0) ||
       (p.insight && Object.values(p.insight).some((v) => v !== undefined && v !== '')) ||
-      p.verification,
+      p.verification ||
+      p.artistData,
   );
 }
 
@@ -198,6 +213,20 @@ function buildUserContent(params: ReportParams): UserContentBlock[] {
       `  title: ${v.title ?? 'not detected'}`,
     ];
     if (v.labelText) block.push(`  labelText: "${v.labelText}"`);
+    lines.push(block.join('\n'));
+  }
+
+  if (params.artistData) {
+    const a = params.artistData;
+    const block = [
+      `artistData (real source — ${a.source}, ground truth):`,
+      `  artist: ${a.artist}`,
+      `  bio: ${a.bio}`,
+    ];
+    if (a.styles.length) block.push(`  styles: ${a.styles.join(', ')}`);
+    if (a.sampleWorks.length) {
+      block.push(`  sampleWorks: ${a.sampleWorks.join(', ')}`);
+    }
     lines.push(block.join('\n'));
   }
 

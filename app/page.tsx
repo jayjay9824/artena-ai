@@ -18,7 +18,7 @@ import {
   generateRecommendations,
   type Recommendation,
 } from '@/lib/recommendation';
-import type { ArtworkReport } from '@/lib/types';
+import type { ArtworkReport, ArtistData } from '@/lib/types';
 
 type Phase = 'idle' | 'sheet' | 'analyzing' | 'result' | 'collection';
 type ResultOrigin = 'scan' | 'collection';
@@ -55,6 +55,9 @@ export default function Home() {
   // Question to send when entering 'analyzing' from a recommendation tap.
   // Captured by the analyzing useEffect closure on phase transition.
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null);
+  // Real artist data fetched from Wikipedia (or other source) — emitted by
+  // the API stream as a separate event when available.
+  const [artistData, setArtistData] = useState<ArtistData | null>(null);
 
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -100,6 +103,7 @@ export default function Home() {
     setImageDataUrl(item.imageDataUrl);
     setStreamingText('');
     setIsStreaming(false);
+    setArtistData(null); // history items don't carry external artist data
     setResultOrigin('collection');
     setPhase('result');
   }, []);
@@ -111,6 +115,7 @@ export default function Home() {
     setStreamingText('');
     setIsStreaming(false);
     setPendingQuestion(null);
+    setArtistData(null);
     if (back === 'idle') setImageDataUrl(null);
   }, [resultOrigin]);
 
@@ -130,6 +135,9 @@ export default function Home() {
     let interpretationAcc = '';
     let minDelayDone = false;
     let transitioned = false;
+
+    // Reset artist data — fresh per analyzing run
+    setArtistData(null);
 
     const tryTransition = () => {
       if (transitioned || !header || !minDelayDone || cancelled) return;
@@ -208,6 +216,28 @@ export default function Home() {
                 isVerified: Boolean(d.isVerified),
               };
               tryTransition();
+            } else if (event.type === 'artistData') {
+              const d = event.data as Partial<ArtistData>;
+              if (
+                typeof d.artist === 'string' &&
+                typeof d.bio === 'string' &&
+                d.bio.length > 0
+              ) {
+                setArtistData({
+                  artist: d.artist,
+                  bio: d.bio,
+                  styles: Array.isArray(d.styles)
+                    ? d.styles.filter((x): x is string => typeof x === 'string')
+                    : [],
+                  sampleWorks: Array.isArray(d.sampleWorks)
+                    ? d.sampleWorks.filter(
+                        (x): x is string => typeof x === 'string',
+                      )
+                    : [],
+                  source:
+                    d.source === 'wikiart' ? 'wikiart' : 'wikipedia',
+                });
+              }
             } else if (event.type === 'text') {
               const delta = typeof event.data === 'string' ? event.data : '';
               interpretationAcc += delta;
@@ -407,6 +437,7 @@ export default function Home() {
         streamingText={isStreaming ? streamingText : null}
         isStreaming={isStreaming}
         imageDataUrl={imageDataUrl}
+        artistData={artistData}
         onClose={closeResult}
       />
       <CollectionScreen
