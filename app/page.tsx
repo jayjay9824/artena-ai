@@ -14,6 +14,7 @@ import {
   refreshTasteProfile,
   type TasteProfile,
 } from '@/lib/tasteProfile';
+import { generateRecommendations } from '@/lib/recommendation';
 import type { ArtworkReport } from '@/lib/types';
 
 type Phase = 'idle' | 'sheet' | 'analyzing' | 'result' | 'collection';
@@ -253,6 +254,13 @@ export default function Home() {
     ].filter((v): v is string => Boolean(v));
   }, [tasteProfile]);
 
+  // Recommendations recompute when the taste profile changes (i.e. after
+  // each new scan). Up to 3 items, never artists the user has already seen.
+  const recommendations = useMemo(
+    () => generateRecommendations(tasteProfile),
+    [tasteProfile],
+  );
+
   return (
     <main className="relative min-h-[100dvh] overflow-hidden bg-[#070708] text-white">
       <div
@@ -297,6 +305,27 @@ export default function Home() {
               </div>
               <div className="mt-1.5 text-[12px] font-light text-white/60">
                 {tasteSummary.join(' · ')}
+              </div>
+            </div>
+          )}
+          {recommendations.length > 0 && (
+            <div className="mb-3 px-2 text-center">
+              <div className="text-[10px] font-light tracking-[0.22em] text-white/30">
+                당신을 위한 작품 <span className="text-white/45">✦</span>
+              </div>
+              <div className="mt-2 space-y-2">
+                {recommendations.map((r, i) => (
+                  <div key={`${r.artist}-${i}`}>
+                    <div className="text-[12px] font-light text-white/80">
+                      {r.artist}{' '}
+                      <span className="text-white/25">·</span>{' '}
+                      <span className="text-white/55">{r.title}</span>
+                    </div>
+                    <div className="mt-0.5 text-[10px] font-light text-white/30">
+                      {r.reason}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
