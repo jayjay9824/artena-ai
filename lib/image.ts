@@ -44,6 +44,28 @@ export function readFileAsDataUrl(file: File): Promise<string> {
  * Used to keep scan-history thumbnails small enough for localStorage
  * (~50–150 KB each), so we can hold ~30 items inside the ~5 MB quota.
  */
+/**
+ * Grab the current frame of a playing <video> as a JPEG data URL.
+ * Returns empty string on any failure (video not ready, no canvas
+ * context, taint, etc.) so callers can degrade to a file picker.
+ */
+export function captureFromVideo(video: HTMLVideoElement, quality = 0.85): string {
+  const w = video.videoWidth;
+  const h = video.videoHeight;
+  if (w === 0 || h === 0) return '';
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '';
+  ctx.drawImage(video, 0, 0, w, h);
+  try {
+    return canvas.toDataURL('image/jpeg', quality);
+  } catch {
+    return '';
+  }
+}
+
 export function resizeDataUrl(
   dataUrl: string,
   maxWidth = 480,

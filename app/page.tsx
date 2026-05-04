@@ -5,6 +5,7 @@ import ScanButton from '@/components/ui/ScanButton';
 import MainInputBar from '@/components/layout/MainInputBar';
 import ScanSheet from '@/components/scan/ScanSheet';
 import AnalyzingScreen from '@/components/scan/AnalyzingScreen';
+import AutoScannerView from '@/components/scan/AutoScannerView';
 import ResultScreen from '@/components/result/ResultScreen';
 import CollectionScreen from '@/components/collection/CollectionScreen';
 import { readFileAsDataUrl, extractFromDataUrl } from '@/lib/image';
@@ -25,7 +26,13 @@ import type {
   RecognitionStatus,
 } from '@/lib/types';
 
-type Phase = 'idle' | 'sheet' | 'analyzing' | 'result' | 'collection';
+type Phase =
+  | 'idle'
+  | 'sheet'
+  | 'auto_scanner'
+  | 'analyzing'
+  | 'result'
+  | 'collection';
 type ResultOrigin = 'scan' | 'collection';
 
 const MIN_ANALYZING_MS = 1500;
@@ -64,16 +71,26 @@ export default function Home() {
   // the API stream as a separate event when available.
   const [artistData, setArtistData] = useState<ArtistData | null>(null);
 
-  const cameraInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const openSheet = useCallback(() => setPhase('sheet'), []);
   const closeSheet = useCallback(() => setPhase('idle'), []);
 
-  const triggerScan = useCallback(() => {
-    setPhase('idle');
-    cameraInputRef.current?.click();
+  // Both the central SCAN button and the sheet's '작품 자동 스캔' option
+  // route through the auto scanner. No more manual cameraInput trigger.
+  const openAutoScanner = useCallback(() => {
+    setPhase('auto_scanner');
   }, []);
+  const closeAutoScanner = useCallback(() => {
+    setPhase('idle');
+  }, []);
+  const onAutoCapture = useCallback((dataUrl: string) => {
+    setImageDataUrl(dataUrl);
+    setPendingQuestion(null);
+    setResultOrigin('scan');
+    setPhase('analyzing');
+  }, []);
+
   const triggerUpload = useCallback(() => {
     setPhase('idle');
     fileInputRef.current?.click();
@@ -351,7 +368,7 @@ export default function Home() {
         </header>
 
         <section className="flex flex-1 flex-col items-center justify-center px-6">
-          <ScanButton onClick={openSheet} />
+          <ScanButton onClick={openAutoScanner} />
 
           <div className="mt-12 text-center">
             <p className="text-[15px] font-light leading-relaxed text-white/75">
@@ -416,15 +433,6 @@ export default function Home() {
       </div>
 
       <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        onChange={onFile}
-        className="hidden"
-        aria-hidden
-      />
-      <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
@@ -436,9 +444,14 @@ export default function Home() {
       <ScanSheet
         open={phase === 'sheet'}
         onClose={closeSheet}
-        onScan={triggerScan}
+        onScan={openAutoScanner}
         onUpload={triggerUpload}
         onRecent={triggerRecent}
+      />
+      <AutoScannerView
+        active={phase === 'auto_scanner'}
+        onCapture={onAutoCapture}
+        onClose={closeAutoScanner}
       />
       <AnalyzingScreen active={phase === 'analyzing'} />
       <ResultScreen

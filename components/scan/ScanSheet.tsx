@@ -58,7 +58,7 @@ export default function ScanSheet({
             <div className="px-2 pb-2">
               <Row
                 icon={<Camera className="h-[18px] w-[18px]" strokeWidth={1.5} />}
-                label="작품 스캔하기"
+                label="작품 자동 스캔"
                 onClick={onScan}
               />
               <Row
