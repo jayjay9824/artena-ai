@@ -27,12 +27,14 @@ function recognitionLabel(source?: RecognitionSource): string | null {
       return '이미지 매치';
     case 'image_match_partial':
       return '유사 후보';
-    case 'gemini':
-      return 'Gemini 검증';
-    case 'gemini_partial':
-      return '부분 인식';
-    case 'claude_fallback':
-      return 'AI 시각 분석';
+    case 'claude_visual':
+      return '이미지 기반 분석';
+    case 'claude_visual_gemini_supported':
+      return '라벨 검증 일치';
+    case 'gemini_label':
+      return '라벨 텍스트';
+    case 'visual_uncertain':
+      return '시각 분석';
     default:
       return null;
   }

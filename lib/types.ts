@@ -8,29 +8,32 @@ export type Insight = {
   title: string;
   year: string;
   medium: string;
-  confidence: number; // 0–100
+  /** Final post-merge confidence shown on the chip (0–100). */
+  confidence: number;
   isVerified: boolean;
 };
 
 /**
- * Recognition pipeline (two-stage Gemini → Claude).
+ * Recognition pipeline (Claude-primary, Gemini-OCR-supporting).
  *
- *   gemini           — Gemini ≥75 confidence with artist/title present.
- *                      Treated as verified ground truth.
- *   gemini_partial   — Gemini 40-74 confidence OR labelText only.
- *                      Cautious tone, no fact-claim, helper guidance.
- *   claude_fallback  — Image present but Gemini failed (NOT_FOUND or null).
- *                      Claude does second-stage visual analysis with
- *                      isVerified=false and confidence capped.
- *   none             — No image. Question-only or text exploration.
+ *   image_match                       — vector similarity ≥0.85 catalog hit. FOUND.
+ *   image_match_partial               — vector 0.65–0.85 candidate. PARTIAL.
+ *   claude_visual                     — Claude visual recognition. FOUND if visualConfidence ≥80, PARTIAL 50–79.
+ *   claude_visual_gemini_supported    — Claude high confidence + Gemini OCR confirms. FOUND.
+ *   gemini_label                      — Claude weak, Gemini OCR found a label artist/title. PARTIAL.
+ *   visual_uncertain                  — No confident identification — visual analysis only. NOT_FOUND.
+ *   none                              — No image (text-only input).
  */
 export type RecognitionSource =
-  | 'image_match'          // ≥0.85 vector-search match — primary identification
-  | 'image_match_partial'  // 0.65–0.85 vector candidate, Gemini-verified
-  | 'gemini'
-  | 'gemini_partial'
-  | 'claude_fallback'
+  | 'image_match'
+  | 'image_match_partial'
+  | 'claude_visual'
+  | 'claude_visual_gemini_supported'
+  | 'gemini_label'
+  | 'visual_uncertain'
   | 'none';
+
+export type RecognitionStatus = 'FOUND' | 'PARTIAL' | 'NOT_FOUND';
 
 /** A single artwork catalog hit returned by the vector-search layer. */
 export type ArtworkCandidate = {
@@ -42,35 +45,52 @@ export type ArtworkCandidate = {
   similarity: number; // 0–1 cosine similarity
 };
 
-export type RecognitionStatus = 'FOUND' | 'PARTIAL' | 'NOT_FOUND';
+/** A possible artist candidate when Claude's identification is uncertain. */
+export type PossibleCandidate = {
+  artist: string;
+  confidence: number; // 0–100
+  reason: string;
+};
 
-/** Full Claude artwork report. Insight + interpretive prose fields. */
+/** Full Claude artwork report. Insight + interpretive prose + recognition metadata. */
 export type ArtworkReport = Insight & {
   quickInsight: string;
   interpretation: string;
   artistContext: string;
+  /** Claude's raw visual confidence (separate from final post-merge confidence). */
+  visualConfidence?: number;
+  /** Claude's reason for its visual identification. */
+  visualReason?: string;
+  /** Possible candidates when exact identity is uncertain. */
+  possibleCandidates?: PossibleCandidate[];
+  /** Suggested follow-up artworks/artists. */
+  suggestedActions?: string[];
   recognitionSource?: RecognitionSource;
   recognitionStatus?: RecognitionStatus;
 };
 
 /**
- * Gemini verification result — identification only.
- * The verification layer never produces interpretation text.
+ * Gemini OCR output. Gemini is restricted to label/QR/text extraction —
+ * it does NOT do visual artwork identification. Visual recognition is
+ * Claude's job (claudeReportService).
  */
 export type Verification = {
-  artist?: string | null;
-  title?: string | null;
-  labelText?: string;
-  confidence: number; // 0–100
-  status: RecognitionStatus;
+  /** Verbatim transcription of any visible label/plaque/sign text. Empty if none. */
+  labelText: string;
+  /** Decoded QR payload if a QR code is visible (else null). */
+  qrPayload: string | null;
+  /** Artist name extracted from labelText (else null). Never inferred from style. */
+  textArtist: string | null;
+  /** Title extracted from labelText (else null). */
+  textTitle: string | null;
+  /** 0–100, how clearly the label text is readable. */
+  textConfidence: number;
   source: 'gemini';
-  /** True when artist/title were extracted from labelText by labelParser. */
-  derivedFromLabel?: boolean;
 };
 
 /**
  * Real artist data fetched from an external source (Wikipedia today).
- * Used as ground-truth context for Claude — never invented.
+ * Used as ground-truth context for the UI's artist info panel.
  */
 export type ArtistData = {
   artist: string;

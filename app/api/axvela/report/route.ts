@@ -1,4 +1,8 @@
-import { streamClaudeArtworkReport } from '@/services/ai/claudeReportService';
+import {
+  streamClaudeArtworkReport,
+  type HeaderShape,
+  type FooterShape,
+} from '@/services/ai/claudeReportService';
 import { verifyArtwork } from '@/services/ai/geminiVerificationService';
 import {
   getArtistData,
@@ -10,14 +14,15 @@ import type {
   RecognitionSource,
   RecognitionStatus,
   ArtworkCandidate,
+  Verification,
 } from '@/lib/types';
 
-// Anthropic SDK requires Node runtime — not edge.
+// Anthropic SDK requires Node runtime.
 export const runtime = 'nodejs';
 
-const VERIFIED_THRESHOLD = 75;
-const PARTIAL_THRESHOLD = 40;
-const FALLBACK_CONFIDENCE_CAP = 60;
+const VISUAL_FOUND_THRESHOLD = 80; // Claude visualConfidence FOUND
+const VISUAL_PARTIAL_THRESHOLD = 50; // Claude visualConfidence PARTIAL
+const GEMINI_LABEL_FOUND_THRESHOLD = 80; // Gemini textConfidence FOUND
 // Vector-similarity thresholds (cosine, 0–1)
 const IMAGE_MATCH_THRESHOLD = 0.85;
 const IMAGE_MATCH_PARTIAL_THRESHOLD = 0.65;
@@ -56,6 +61,19 @@ function pickInsightHint(v: unknown): ReportRequest['insight'] {
   };
 }
 
+function normalizeName(s: string | null | undefined): string {
+  return (s ?? '').toLowerCase().trim();
+}
+
+/** Loose match: equality OR mutual substring (handles "van Gogh" ⊂ "Vincent van Gogh"). */
+function namesAgree(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  if (a === b) return true;
+  if (a.length >= 3 && b.includes(a)) return true;
+  if (b.length >= 3 && a.includes(b)) return true;
+  return false;
+}
+
 export async function POST(req: Request) {
   let payload: unknown;
   try {
@@ -76,10 +94,7 @@ export async function POST(req: Request) {
     ? data.outputLanguage
     : 'ko';
 
-  // Step 0.5 — Image similarity search (BEFORE Gemini).
-  // Embedding is a deterministic stub today; the search returns top-K
-  // catalog candidates ranked by cosine similarity. When real CLIP /
-  // multimodal embedding lands, this layer becomes useful immediately.
+  // Step 0.5 — Image similarity search (catalog vector match).
   let candidates: ArtworkCandidate[] = [];
   if (imageBase64 && imageMimeType) {
     try {
@@ -92,64 +107,21 @@ export async function POST(req: Request) {
   const top = candidates[0] ?? null;
   const topSim = top?.similarity ?? 0;
 
-  // Step 1 — Gemini verification (with candidate hints when available).
-  const verification =
+  // Step 1 — Kick off Gemini OCR in parallel with Claude. Gemini is the
+  // SUPPORT layer: it only extracts label text / QR / textArtist. Visual
+  // recognition is owned by Claude (called below in the streaming step).
+  const geminiPromise: Promise<Verification | null> =
     imageBase64 && imageMimeType
-      ? await verifyArtwork({
-          imageBase64,
-          imageMimeType,
-          candidates: topSim >= IMAGE_MATCH_PARTIAL_THRESHOLD
-            ? candidates
-            : undefined,
-        })
-      : null;
+      ? verifyArtwork({ imageBase64, imageMimeType })
+      : Promise.resolve(null);
 
-  // Step 1.1 — Recognition decision layer.
-  // Vector match takes precedence when similarity is strong; otherwise
-  // we fall back to the existing Gemini-driven decision.
-  let recognitionSource: RecognitionSource = 'none';
-  let recognitionStatus: RecognitionStatus = 'NOT_FOUND';
+  // Localized "no exact identification" copy for visual_uncertain branch.
+  const ARTIST_UNCONFIRMED =
+    outputLanguage === 'ko' ? '작가 미확인' : 'Artist unconfirmed';
+  const TITLE_UNCONFIRMED =
+    outputLanguage === 'ko' ? '이미지 기반 분석' : 'Image-based analysis';
 
-  if (top && topSim >= IMAGE_MATCH_THRESHOLD) {
-    recognitionSource = 'image_match';
-    recognitionStatus = 'FOUND';
-  } else if (top && topSim >= IMAGE_MATCH_PARTIAL_THRESHOLD) {
-    // Plausible candidate; we still want Gemini's read alongside it.
-    recognitionSource = 'image_match_partial';
-    recognitionStatus = 'PARTIAL';
-  } else if (
-    verification &&
-    verification.confidence >= VERIFIED_THRESHOLD &&
-    (verification.artist || verification.title)
-  ) {
-    recognitionSource = 'gemini';
-    recognitionStatus = 'FOUND';
-  } else if (
-    verification &&
-    (verification.confidence >= PARTIAL_THRESHOLD ||
-      (verification.labelText && verification.labelText.length > 0))
-  ) {
-    recognitionSource = 'gemini_partial';
-    recognitionStatus = 'PARTIAL';
-  } else if (imageBase64 && imageMimeType) {
-    recognitionSource = 'claude_fallback';
-    recognitionStatus = 'NOT_FOUND';
-  }
-  // else: no image at all → recognitionSource stays 'none'
-
-  // Step 1.5 — Pick an artist name to look up real data for.
-  // Prefer verified Gemini result; fall back to question heuristic.
-  let artistName: string | null = null;
-  if (recognitionSource === 'gemini' && verification?.artist) {
-    artistName = verification.artist;
-  } else if (userQuestion) {
-    artistName = extractArtistName(userQuestion);
-  }
-
-  // Step 1.6 — Fetch real artist data (Wikipedia). Best-effort.
-  const artistData = artistName ? await getArtistData(artistName) : null;
-
-  // Step 2 — Open NDJSON stream and pump Claude through it.
+  // Step 2 — Open NDJSON stream and orchestrate.
   const encoder = new TextEncoder();
   const readable = new ReadableStream({
     async start(controller) {
@@ -163,11 +135,242 @@ export async function POST(req: Request) {
         }
       };
 
-      // Emit artistData early — UI can render the section while Claude
-      // is still streaming the interpretation.
-      if (artistData) {
-        send({ type: 'artistData', data: artistData });
-      }
+      // Header gating state: hold Claude's header until Gemini completes
+      // so the merge has both signals in hand. Gemini almost always wins
+      // the race (1–2s vs Claude's 3–4s for the header), but be defensive.
+      let geminiVerification: Verification | null = null;
+      let geminiDone = false;
+      let claudeHeaderHeld: HeaderShape | null = null;
+      let footerHeld: FooterShape | null = null;
+      let textBuffer = '';
+      let headerSent = false;
+      let recognitionSource: RecognitionSource = 'none';
+      let recognitionStatus: RecognitionStatus = 'NOT_FOUND';
+      let resolvedArtist: string | null = null;
+      let artistDataKickedOff = false;
+
+      const decideRecognition = (
+        header: HeaderShape,
+        gemini: Verification | null,
+      ): { source: RecognitionSource; status: RecognitionStatus } => {
+        // 1) Catalog vector match wins everything else.
+        if (top && topSim >= IMAGE_MATCH_THRESHOLD) {
+          return { source: 'image_match', status: 'FOUND' };
+        }
+        if (top && topSim >= IMAGE_MATCH_PARTIAL_THRESHOLD) {
+          return { source: 'image_match_partial', status: 'PARTIAL' };
+        }
+
+        const visualConf = header.visualConfidence;
+        const claudeArtist = normalizeName(header.artist);
+        const claudeCandidates = [
+          claudeArtist,
+          ...header.possibleCandidates.map((c) => normalizeName(c.artist)),
+        ].filter((s) => s.length > 0);
+
+        const geminiArtist = normalizeName(gemini?.textArtist);
+        const geminiHasArtist = geminiArtist.length > 0;
+
+        const claudeStrong =
+          visualConf >= VISUAL_FOUND_THRESHOLD && claudeArtist.length > 0;
+        const claudeMedium =
+          visualConf >= VISUAL_PARTIAL_THRESHOLD &&
+          visualConf < VISUAL_FOUND_THRESHOLD;
+
+        const claudeAndGeminiAgree =
+          geminiHasArtist &&
+          claudeCandidates.some((c) => namesAgree(c, geminiArtist));
+
+        // 2) Claude high confidence + Gemini OCR confirms one of Claude's candidates.
+        if (claudeStrong && claudeAndGeminiAgree) {
+          return {
+            source: 'claude_visual_gemini_supported',
+            status: 'FOUND',
+          };
+        }
+
+        // 3) Claude high confidence (Gemini absent or disagrees).
+        if (claudeStrong) {
+          return { source: 'claude_visual', status: 'FOUND' };
+        }
+
+        // 4) Claude medium AND Gemini OCR agrees → boost to FOUND.
+        if (claudeMedium && claudeAndGeminiAgree) {
+          return {
+            source: 'claude_visual_gemini_supported',
+            status: 'FOUND',
+          };
+        }
+
+        // 5) Claude medium alone → claude_visual PARTIAL.
+        if (claudeMedium) {
+          return { source: 'claude_visual', status: 'PARTIAL' };
+        }
+
+        // 6) Claude weak but Gemini found a label artist.
+        if (
+          geminiHasArtist &&
+          (gemini?.textConfidence ?? 0) >= GEMINI_LABEL_FOUND_THRESHOLD
+        ) {
+          return { source: 'gemini_label', status: 'FOUND' };
+        }
+        if (geminiHasArtist) {
+          return { source: 'gemini_label', status: 'PARTIAL' };
+        }
+
+        // 7) No image at all → none. Otherwise visual_uncertain.
+        if (!imageBase64 || !imageMimeType) {
+          return { source: 'none', status: 'NOT_FOUND' };
+        }
+        return { source: 'visual_uncertain', status: 'NOT_FOUND' };
+      };
+
+      const tryFlushHeader = () => {
+        if (headerSent) return;
+        if (!claudeHeaderHeld || !geminiDone) return;
+
+        const header: HeaderShape = { ...claudeHeaderHeld };
+        const decision = decideRecognition(header, geminiVerification);
+        recognitionSource = decision.source;
+        recognitionStatus = decision.status;
+
+        switch (recognitionSource) {
+          case 'image_match': {
+            if (top) {
+              header.artist = top.artist;
+              header.title = top.title;
+              if (top.year) header.year = top.year;
+              if (top.medium) header.medium = top.medium;
+            }
+            header.confidence = Math.max(85, Math.round(topSim * 100));
+            header.isVerified = true;
+            break;
+          }
+          case 'image_match_partial': {
+            if (top) {
+              header.artist = top.artist;
+              header.title = top.title;
+              if (top.year) header.year = top.year;
+            }
+            header.confidence = Math.round(topSim * 100);
+            header.isVerified = false;
+            break;
+          }
+          case 'claude_visual_gemini_supported': {
+            // Prefer Gemini's OCR'd artist when Claude's primary disagreed
+            // with the label but a candidate matched.
+            if (geminiVerification?.textArtist) {
+              const claudePrimary = normalizeName(header.artist);
+              const geminiArtist = normalizeName(
+                geminiVerification.textArtist,
+              );
+              if (!namesAgree(claudePrimary, geminiArtist)) {
+                header.artist = geminiVerification.textArtist;
+              }
+            }
+            if (geminiVerification?.textTitle && !header.title) {
+              header.title = geminiVerification.textTitle;
+            }
+            const merged = Math.max(
+              header.visualConfidence,
+              geminiVerification?.textConfidence ?? 0,
+            );
+            header.confidence = Math.min(95, merged + 5);
+            header.isVerified = true;
+            break;
+          }
+          case 'claude_visual': {
+            header.confidence = header.visualConfidence;
+            header.isVerified = decision.status === 'FOUND';
+            break;
+          }
+          case 'gemini_label': {
+            // Claude visual was weak. Use Gemini's OCR'd artist verbatim.
+            if (geminiVerification?.textArtist) {
+              header.artist = geminiVerification.textArtist;
+            }
+            if (geminiVerification?.textTitle) {
+              header.title = geminiVerification.textTitle;
+            }
+            header.confidence = geminiVerification?.textConfidence ?? 50;
+            header.isVerified = decision.status === 'FOUND';
+            break;
+          }
+          case 'visual_uncertain': {
+            header.confidence = Math.min(50, header.visualConfidence);
+            header.isVerified = false;
+            // Soft, localized "no identification" copy — never "Unknown".
+            if (!header.artist) header.artist = ARTIST_UNCONFIRMED;
+            if (!header.title) header.title = TITLE_UNCONFIRMED;
+            break;
+          }
+          case 'none':
+          default: {
+            header.isVerified = false;
+            break;
+          }
+        }
+
+        send({
+          type: 'header',
+          data: { ...header, recognitionSource, recognitionStatus },
+        });
+        headerSent = true;
+        resolvedArtist = header.artist;
+
+        // Flush any text that arrived before header could be sent.
+        if (textBuffer.length > 0) {
+          send({ type: 'text', data: textBuffer });
+          textBuffer = '';
+        }
+        if (footerHeld) {
+          send({ type: 'footer', data: footerHeld });
+          footerHeld = null;
+        }
+
+        // Step 3 — Wikipedia lookup (post-recognition). Best-effort.
+        // Only runs when we have a real artist name, NOT for the
+        // localized "Artist unconfirmed" / "작가 미확인" placeholders.
+        if (
+          !artistDataKickedOff &&
+          resolvedArtist &&
+          resolvedArtist !== ARTIST_UNCONFIRMED &&
+          resolvedArtist !== 'Unknown artist'
+        ) {
+          artistDataKickedOff = true;
+          getArtistData(resolvedArtist)
+            .then((ad) => {
+              if (ad) send({ type: 'artistData', data: ad });
+            })
+            .catch(() => {
+              /* silent — artist info panel just won't render */
+            });
+        } else if (!artistDataKickedOff && userQuestion) {
+          // Question-only path: pull artist from the question heuristic.
+          const guessed = extractArtistName(userQuestion);
+          if (guessed) {
+            artistDataKickedOff = true;
+            getArtistData(guessed)
+              .then((ad) => {
+                if (ad) send({ type: 'artistData', data: ad });
+              })
+              .catch(() => {});
+          }
+        }
+      };
+
+      // Watch Gemini result.
+      geminiPromise
+        .then((v) => {
+          geminiVerification = v;
+        })
+        .catch(() => {
+          geminiVerification = null;
+        })
+        .finally(() => {
+          geminiDone = true;
+          tryFlushHeader();
+        });
 
       try {
         await streamClaudeArtworkReport(
@@ -177,109 +380,58 @@ export async function POST(req: Request) {
             insight: pickInsightHint(data.insight),
             userQuestion,
             outputLanguage,
-            verification: verification ?? undefined,
-            artistData: artistData ?? undefined,
-            recognitionSource,
-            recognitionStatus,
           },
           {
             onHeader: (header) => {
-              const merged = { ...header };
-
-              // Final merge — strict by recognitionSource.
-              switch (recognitionSource) {
-                case 'image_match': {
-                  // Vector-search top hit ≥0.85 — treat as ground truth.
-                  if (top) {
-                    merged.artist = top.artist;
-                    merged.title = top.title;
-                    if (top.year) merged.year = top.year;
-                    if (top.medium) merged.medium = top.medium;
-                  }
-                  // Confidence reflects similarity (scaled 0.85–1.0 → 85–100)
-                  merged.confidence = Math.max(85, Math.round(topSim * 100));
-                  merged.isVerified = true;
-                  break;
-                }
-                case 'image_match_partial': {
-                  // 0.65–0.85: surface the candidate but don't assert verified.
-                  if (top) {
-                    merged.artist = top.artist;
-                    merged.title = top.title;
-                    if (top.year) merged.year = top.year;
-                  }
-                  merged.confidence = Math.round(topSim * 100);
-                  merged.isVerified = false;
-                  break;
-                }
-                case 'gemini': {
-                  // Verified ground truth: artist/title from Gemini, true badge.
-                  if (verification?.artist) merged.artist = verification.artist;
-                  if (verification?.title) merged.title = verification.title;
-                  if (verification) merged.confidence = verification.confidence;
-                  merged.isVerified = true;
-                  break;
-                }
-                case 'gemini_partial': {
-                  // Don't assert artist/title — let Claude's hedged values stand.
-                  if (verification) merged.confidence = verification.confidence;
-                  merged.isVerified = false;
-                  break;
-                }
-                case 'claude_fallback': {
-                  merged.isVerified = false;
-                  if (merged.confidence > FALLBACK_CONFIDENCE_CAP) {
-                    merged.confidence = FALLBACK_CONFIDENCE_CAP;
-                  }
-                  // Soft messaging — when there's no label evidence, blank
-                  // out the chip values so the UI can render '—' rather
-                  // than the cold 'Unknown artist' string.
-                  const hasLabel = Boolean(
-                    verification?.labelText &&
-                      verification.labelText.length > 0,
-                  );
-                  if (!hasLabel) {
-                    if (merged.artist === 'Unknown artist') merged.artist = '';
-                    if (merged.title === 'Artwork image') merged.title = '';
-                  }
-                  break;
-                }
-                case 'none':
-                default: {
-                  merged.isVerified = false;
-                  break;
-                }
-              }
-
-              // Question-only path: surface canonical artist when external
-              // data has it (e.g. "Mark Rothko" question → Wikipedia hit).
-              if (
-                recognitionSource === 'none' &&
-                artistData?.artist
-              ) {
-                merged.artist = artistData.artist;
-              }
-
-              send({
-                type: 'header',
-                data: {
-                  ...merged,
-                  recognitionSource,
-                  recognitionStatus,
-                },
-              });
+              claudeHeaderHeld = header;
+              tryFlushHeader();
             },
             onTextDelta: (delta) => {
-              send({ type: 'text', data: delta });
+              if (!headerSent) {
+                textBuffer += delta;
+              } else {
+                send({ type: 'text', data: delta });
+              }
             },
             onFooter: (footer) => {
-              send({ type: 'footer', data: footer });
+              if (!headerSent) {
+                footerHeld = footer;
+              } else {
+                send({ type: 'footer', data: footer });
+              }
             },
           },
         );
       } catch {
-        // streamClaudeArtworkReport never throws, but defense in depth.
+        /* streamClaudeArtworkReport never throws — defense in depth */
       } finally {
+        // Edge: Claude finished (or failed) but Gemini hasn't completed.
+        // Wait briefly for Gemini, then force-flush whatever we have.
+        if (!geminiDone) {
+          await Promise.race([
+            geminiPromise.catch(() => null),
+            new Promise((r) => setTimeout(r, 1500)),
+          ]);
+          geminiDone = true;
+          tryFlushHeader();
+        }
+        // Edge: streamClaude returned without ever calling onHeader.
+        if (!headerSent && claudeHeaderHeld === null) {
+          // Synthesize a minimal header so the UI doesn't hang.
+          claudeHeaderHeld = {
+            artist: '',
+            title: '',
+            year: '',
+            medium: '',
+            visualConfidence: 0,
+            visualReason: '',
+            possibleCandidates: [],
+            quickInsight: '',
+            confidence: 0,
+            isVerified: false,
+          };
+          tryFlushHeader();
+        }
         closed = true;
         try {
           controller.close();

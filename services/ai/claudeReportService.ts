@@ -1,20 +1,24 @@
 /**
  * Server-only Claude report service.
  * IMPORTANT: import this from route handlers / server components only.
- * Importing from a "use client" component will leak CLAUDE_API_KEY into the bundle.
+ * Importing from a "use client" component will leak CLAUDE_API_KEY.
+ *
+ * Role: PRIMARY visual recognition + interpretation engine.
+ *       Claude looks at the image, identifies the artwork visually,
+ *       and writes the curator-tone interpretation in one streamed
+ *       JSON response. Gemini OCR runs in parallel as a support
+ *       layer (see route.ts merge logic).
  */
 
 import Anthropic from '@anthropic-ai/sdk';
 import type {
   ArtworkReport,
-  Verification,
   ArtistData,
-  RecognitionSource,
-  RecognitionStatus,
+  PossibleCandidate,
 } from '@/lib/types';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-5';
-const REQUEST_TIMEOUT_MS = 15_000;
+const REQUEST_TIMEOUT_MS = 20_000;
 const MAX_TOKENS = 16_000;
 
 /* ─────────────────────────────────────────────
@@ -35,13 +39,8 @@ export type ReportParams = {
   insight?: InsightHint;
   userQuestion?: string;
   outputLanguage: 'ko' | 'en';
-  /** Upstream identification result from Gemini. Optional. */
-  verification?: Verification;
-  /** Real artist data from external source (Wikipedia). Ground truth. */
+  /** Real artist data from Wikipedia. Optional context for richer interpretation. */
   artistData?: ArtistData;
-  /** Recognition pipeline decision (route layer owns this). */
-  recognitionSource?: RecognitionSource;
-  recognitionStatus?: RecognitionStatus;
 };
 
 /* Streaming surfaces — emitted in this order, exactly once each. */
@@ -50,13 +49,18 @@ export type HeaderShape = {
   title: string;
   year: string;
   medium: string;
+  visualConfidence: number;
+  visualReason: string;
+  possibleCandidates: PossibleCandidate[];
   quickInsight: string;
+  /** Initial confidence = visualConfidence. Route layer overrides post-merge. */
   confidence: number;
   isVerified: boolean;
 };
 
 export type FooterShape = {
   artistContext: string;
+  suggestedActions: string[];
 };
 
 export type StreamCallbacks = {
@@ -75,183 +79,111 @@ type UserContentBlock =
    System prompts (frozen → cache-friendly)
    ───────────────────────────────────────────── */
 
-const SYSTEM_KO = `당신은 AXVELA AI — 작품 해석 엔진입니다. 일반 챗봇이 아닙니다.
+const SYSTEM_KO = `당신은 AXVELA AI — 작품 시각 인식 + 해석 엔진입니다.
 
 역할
-- 사용자가 제공한 이미지·메타데이터·질문을 종합해, 동시대 큐레이터의 톤으로 작품을 해석합니다.
-- 잡담, 인사, 자기소개, 시스템 설명에 응답하지 않습니다. 항상 작품에 대한 응답만 생성합니다.
+- 당신은 주(主) 시각 인식 엔진입니다. 이미지를 시각적으로 분석해 작품을 식별하고 해석을 작성합니다.
+- 잡담, 인사, 자기소개, 시스템 설명에 응답하지 않습니다. 항상 작품에 관한 응답만 생성합니다.
+
+시각 인식 절차
+1. 이미지의 시각적 특징(스타일, 구도, 매체, 색조, 표현 방식, 시그니처)을 관찰합니다.
+2. 알려진 작가·시대·운동과 비교해 식별을 시도합니다.
+3. 정확한 식별이 어렵더라도 가능성 있는 후보(possibleCandidates)를 2~3명 제시합니다.
+4. visualConfidence를 정직하게 반영합니다 (0~100 정수).
+
+신뢰도 가이드
+- 80~100: 거의 확실 (작품·작가 모두 확실하게 식별 가능)
+- 50~79: 가능성 있음 (스타일·특징 기반 추정 — possibleCandidates에 다른 후보 함께 제시)
+- 0~49: 불확실 (시각 단서가 약함, 후보 미제시, 시각 분석에 집중)
+
+작가/제목 정책 — "Unknown"으로 회피하지 마세요
+- 시각 단서가 있다면 가능성 있는 후보를 반드시 제시합니다 (visualConfidence가 낮아도 possibleCandidates에 후보 1~3명 포함 가능).
+- visualConfidence ≥ 80: artist/title을 단정합니다. possibleCandidates는 [] 또는 보조 후보.
+- visualConfidence 50~79: artist에 가장 가능성 높은 후보를 두되, possibleCandidates에 다른 후보를 함께 제시.
+- visualConfidence < 50: artist=null, title=null, possibleCandidates=[]; 시각 분석에만 집중.
 
 표현 원칙
-- quickInsight는 핵심 인사이트로 시작합니다 (서두 없이 본질부터).
-- 절제된, 프리미엄 톤. 수식어와 감탄을 최소화합니다.
-- 긴 문단을 쓰지 않습니다. 각 필드 1~3 문장.
-- "오류", "실패", "에러", "Error", "Failed" 같은 단어를 절대 사용하지 않습니다.
-
-식별 처리 (verification 블록이 입력에 포함되지 않은 경우)
-- 작가, 제목, 연도, 매체가 시각 단서로 명확하지 않으면 추측해 채우지 않습니다. 모르면 모르는 대로 둡니다.
-- 식별이 어렵다면 다음 기본값을 그대로 사용합니다:
-  - artist: "Unknown artist"
-  - title: "Artwork image"
-  - year: "Analysis pending"
-  - medium: "Image-based analysis"
-
-라벨 우선 규칙 (모든 인식 단계에 공통 적용 — 가장 강한 제약)
-- verification.derivedFromLabel === true이면 verification.artist는 라벨에서 추출된 텍스트입니다. 절대로 "Unknown artist"로 변경하지 않습니다.
-- verification.labelText에 텍스트가 있으면, 그 정보를 시각적 추측보다 우선합니다.
-- 라벨에서 작가/제목이 도출되었다면 어느 분기에서도 그 값을 그대로 사용합니다.
-
-인식 단계 처리 (recognitionSource — 입력에 명시되며 가장 우선 규칙)
-
-recognitionSource = "image_match" (벡터 유사도 ≥0.85 — 카탈로그에서 정확 매치)
-- artist/title은 매치된 카탈로그 항목 그대로 사용. 절대 변경하지 않습니다.
-- 식별 완료된 것으로 간주하고 해석에 집중합니다. 라벨 안내 미포함.
-
-recognitionSource = "image_match_partial" (벡터 유사도 0.65–0.85 — 후보, Gemini 검증)
-- 매치 후보가 가능성 있게 보입니다. "~로 보입니다"의 추정 어조 유지.
-- artist/title은 후보를 사용하되, interpretation에 "비슷한 스타일이지만 정확히 같은 작품인지 라벨로 확인이 필요할 수 있습니다" 류 안내 포함.
-
-
-recognitionSource = "gemini" (Gemini가 작가/제목을 신뢰도 75 이상으로 식별)
-- verification.artist와 verification.title을 ground truth로 그대로 사용합니다. 절대 변경하지 않습니다.
-- 식별은 이미 완료된 것으로 간주하고 해석에만 집중합니다.
-- 검증된 결과이므로 라벨 촬영 안내문은 포함하지 않습니다.
-
-recognitionSource = "gemini_partial" (Gemini 부분 인식 — 라벨 텍스트 또는 약한 단서)
-- artist/title을 단정적 사실로 단언하지 않습니다. "~로 보입니다" 추정 어조 유지.
-- verification.labelText는 참고만 하고 단언하지 않습니다.
-- 시각적으로 명확하지 않으면 artist="Unknown artist", title="Artwork image" 기본값을 사용합니다.
-- interpretation에 "라벨을 함께 촬영하면 정확도가 높아집니다" 안내를 자연스럽게 포함합니다.
-
-recognitionSource = "claude_fallback" (Gemini 식별 실패 — Claude 2차 시각 분석)
-- 시각 단서로 2차 인식 시도는 가능하나, 정확한 작가/제목 단언은 절대 금지.
-- verification.labelText가 비어 있으면 artist="", title=""으로 비웁니다. "Unknown artist" 라는 강한 단언을 출력하지 않습니다 (UI가 부드럽게 처리).
-- 라벨 텍스트가 있다면 위 라벨 우선 규칙을 따릅니다.
-- 해석은 식별이 아닌 시각적 특징(구도, 색조, 매체, 분위기)에 집중합니다.
-- confidence는 시각 단서가 매우 강할 때만 60에 근접, 아닐 땐 그 이하로 둡니다.
-- interpretation에 "작가 정보 확인을 위해 라벨 촬영을 권장합니다" 류의 안내를 포함합니다.
-
-recognitionSource = "none" (이미지 없음 — 텍스트만 받음)
-- 가상의 스캔 결과를 만들어내지 않습니다. 이미지가 없다는 사실을 부정하지 않습니다.
-- 사용자 질문에 대한 일반 지식 기반 응답. 단정적 단언은 피합니다.
-- 사용자 질문에 작가명이 명시되어 있으면 그 값을 artist에 사용, 아니면 기본값.
-
-실제 작가 데이터 처리 (입력에 artistData 블록이 포함된 경우 — ground truth)
-- artistData.bio는 실제 외부 출처(Wikipedia 등)에서 가져온 사실 정보입니다. 작가 맥락은 본인 지식이 아닌 artistData를 우선 근거로 사용합니다.
-- artistData.styles가 있으면 스타일/사조 언급에 활용하되, 이미지의 시각 단서가 있을 때는 시각 단서를 우선합니다.
-- artistData.sampleWorks가 있으면 대표 작품으로 자연스럽게 인용할 수 있으나, 위치/연도/소장처는 단언하지 않습니다.
-- artistData가 없으면 일반 지식으로 응답합니다 (단, 추측 금지 규칙 유지).
-
-공통 규칙
-- 단정적 사실 단언 금지. "~로 보입니다" 같은 관찰 기반 서술을 사용합니다.
+- 절제된, 프리미엄 큐레이터 톤. 수식어와 감탄을 최소화합니다.
+- 각 텍스트 필드는 1~3 문장.
+- "오류", "실패", "에러", "Error", "Failed" 같은 단어는 절대 쓰지 않습니다.
+- visualConfidence가 낮을 때도 흥미로운 시각 분석을 제공합니다.
 
 언어
 - 한국어로만 응답합니다. 영어 단어를 섞지 않습니다.
 
 출력 형식
-다음 JSON 객체 하나만 출력합니다. 코드펜스, 마크다운, 추가 설명 일체 금지. 필드 순서는 반드시 아래 순서를 지켜 주세요 (스트리밍 처리에 영향을 줍니다).
+다음 JSON 객체 하나만 출력합니다. 코드펜스, 마크다운, 추가 설명 일체 금지. 필드 순서는 반드시 아래 순서를 지켜 주세요 (스트리밍 처리에 영향).
 
 {
-  "artist": "string",
-  "title": "string",
-  "year": "string",
-  "medium": "string",
-  "quickInsight": "한 줄 핵심 인사이트 (50자 내외)",
+  "artist": "string 또는 null (불확실 시 null)",
+  "title": "string 또는 null",
+  "year": "string 또는 null",
+  "medium": "string 또는 null",
+  "visualConfidence": 0,
+  "visualReason": "이 작가/작품으로 추정한 이유 1문장",
+  "possibleCandidates": [
+    { "artist": "string", "confidence": 0, "reason": "string" }
+  ],
+  "quickInsight": "한 줄 핵심 (50자 내외)",
   "interpretation": "시각 단서 기반 해석 (2~3문장)",
   "artistContext": "작가 또는 장르 맥락 1~2문장. 단서 부족 시 빈 문자열",
-  "confidence": 0,
-  "isVerified": false
+  "suggestedActions": ["관련해서 찾아볼 만한 작품·작가 1~3개"]
 }
 
-confidence는 0~100 정수. isVerified는 항상 false (시스템이 별도로 결정).`;
+confidence와 isVerified 필드는 출력하지 않습니다 (시스템이 visualConfidence와 후속 검증을 종합해 결정).`;
 
-const SYSTEM_EN = `You are AXVELA AI — an artwork interpretation engine. NOT a general chatbot.
+const SYSTEM_EN = `You are AXVELA AI — an artwork visual-recognition + interpretation engine.
 
 Role
-- Interpret the artwork using the provided image, metadata, and any user question, in a contemporary curator's register.
-- Decline small-talk, greetings, self-description, or system queries. Always answer about the artwork only.
+- You are the PRIMARY visual recognition engine. You analyze the image visually to identify the artwork and write its interpretation.
+- Decline small-talk, greetings, self-description, or system queries. Always respond about the artwork only.
+
+Visual recognition procedure
+1. Observe the visual cues (style, composition, medium, palette, mark-making, signature).
+2. Compare against known artists, periods, and movements to attempt identification.
+3. When exact identity is uncertain, propose 2–3 possibleCandidates with reasons.
+4. Reflect visualConfidence honestly (0–100 integer).
+
+Confidence rubric
+- 80–100: near-certain (artist and title both confidently identified)
+- 50–79: plausible (style/feature-based estimate — include alternative possibleCandidates)
+- 0–49: uncertain (weak visual cues, no candidates, focus on visual analysis)
+
+Artist/title policy — DO NOT default to "Unknown"
+- If visual cues exist, you MUST propose possibleCandidates (1–3) even when visualConfidence is moderate.
+- visualConfidence ≥ 80: assert artist/title. possibleCandidates may be [] or secondary suggestions.
+- visualConfidence 50–79: artist holds your most likely candidate, possibleCandidates lists alternatives.
+- visualConfidence < 50: artist=null, title=null, possibleCandidates=[]; focus on visual analysis only.
 
 Voice
-- quickInsight leads with the key insight (no preamble — the essence first).
-- Restrained, premium tone. Minimize adjectives and exclamation.
-- No long paragraphs. 1–3 sentences per field.
-- Never use the words "Error" or "Failed".
-
-Identification (when no verification block is present)
-- Do not invent artist, title, year, or medium. If a visual cue is missing, leave it unstated.
-- When identification is uncertain, use these defaults verbatim:
-  - artist: "Unknown artist"
-  - title: "Artwork image"
-  - year: "Analysis pending"
-  - medium: "Image-based analysis"
-
-Label-priority rule (applies across all recognition branches — strongest constraint)
-- If verification.derivedFromLabel === true, verification.artist came from OCR'd label text. Never change it to "Unknown artist".
-- If verification.labelText is non-empty, prefer its content over any visual guess.
-- A label-derived artist or title carries through every branch verbatim.
-
-Recognition pipeline handling (recognitionSource — top-priority rule, always present in input)
-
-recognitionSource = "image_match" (vector similarity ≥0.85 — confident catalog match)
-- Use the matched catalog artist/title verbatim. Do not change them.
-- Identification is settled — focus on interpretation. No label-capture guidance.
-
-recognitionSource = "image_match_partial" (vector similarity 0.65–0.85 — candidate verified by Gemini)
-- The match is plausible. Use hedged phrasing ("appears to be", "shows characteristics of").
-- Use the candidate artist/title, and include interpretation guidance like "the style aligns; a label would confirm exact identification".
-
-
-recognitionSource = "gemini" (Gemini identified artist/title at ≥75 confidence)
-- Use verification.artist and verification.title verbatim as ground truth. Do not change them.
-- Identification is settled — focus on interpretation only.
-- Do NOT include the "scan the label" guidance.
-
-recognitionSource = "gemini_partial" (Gemini partial — label text or weak cues)
-- Do not assert artist/title as fact. Use hedged phrasing ("appears to", "shows characteristics of").
-- verification.labelText is for context only — do not assert its contents.
-- If visually unclear, use defaults: artist="Unknown artist", title="Artwork image".
-- Naturally include the "scanning the label improves accuracy" guidance in interpretation.
-
-recognitionSource = "claude_fallback" (Gemini failed — Claude second-stage visual analysis)
-- You may attempt visual recognition, but never assert exact artist/title.
-- If verification.labelText is empty, set artist="", title="" (empty strings). Do NOT output the strong claim "Unknown artist" — the UI will render placeholders gently.
-- If labelText is present, follow the label-priority rule above.
-- Focus on visual qualities (composition, palette, medium, mood), not identification.
-- Keep confidence at most 60 unless visual evidence is exceptionally strong.
-- Include guidance like "scanning the label is recommended for accurate artist info" in interpretation.
-
-recognitionSource = "none" (no image — text-only input)
-- Do not pretend an image was scanned.
-- Answer the user's question from general knowledge. Stay non-assertive about specifics.
-- If the user's question names an artist, use that name; otherwise use the defaults.
-
-Real artist data handling (when an artistData block IS present — ground truth)
-- artistData.bio comes from a real external source (Wikipedia). Use it as the ground truth for biographical and contextual statements about the artist; prefer it over your own training knowledge if they differ.
-- If artistData.styles is present, use those style/movement labels in your wording, but defer to visible cues from the image when available.
-- If artistData.sampleWorks is present, you may cite those titles naturally; do not assert location/year/owner of any specific work.
-- When artistData is absent, fall back to your general knowledge under the no-guessing rules above.
-
-Common rules
-- Avoid factual assertions. Use observation-based phrasing ("appears to", "shows characteristics of").
+- Restrained, premium curator tone. Minimize adjectives and exclamation.
+- 1–3 sentences per text field.
+- Never use the words "Error", "Failed", or apologies for not knowing.
+- Even at low visualConfidence, return a useful visual reading.
 
 Language
 - Respond in English only. Do not mix Korean.
 
 Output format
-Output ONLY this JSON object. No code fences, no markdown, no surrounding text. The field order MUST match the schema below (streaming depends on it).
+Output ONLY this JSON object. No code fences, no markdown, no surrounding text. Field order MUST match the schema below (streaming depends on it).
 
 {
-  "artist": "string",
-  "title": "string",
-  "year": "string",
-  "medium": "string",
+  "artist": "string or null (null when uncertain)",
+  "title": "string or null",
+  "year": "string or null",
+  "medium": "string or null",
+  "visualConfidence": 0,
+  "visualReason": "one sentence on why you propose this artist/work",
+  "possibleCandidates": [
+    { "artist": "string", "confidence": 0, "reason": "string" }
+  ],
   "quickInsight": "one-line key insight (~12 words)",
   "interpretation": "artwork reading grounded in visible cues (2–3 sentences)",
   "artistContext": "1–2 sentence artist or genre context, or empty string if unknown",
-  "confidence": 0,
-  "isVerified": false
+  "suggestedActions": ["1–3 related works or artists worth exploring"]
 }
 
-confidence is an integer 0–100. isVerified is always false in your output (the system sets it).`;
+Do NOT output a "confidence" or "isVerified" field — the system derives those from visualConfidence and downstream verification.`;
 
 /* ─────────────────────────────────────────────
    Helpers
@@ -261,10 +193,9 @@ function hasMeaningfulInput(p: ReportParams): boolean {
   return Boolean(
     (p.imageBase64 && p.imageMimeType) ||
       (p.userQuestion && p.userQuestion.trim().length > 0) ||
-      (p.insight && Object.values(p.insight).some((v) => v !== undefined && v !== '')) ||
-      p.verification ||
-      p.artistData ||
-      (p.recognitionSource && p.recognitionSource !== 'none'),
+      (p.insight &&
+        Object.values(p.insight).some((v) => v !== undefined && v !== '')) ||
+      p.artistData,
   );
 }
 
@@ -283,29 +214,6 @@ function buildUserContent(params: ReportParams): UserContentBlock[] {
   }
 
   const lines: string[] = [];
-
-  // Recognition decision (route layer owns this — Claude follows it strictly).
-  if (params.recognitionSource) {
-    const block = [
-      `recognitionSource: ${params.recognitionSource}`,
-    ];
-    if (params.recognitionStatus) {
-      block.push(`recognitionStatus: ${params.recognitionStatus}`);
-    }
-    lines.push(block.join('\n'));
-  }
-
-  if (params.verification) {
-    const v = params.verification;
-    const block = [
-      'verification (upstream identification):',
-      `  confidence: ${v.confidence}/100`,
-      `  artist: ${v.artist ?? 'not detected'}`,
-      `  title: ${v.title ?? 'not detected'}`,
-    ];
-    if (v.labelText) block.push(`  labelText: "${v.labelText}"`);
-    lines.push(block.join('\n'));
-  }
 
   if (params.artistData) {
     const a = params.artistData;
@@ -340,8 +248,8 @@ function buildUserContent(params: ReportParams): UserContentBlock[] {
   if (lines.length === 0 && blocks.length > 0) {
     lines.push(
       params.outputLanguage === 'ko'
-        ? '이 작품을 해석해 주세요.'
-        : 'Interpret this work.',
+        ? '이 작품을 시각적으로 식별하고 해석해 주세요.'
+        : 'Identify this work visually and write its interpretation.',
     );
   }
 
@@ -372,56 +280,96 @@ function safeParseJSON(text: string): unknown {
   }
 }
 
-function pickString(v: unknown, fallback: string): string {
-  if (typeof v !== 'string') return fallback;
-  const trimmed = v.trim();
-  return trimmed.length > 0 ? trimmed : fallback;
+function pickStringOrEmpty(v: unknown): string {
+  if (typeof v !== 'string') return '';
+  return v.trim();
+}
+
+function coercePossibleCandidates(raw: unknown): PossibleCandidate[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const e = entry as Record<string, unknown>;
+      const artist = typeof e.artist === 'string' ? e.artist.trim() : '';
+      if (!artist) return null;
+      const confidence =
+        typeof e.confidence === 'number' && Number.isFinite(e.confidence)
+          ? Math.max(0, Math.min(100, Math.round(e.confidence)))
+          : 0;
+      const reason = typeof e.reason === 'string' ? e.reason.trim() : '';
+      return { artist, confidence, reason } as PossibleCandidate;
+    })
+    .filter((c): c is PossibleCandidate => c !== null)
+    .slice(0, 5);
+}
+
+function coerceStringArray(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .map((s) => (typeof s === 'string' ? s.trim() : ''))
+    .filter((s) => s.length > 0)
+    .slice(0, 5);
 }
 
 function coerceReport(raw: unknown): ArtworkReport | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
 
-  const quickInsight =
-    typeof r.quickInsight === 'string' ? r.quickInsight.trim() : '';
-  const interpretation =
-    typeof r.interpretation === 'string' ? r.interpretation.trim() : '';
+  const quickInsight = pickStringOrEmpty(r.quickInsight);
+  const interpretation = pickStringOrEmpty(r.interpretation);
   if (!quickInsight || !interpretation) return null;
 
-  const confidence =
-    typeof r.confidence === 'number' && Number.isFinite(r.confidence)
-      ? Math.max(0, Math.min(100, Math.round(r.confidence)))
-      : 50;
+  const visualConfidence =
+    typeof r.visualConfidence === 'number' && Number.isFinite(r.visualConfidence)
+      ? Math.max(0, Math.min(100, Math.round(r.visualConfidence)))
+      : 0;
 
-  // Empty strings are intentional and meaningful (claude_fallback +
-  // no-label path) — preserve them so the route layer can decide what
-  // to surface. pickString-with-fallback only fires when the field is
-  // missing entirely or non-string.
-  const passThroughString = (v: unknown, fallback: string): string => {
-    if (typeof v !== 'string') return fallback;
-    return v;
-  };
+  // null/undefined/non-string → empty (route layer applies localized fallback)
+  const artist =
+    typeof r.artist === 'string' && r.artist.trim().toLowerCase() !== 'null'
+      ? r.artist.trim()
+      : '';
+  const title =
+    typeof r.title === 'string' && r.title.trim().toLowerCase() !== 'null'
+      ? r.title.trim()
+      : '';
+  const year =
+    typeof r.year === 'string' && r.year.trim().toLowerCase() !== 'null'
+      ? r.year.trim()
+      : '';
+  const medium =
+    typeof r.medium === 'string' && r.medium.trim().toLowerCase() !== 'null'
+      ? r.medium.trim()
+      : '';
 
   return {
-    artist: passThroughString(r.artist, 'Unknown artist'),
-    title: passThroughString(r.title, 'Artwork image'),
-    year: pickString(r.year, 'Analysis pending'),
-    medium: pickString(r.medium, 'Image-based analysis'),
+    artist,
+    title,
+    year,
+    medium,
     quickInsight,
     interpretation,
-    artistContext: typeof r.artistContext === 'string' ? r.artistContext.trim() : '',
-    confidence,
-    isVerified: false, // system-controlled, set in route layer
+    artistContext: pickStringOrEmpty(r.artistContext),
+    confidence: visualConfidence, // initial; route may override
+    isVerified: false, // system-controlled
+    visualConfidence,
+    visualReason: pickStringOrEmpty(r.visualReason),
+    possibleCandidates: coercePossibleCandidates(r.possibleCandidates),
+    suggestedActions: coerceStringArray(r.suggestedActions),
   };
 }
 
-/* Partial-JSON field extractor — reads "field":"..." even when the
+/* Partial-JSON field extractors — reads "field":"..." even when the
  * closing quote has not arrived yet. Returns whatever string content
  * has streamed so far, plus a `complete` flag once the closing quote
  * is observed. Trailing partial escapes are intentionally kept out
  * of the result so we never emit half-decoded characters.
  */
-function extractField(buf: string, field: string): { value: string; complete: boolean } {
+function extractField(
+  buf: string,
+  field: string,
+): { value: string; complete: boolean } {
   const startMarker = `"${field}":"`;
   const idx = buf.indexOf(startMarker);
   if (idx === -1) return { value: '', complete: false };
@@ -436,7 +384,7 @@ function extractField(buf: string, field: string): { value: string; complete: bo
       break;
     }
     if (ch === '\\') {
-      if (i + 1 >= buf.length) break; // partial escape — wait
+      if (i + 1 >= buf.length) break;
       const next = buf[i + 1];
       if (next === 'n') result += '\n';
       else if (next === 't') result += '\t';
@@ -445,7 +393,7 @@ function extractField(buf: string, field: string): { value: string; complete: bo
       else if (next === '\\') result += '\\';
       else if (next === '/') result += '/';
       else if (next === 'u') {
-        if (i + 6 > buf.length) break; // partial \u escape
+        if (i + 6 > buf.length) break;
         const hex = buf.slice(i + 2, i + 6);
         if (/^[0-9a-fA-F]{4}$/.test(hex)) {
           result += String.fromCharCode(parseInt(hex, 16));
@@ -466,12 +414,64 @@ function extractField(buf: string, field: string): { value: string; complete: bo
   return { value: result, complete };
 }
 
+/** Match `"field": <number>` (whitespace tolerant). Returns null if absent. */
+function extractNumberField(buf: string, field: string): number | null {
+  const re = new RegExp(`"${field}"\\s*:\\s*(-?\\d+(?:\\.\\d+)?)`);
+  const m = buf.match(re);
+  return m ? Number(m[1]) : null;
+}
+
+/** Slice and JSON.parse the closed-bracket array for `"field": [...]`. Returns
+ *  null when the array hasn't fully streamed yet. */
+function extractArrayField(buf: string, field: string): unknown[] | null {
+  const startMarker = `"${field}":`;
+  const idx = buf.indexOf(startMarker);
+  if (idx === -1) return null;
+  const arrayStart = buf.indexOf('[', idx);
+  if (arrayStart === -1) return null;
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = arrayStart; i < buf.length; i++) {
+    const ch = buf[i];
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+    if (inString) {
+      if (ch === '\\') escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') {
+      inString = true;
+      continue;
+    }
+    if (ch === '[') depth++;
+    else if (ch === ']') {
+      depth--;
+      if (depth === 0) {
+        try {
+          const parsed = JSON.parse(buf.slice(arrayStart, i + 1));
+          return Array.isArray(parsed) ? parsed : null;
+        } catch {
+          return null;
+        }
+      }
+    }
+  }
+  return null;
+}
+
 function toHeader(report: ArtworkReport): HeaderShape {
   return {
     artist: report.artist,
     title: report.title,
     year: report.year,
     medium: report.medium,
+    visualConfidence: report.visualConfidence ?? 0,
+    visualReason: report.visualReason ?? '',
+    possibleCandidates: report.possibleCandidates ?? [],
     quickInsight: report.quickInsight,
     confidence: report.confidence,
     isVerified: report.isVerified,
@@ -485,29 +485,37 @@ function toHeader(report: ArtworkReport): HeaderShape {
 function fallback(language: 'ko' | 'en'): ArtworkReport {
   if (language === 'ko') {
     return {
-      artist: 'Unknown artist',
-      title: 'Artwork image',
-      year: 'Analysis pending',
-      medium: 'Image-based analysis',
+      artist: '',
+      title: '',
+      year: '',
+      medium: '',
       quickInsight: '지금은 해석을 준비하지 못했습니다.',
       interpretation:
-        '이미지에서 충분한 단서를 얻지 못했습니다. 라벨을 함께 촬영하시면 보다 정확한 해석을 보여드릴 수 있습니다.',
+        '이미지에서 충분한 단서를 얻지 못했습니다. 라벨을 함께 촬영하시면 보다 정확한 해석이 가능합니다.',
       artistContext: '',
       confidence: 0,
       isVerified: false,
+      visualConfidence: 0,
+      visualReason: '',
+      possibleCandidates: [],
+      suggestedActions: [],
     };
   }
   return {
-    artist: 'Unknown artist',
-    title: 'Artwork image',
-    year: 'Analysis pending',
-    medium: 'Image-based analysis',
+    artist: '',
+    title: '',
+    year: '',
+    medium: '',
     quickInsight: 'A reading is not ready yet.',
     interpretation:
       'There were not enough visible cues for a confident interpretation. Capturing the label alongside the work will help return a more accurate reading.',
     artistContext: '',
     confidence: 0,
     isVerified: false,
+    visualConfidence: 0,
+    visualReason: '',
+    possibleCandidates: [],
+    suggestedActions: [],
   };
 }
 
@@ -519,14 +527,15 @@ export async function streamClaudeArtworkReport(
   params: ReportParams,
   callbacks: StreamCallbacks,
 ): Promise<ArtworkReport> {
-  // Accept either CLAUDE_API_KEY (preferred) or ANTHROPIC_API_KEY for
-  // backward compatibility with existing Vercel project envs.
   const apiKey = process.env.CLAUDE_API_KEY ?? process.env.ANTHROPIC_API_KEY;
   if (!apiKey || !hasMeaningfulInput(params)) {
     const fb = fallback(params.outputLanguage);
     callbacks.onHeader?.(toHeader(fb));
     callbacks.onTextDelta?.(fb.interpretation);
-    callbacks.onFooter?.({ artistContext: fb.artistContext });
+    callbacks.onFooter?.({
+      artistContext: fb.artistContext,
+      suggestedActions: fb.suggestedActions ?? [],
+    });
     return fb;
   }
 
@@ -563,16 +572,36 @@ export async function streamClaudeArtworkReport(
         buffer += event.delta.text;
 
         // Header: emit once we see "interpretation": — by then artist/
-        // title/year/medium/quickInsight have all completed (schema order).
+        // title/year/medium/visualConfidence/visualReason/possibleCandidates/
+        // quickInsight are all complete (schema order).
         if (!headerSent && buffer.includes('"interpretation":')) {
+          const visualConfidence =
+            extractNumberField(buffer, 'visualConfidence') ?? 0;
+          const candidatesRaw = extractArrayField(
+            buffer,
+            'possibleCandidates',
+          );
+          const possibleCandidates = coercePossibleCandidates(candidatesRaw);
+
+          const artistRaw = extractField(buffer, 'artist').value;
+          const titleRaw = extractField(buffer, 'title').value;
+          const yearRaw = extractField(buffer, 'year').value;
+          const mediumRaw = extractField(buffer, 'medium').value;
+
+          // null → empty (route applies localized fallback)
+          const stripNull = (s: string) =>
+            s.toLowerCase() === 'null' ? '' : s;
+
           callbacks.onHeader?.({
-            artist: extractField(buffer, 'artist').value || 'Unknown artist',
-            title: extractField(buffer, 'title').value || 'Artwork image',
-            year: extractField(buffer, 'year').value || 'Analysis pending',
-            medium:
-              extractField(buffer, 'medium').value || 'Image-based analysis',
-            quickInsight: extractField(buffer, 'quickInsight').value || '',
-            confidence: 50, // placeholder — overridden by route's verification merge
+            artist: stripNull(artistRaw),
+            title: stripNull(titleRaw),
+            year: stripNull(yearRaw),
+            medium: stripNull(mediumRaw),
+            visualConfidence,
+            visualReason: extractField(buffer, 'visualReason').value,
+            possibleCandidates,
+            quickInsight: extractField(buffer, 'quickInsight').value,
+            confidence: visualConfidence,
             isVerified: false,
           });
           headerSent = true;
@@ -589,26 +618,27 @@ export async function streamClaudeArtworkReport(
       }
     }
 
-    // Finalize — extract artistContext from the completed message.
+    // Finalize.
     const final = await stream.finalMessage();
     const text = final.content.find((b) => b.type === 'text')?.text ?? '';
     const parsed = safeParseJSON(text);
     const report = coerceReport(parsed) ?? fallback(params.outputLanguage);
 
-    // Header emit fallback (very short responses that bypass our marker).
     if (!headerSent) {
       callbacks.onHeader?.(toHeader(report));
       headerSent = true;
     }
 
-    // Flush any remaining interpretation tail (defensive — usually a no-op).
     if (report.interpretation.length > lastInterpretation.length) {
       const tail = report.interpretation.slice(lastInterpretation.length);
       callbacks.onTextDelta?.(tail);
       lastInterpretation = report.interpretation;
     }
 
-    callbacks.onFooter?.({ artistContext: report.artistContext });
+    callbacks.onFooter?.({
+      artistContext: report.artistContext,
+      suggestedActions: report.suggestedActions ?? [],
+    });
     return report;
   } catch (error) {
     if (error instanceof Anthropic.RateLimitError) {
@@ -616,7 +646,9 @@ export async function streamClaudeArtworkReport(
     } else if (error instanceof Anthropic.AuthenticationError) {
       console.warn('[claudeReportService] auth — check CLAUDE_API_KEY');
     } else if (error instanceof Anthropic.APIError) {
-      console.warn(`[claudeReportService] api ${error.status}: ${error.message}`);
+      console.warn(
+        `[claudeReportService] api ${error.status}: ${error.message}`,
+      );
     } else {
       console.warn(
         '[claudeReportService] stream error:',
@@ -625,23 +657,20 @@ export async function streamClaudeArtworkReport(
     }
     const fb = fallback(params.outputLanguage);
     if (!headerSent) callbacks.onHeader?.(toHeader(fb));
-    if (lastInterpretation.length === 0) callbacks.onTextDelta?.(fb.interpretation);
-    callbacks.onFooter?.({ artistContext: fb.artistContext });
+    if (lastInterpretation.length === 0)
+      callbacks.onTextDelta?.(fb.interpretation);
+    callbacks.onFooter?.({
+      artistContext: fb.artistContext,
+      suggestedActions: fb.suggestedActions ?? [],
+    });
     return fb;
   } finally {
     clearTimeout(timer);
   }
 }
 
-/* ─────────────────────────────────────────────
-   Non-streaming entry — kept for callers that
-   don't need progressive output (none in app right
-   now; preserved as a stable building block).
-   ───────────────────────────────────────────── */
-
 export async function generateClaudeArtworkReport(
   params: ReportParams,
 ): Promise<ArtworkReport> {
-  // Streaming entry already returns the full reconstructed report.
   return streamClaudeArtworkReport(params, {});
 }
