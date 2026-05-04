@@ -7,6 +7,7 @@ import type {
   ArtworkReport,
   ArtistData,
   RecognitionSource,
+  RecognitionStatus,
 } from '@/lib/types';
 import { extractFromDataUrl } from '@/lib/image';
 
@@ -21,14 +22,19 @@ const ACTIONS_HIGH = [
   '작가의 다른 작품 보기',
 ];
 
-function recognitionLabel(source?: RecognitionSource): string | null {
+function recognitionLabel(
+  source?: RecognitionSource,
+  status?: RecognitionStatus,
+): string | null {
   switch (source) {
     case 'image_match':
       return '이미지 매치';
     case 'image_match_partial':
       return '유사 후보';
     case 'claude_visual':
-      return '이미지 기반 분석';
+      // Per spec: at PARTIAL (visualConfidence 50–79) surface as a
+      // similarity-based estimate, not a confident reading.
+      return status === 'FOUND' ? '이미지 기반 분석' : '이미지 유사도 기반 추정';
     case 'claude_visual_gemini_supported':
       return '라벨 검증 일치';
     case 'gemini_label':
@@ -139,7 +145,10 @@ function Body({
   // text + LOW action set both follow this single switch.
   const isLow = !insight.isVerified;
   const actions = isLow ? ACTIONS_LOW : ACTIONS_HIGH;
-  const recoLabel = recognitionLabel(insight.recognitionSource);
+  const recoLabel = recognitionLabel(
+    insight.recognitionSource,
+    insight.recognitionStatus,
+  );
 
   // Live interpretation while streaming, static when settled.
   const interpretationText = isStreaming
