@@ -1,6 +1,6 @@
 'use client';
 
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import {
@@ -17,15 +17,22 @@ type Props = {
   onCancel: () => void;
 };
 
+/**
+ * Conditional render with no AnimatePresence + motion.div wrapper around
+ * the outer overlay. Framer-motion's AnimatePresence can stall the
+ * enter animation when the motion component lives inside an
+ * intermediate function-component child (which was the case before).
+ * Using a plain <div> for the overlay guarantees it is visible the
+ * instant `active` flips true. Inner moments (capture flash, status
+ * text) still use motion components — those work fine inside the
+ * always-mounted parent.
+ */
 export default function AutoScannerView({ active, onCaptured, onCancel }: Props) {
-  return (
-    <AnimatePresence>
-      {active && <Inner onCaptured={onCaptured} onCancel={onCancel} />}
-    </AnimatePresence>
-  );
+  if (!active) return null;
+  return <ScannerOverlay onCaptured={onCaptured} onCancel={onCancel} />;
 }
 
-function Inner({
+function ScannerOverlay({
   onCaptured,
   onCancel,
 }: {
@@ -71,13 +78,11 @@ function Inner({
         streamRef.current = stream;
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
-          // play() may reject under some autoplay policies — non-fatal
           await videoRef.current.play().catch(() => {});
         }
         setMode('camera');
         startDetection();
       } catch {
-        // Permission denied / no device / insecure context — soft fallback.
         if (!cancelled) setMode('file_fallback');
       }
     })();
@@ -101,13 +106,11 @@ function Inner({
 
     const dataUrl = captureFromVideo(v);
     if (!dataUrl) {
-      // Frame not ready / canvas tainted — degrade.
       setMode('file_fallback');
       resetDetection();
       return;
     }
     handedOffRef.current = true;
-    // Brief flash then hand off — capture animation has ~200ms presence.
     const t = setTimeout(() => onCaptured(dataUrl), 200);
     return () => clearTimeout(t);
   }, [state, mode, onCaptured, resetDetection]);
@@ -126,12 +129,9 @@ function Inner({
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.32 }}
+    <div
       className="fixed inset-0 z-[80] flex flex-col bg-[#070708] text-white"
+      style={{ opacity: 1 }}
     >
       {/* Premium gradient backdrop — same family as other screens */}
       <div
@@ -234,7 +234,7 @@ function Inner({
         className="hidden"
         aria-hidden
       />
-    </motion.div>
+    </div>
   );
 }
 
@@ -265,7 +265,6 @@ function CameraStatus({
       <p className="text-[14px] font-light leading-relaxed text-white/75">
         {text}
       </p>
-      {/* Subtle confidence track — only while detecting / detected */}
       {(state === 'detecting' || state === 'artwork_detected') && (
         <div
           aria-hidden
