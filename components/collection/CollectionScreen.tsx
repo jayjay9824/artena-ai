@@ -107,10 +107,10 @@ function Card({
       </div>
       <div className="px-3 py-2.5">
         <div className="truncate text-[12px] font-light text-white/85">
-          {item.artist || 'Unknown artist'}
+          {item.artist || '작가 미확인'}
         </div>
         <div className="truncate text-[11px] font-light text-white/45">
-          {item.title || 'Artwork image'}
+          {item.title || '이미지 기반 분석'}
         </div>
       </div>
     </button>

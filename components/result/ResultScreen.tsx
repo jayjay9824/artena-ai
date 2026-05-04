@@ -8,6 +8,7 @@ import type {
   ArtistData,
   RecognitionSource,
   RecognitionStatus,
+  PossibleCandidate,
 } from '@/lib/types';
 import { extractFromDataUrl } from '@/lib/image';
 
@@ -350,6 +351,12 @@ function Body({
           </motion.p>
         )}
 
+        {/* Possible artists — surfaced when Claude flagged candidates rather
+            than asserting a single artist (visualConfidence below FOUND). */}
+        {insight.possibleCandidates && insight.possibleCandidates.length > 0 && (
+          <PossibleArtists candidates={insight.possibleCandidates} />
+        )}
+
         {/* Interpretation — live grow during stream, line-clamp once settled */}
         {(interpretationText || isStreaming) && (
           <Interpretation text={interpretationText} isLive={isStreaming} />
@@ -649,5 +656,42 @@ function Brackets() {
       <span aria-hidden className="absolute bottom-3 right-3 h-[18px] w-px bg-white/30" />
       <span aria-hidden className="absolute bottom-3 right-3 h-px w-[18px] bg-white/30" />
     </>
+  );
+}
+
+function PossibleArtists({ candidates }: { candidates: PossibleCandidate[] }) {
+  return (
+    <motion.div
+      initial={{ y: 12, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ duration: 0.45, delay: 0.32 }}
+      className="mt-5 rounded-2xl bg-white/[0.02] px-4 py-4 ring-1 ring-white/[0.06]"
+    >
+      <div className="text-[10px] font-light tracking-[0.22em] text-white/35">
+        가능성 있는 작가
+      </div>
+      <div className="mt-3 space-y-2.5">
+        {candidates.map((c, i) => (
+          <div
+            key={`${c.artist}-${i}`}
+            className="flex items-baseline justify-between gap-3"
+          >
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-[13px] font-light text-white/85">
+                {c.artist}
+              </div>
+              {c.reason && (
+                <div className="mt-0.5 text-[11px] font-light leading-relaxed text-white/45">
+                  {c.reason}
+                </div>
+              )}
+            </div>
+            <div className="whitespace-nowrap text-[11px] font-light tabular-nums text-white/40">
+              {c.confidence}%
+            </div>
+          </div>
+        ))}
+      </div>
+    </motion.div>
   );
 }

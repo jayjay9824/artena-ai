@@ -42,10 +42,10 @@ type ResultOrigin = 'scan' | 'collection';
 const MIN_ANALYZING_MS = 1500;
 
 const MOCK_INSIGHT: ArtworkReport = {
-  artist: 'Unknown artist',
-  title: 'Artwork image',
-  year: 'Analysis pending',
-  medium: 'Image-based analysis',
+  artist: '작가 미확인',
+  title: '이미지 기반 분석',
+  year: '',
+  medium: '',
   confidence: 62,
   isVerified: false,
   quickInsight: '이미지 기반 해석을 준비 중입니다.',
@@ -234,10 +234,10 @@ export default function Home() {
                 recognitionStatus?: RecognitionStatus;
               };
               header = {
-                artist: d.artist ?? 'Unknown artist',
-                title: d.title ?? 'Artwork image',
-                year: d.year ?? 'Analysis pending',
-                medium: d.medium ?? 'Image-based analysis',
+                artist: d.artist ?? '',
+                title: d.title ?? '',
+                year: d.year ?? '',
+                medium: d.medium ?? '',
                 quickInsight: d.quickInsight ?? '',
                 interpretation: '',
                 artistContext: '',
@@ -245,6 +245,11 @@ export default function Home() {
                 isVerified: Boolean(d.isVerified),
                 recognitionSource: d.recognitionSource,
                 recognitionStatus: d.recognitionStatus,
+                visualConfidence: d.visualConfidence,
+                visualReason: d.visualReason,
+                possibleCandidates: Array.isArray(d.possibleCandidates)
+                  ? d.possibleCandidates
+                  : [],
               };
               tryTransition();
             } else if (event.type === 'artistData') {
