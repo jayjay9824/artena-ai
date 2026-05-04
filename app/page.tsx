@@ -1,11 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import dynamic from 'next/dynamic';
 import ScanButton from '@/components/ui/ScanButton';
 import MainInputBar from '@/components/layout/MainInputBar';
 import ScanSheet from '@/components/scan/ScanSheet';
 import AnalyzingScreen from '@/components/scan/AnalyzingScreen';
-import AutoScannerView from '@/components/scan/AutoScannerView';
+const AutoScannerView = dynamic(
+  () => import('@/components/scan/AutoScannerView'),
+  { ssr: false },
+);
 import ResultScreen from '@/components/result/ResultScreen';
 import CollectionScreen from '@/components/collection/CollectionScreen';
 import { readFileAsDataUrl, extractFromDataUrl } from '@/lib/image';
@@ -448,11 +452,14 @@ export default function Home() {
         onUpload={triggerUpload}
         onRecent={triggerRecent}
       />
-      <AutoScannerView
-        active={phase === 'scanner'}
-        onCaptured={onScannerCaptured}
-        onCancel={cancelScanner}
-      />
+      {phase === 'scanner' && (
+        <div className="fixed inset-0 z-[100] bg-black">
+          <AutoScannerView
+            onCaptured={onScannerCaptured}
+            onCancel={cancelScanner}
+          />
+        </div>
+      )}
       <AnalyzingScreen active={phase === 'analyzing'} />
       <ResultScreen
         active={phase === 'result'}
