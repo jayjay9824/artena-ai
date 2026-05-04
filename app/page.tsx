@@ -18,7 +18,12 @@ import {
   generateRecommendations,
   type Recommendation,
 } from '@/lib/recommendation';
-import type { ArtworkReport, ArtistData } from '@/lib/types';
+import type {
+  ArtworkReport,
+  ArtistData,
+  RecognitionSource,
+  RecognitionStatus,
+} from '@/lib/types';
 
 type Phase = 'idle' | 'sheet' | 'analyzing' | 'result' | 'collection';
 type ResultOrigin = 'scan' | 'collection';
@@ -203,7 +208,10 @@ export default function Home() {
             }
 
             if (event.type === 'header') {
-              const d = event.data as Partial<ArtworkReport>;
+              const d = event.data as Partial<ArtworkReport> & {
+                recognitionSource?: RecognitionSource;
+                recognitionStatus?: RecognitionStatus;
+              };
               header = {
                 artist: d.artist ?? 'Unknown artist',
                 title: d.title ?? 'Artwork image',
@@ -214,6 +222,8 @@ export default function Home() {
                 artistContext: '',
                 confidence: typeof d.confidence === 'number' ? d.confidence : 0,
                 isVerified: Boolean(d.isVerified),
+                recognitionSource: d.recognitionSource,
+                recognitionStatus: d.recognitionStatus,
               };
               tryTransition();
             } else if (event.type === 'artistData') {

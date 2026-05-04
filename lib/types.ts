@@ -12,11 +12,33 @@ export type Insight = {
   isVerified: boolean;
 };
 
+/**
+ * Recognition pipeline (two-stage Gemini → Claude).
+ *
+ *   gemini           — Gemini ≥75 confidence with artist/title present.
+ *                      Treated as verified ground truth.
+ *   gemini_partial   — Gemini 40-74 confidence OR labelText only.
+ *                      Cautious tone, no fact-claim, helper guidance.
+ *   claude_fallback  — Image present but Gemini failed (NOT_FOUND or null).
+ *                      Claude does second-stage visual analysis with
+ *                      isVerified=false and confidence capped.
+ *   none             — No image. Question-only or text exploration.
+ */
+export type RecognitionSource =
+  | 'gemini'
+  | 'gemini_partial'
+  | 'claude_fallback'
+  | 'none';
+
+export type RecognitionStatus = 'FOUND' | 'PARTIAL' | 'NOT_FOUND';
+
 /** Full Claude artwork report. Insight + interpretive prose fields. */
 export type ArtworkReport = Insight & {
   quickInsight: string;
   interpretation: string;
   artistContext: string;
+  recognitionSource?: RecognitionSource;
+  recognitionStatus?: RecognitionStatus;
 };
 
 /**
@@ -24,10 +46,12 @@ export type ArtworkReport = Insight & {
  * The verification layer never produces interpretation text.
  */
 export type Verification = {
-  artist: string | null;
-  title: string | null;
-  confidence: number; // 0–100
+  artist?: string | null;
+  title?: string | null;
   labelText?: string;
+  confidence: number; // 0–100
+  status: RecognitionStatus;
+  source: 'gemini';
 };
 
 /**

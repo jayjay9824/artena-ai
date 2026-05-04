@@ -4,11 +4,17 @@ import {
   getArtistData,
   extractArtistName,
 } from '@/services/artworkDataService';
+import type {
+  RecognitionSource,
+  RecognitionStatus,
+} from '@/lib/types';
 
 // Anthropic SDK requires Node runtime — not edge.
 export const runtime = 'nodejs';
 
-const VERIFICATION_THRESHOLD = 75;
+const VERIFIED_THRESHOLD = 75;
+const PARTIAL_THRESHOLD = 40;
+const FALLBACK_CONFIDENCE_CAP = 60;
 
 type ReportRequest = {
   imageBase64?: string;
@@ -64,28 +70,48 @@ export async function POST(req: Request) {
     ? data.outputLanguage
     : 'ko';
 
-  // Step 1 — Gemini verification (blocking precondition; happens before the
-  // stream opens, so the first byte to the client lands once Claude starts).
+  // Step 1 — Gemini verification (blocking precondition).
   const verification =
     imageBase64 && imageMimeType
       ? await verifyArtwork({ imageBase64, imageMimeType })
       : null;
 
-  // Step 1.5 — Pick an artist name to look up.
-  // Priority: high-confidence verification > question heuristic > none.
-  let artistName: string | null = null;
+  // Step 1.1 — Recognition decision layer.
+  // The route owns this decision. Claude is told via recognitionSource;
+  // it does not re-derive. Order of branches matters.
+  let recognitionSource: RecognitionSource = 'none';
+  let recognitionStatus: RecognitionStatus = 'NOT_FOUND';
+
   if (
     verification &&
-    verification.confidence >= VERIFICATION_THRESHOLD &&
-    verification.artist
+    verification.confidence >= VERIFIED_THRESHOLD &&
+    (verification.artist || verification.title)
   ) {
+    recognitionSource = 'gemini';
+    recognitionStatus = 'FOUND';
+  } else if (
+    verification &&
+    (verification.confidence >= PARTIAL_THRESHOLD ||
+      (verification.labelText && verification.labelText.length > 0))
+  ) {
+    recognitionSource = 'gemini_partial';
+    recognitionStatus = 'PARTIAL';
+  } else if (imageBase64 && imageMimeType) {
+    recognitionSource = 'claude_fallback';
+    recognitionStatus = 'NOT_FOUND';
+  }
+  // else: no image at all → recognitionSource stays 'none'
+
+  // Step 1.5 — Pick an artist name to look up real data for.
+  // Prefer verified Gemini result; fall back to question heuristic.
+  let artistName: string | null = null;
+  if (recognitionSource === 'gemini' && verification?.artist) {
     artistName = verification.artist;
   } else if (userQuestion) {
     artistName = extractArtistName(userQuestion);
   }
 
-  // Step 1.6 — Fetch real artist data from external source. Best-effort,
-  // returns null on any failure → falls through to AI-only.
+  // Step 1.6 — Fetch real artist data (Wikipedia). Best-effort.
   const artistData = artistName ? await getArtistData(artistName) : null;
 
   // Step 2 — Open NDJSON stream and pump Claude through it.
@@ -118,26 +144,60 @@ export async function POST(req: Request) {
             outputLanguage,
             verification: verification ?? undefined,
             artistData: artistData ?? undefined,
+            recognitionSource,
+            recognitionStatus,
           },
           {
             onHeader: (header) => {
               const merged = { ...header };
-              if (verification) {
-                merged.confidence = verification.confidence;
-                merged.isVerified =
-                  verification.confidence >= VERIFICATION_THRESHOLD;
 
-                if (verification.confidence >= VERIFICATION_THRESHOLD) {
-                  if (verification.artist) merged.artist = verification.artist;
-                  if (verification.title) merged.title = verification.title;
+              // Final merge — strict by recognitionSource.
+              switch (recognitionSource) {
+                case 'gemini': {
+                  // Verified ground truth: artist/title from Gemini, true badge.
+                  if (verification?.artist) merged.artist = verification.artist;
+                  if (verification?.title) merged.title = verification.title;
+                  if (verification) merged.confidence = verification.confidence;
+                  merged.isVerified = true;
+                  break;
+                }
+                case 'gemini_partial': {
+                  // Don't assert artist/title — let Claude's hedged values stand.
+                  if (verification) merged.confidence = verification.confidence;
+                  merged.isVerified = false;
+                  break;
+                }
+                case 'claude_fallback': {
+                  merged.isVerified = false;
+                  if (merged.confidence > FALLBACK_CONFIDENCE_CAP) {
+                    merged.confidence = FALLBACK_CONFIDENCE_CAP;
+                  }
+                  break;
+                }
+                case 'none':
+                default: {
+                  merged.isVerified = false;
+                  break;
                 }
               }
-              // If artistData arrived from a question-only flow (no
-              // verification), still surface the canonical artist name.
-              if (!verification && artistData?.artist) {
+
+              // Question-only path: surface canonical artist when external
+              // data has it (e.g. "Mark Rothko" question → Wikipedia hit).
+              if (
+                recognitionSource === 'none' &&
+                artistData?.artist
+              ) {
                 merged.artist = artistData.artist;
               }
-              send({ type: 'header', data: merged });
+
+              send({
+                type: 'header',
+                data: {
+                  ...merged,
+                  recognitionSource,
+                  recognitionStatus,
+                },
+              });
             },
             onTextDelta: (delta) => {
               send({ type: 'text', data: delta });

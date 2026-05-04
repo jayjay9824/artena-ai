@@ -8,7 +8,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { Verification } from '@/lib/types';
+import type { Verification, RecognitionStatus } from '@/lib/types';
 
 const DEFAULT_MODEL = 'gemini-2.0-flash';
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -141,5 +141,22 @@ function coerceVerification(raw: unknown): Verification | null {
   const labelText =
     typeof r.labelText === 'string' ? r.labelText.trim() : '';
 
-  return { artist, title, confidence, labelText };
+  // Recognition status — derived strictly from confidence + presence of
+  // identifying signals. The decision is owned by Gemini (the recognizer);
+  // the route layer reads it back without re-deriving.
+  const status: RecognitionStatus =
+    confidence >= 75 && (artist || title)
+      ? 'FOUND'
+      : confidence >= 40 || labelText.length > 0
+        ? 'PARTIAL'
+        : 'NOT_FOUND';
+
+  return {
+    artist,
+    title,
+    labelText,
+    confidence,
+    status,
+    source: 'gemini',
+  };
 }

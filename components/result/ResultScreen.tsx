@@ -3,10 +3,12 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronLeft, Plus, ArrowUp } from 'lucide-react';
 import { useState, useEffect, useRef, useCallback } from 'react';
-import type { ArtworkReport, ArtistData } from '@/lib/types';
+import type {
+  ArtworkReport,
+  ArtistData,
+  RecognitionSource,
+} from '@/lib/types';
 import { extractFromDataUrl } from '@/lib/image';
-
-const CONFIDENCE_THRESHOLD = 75;
 
 const ACTIONS_LOW = [
   '이 작품에 대해 더 알려줘',
@@ -18,6 +20,19 @@ const ACTIONS_HIGH = [
   '이 작품 해석해줘',
   '작가의 다른 작품 보기',
 ];
+
+function recognitionLabel(source?: RecognitionSource): string | null {
+  switch (source) {
+    case 'gemini':
+      return 'Gemini 검증';
+    case 'gemini_partial':
+      return '부분 인식';
+    case 'claude_fallback':
+      return 'AI 시각 분석';
+    default:
+      return null;
+  }
+}
 
 type ChatMessage = { role: 'user' | 'assistant'; text: string };
 
@@ -113,8 +128,12 @@ function Body({
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [isSending, setIsSending] = useState(false);
 
-  const isLow = insight.confidence < CONFIDENCE_THRESHOLD;
+  // Trust signal is now recognitionSource-driven: !isVerified means
+  // Gemini didn't fully recognize, OR Claude fallback ran. The helper
+  // text + LOW action set both follow this single switch.
+  const isLow = !insight.isVerified;
   const actions = isLow ? ACTIONS_LOW : ACTIONS_HIGH;
+  const recoLabel = recognitionLabel(insight.recognitionSource);
 
   // Live interpretation while streaming, static when settled.
   const interpretationText = isStreaming
@@ -270,16 +289,23 @@ function Body({
           initial={{ y: 12, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ duration: 0.45, delay: 0.16 }}
-          className="mt-5 flex items-center gap-2 text-[12px] font-light text-white/55"
+          className="mt-5 flex flex-wrap items-center gap-x-2 gap-y-1
+                     text-[12px] font-light text-white/55"
         >
           <span className="text-white/75">✦</span>
           <span>{insight.confidence}% Match</span>
           <span className="text-white/20">·</span>
           <span>Quick Insight</span>
-          {insight.isVerified && (
+          {recoLabel && (
             <>
               <span className="text-white/20">·</span>
-              <span className="text-white/70">Verified</span>
+              <span
+                className={
+                  insight.isVerified ? 'text-white/70' : 'text-white/55'
+                }
+              >
+                {recoLabel}
+              </span>
             </>
           )}
         </motion.div>

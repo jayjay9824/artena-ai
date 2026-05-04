@@ -5,7 +5,13 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk';
-import type { ArtworkReport, Verification, ArtistData } from '@/lib/types';
+import type {
+  ArtworkReport,
+  Verification,
+  ArtistData,
+  RecognitionSource,
+  RecognitionStatus,
+} from '@/lib/types';
 
 const DEFAULT_MODEL = 'claude-sonnet-4-5';
 const REQUEST_TIMEOUT_MS = 15_000;
@@ -33,6 +39,9 @@ export type ReportParams = {
   verification?: Verification;
   /** Real artist data from external source (Wikipedia). Ground truth. */
   artistData?: ArtistData;
+  /** Recognition pipeline decision (route layer owns this). */
+  recognitionSource?: RecognitionSource;
+  recognitionStatus?: RecognitionStatus;
 };
 
 /* Streaming surfaces — emitted in this order, exactly once each. */
@@ -86,10 +95,30 @@ const SYSTEM_KO = `당신은 AXVELA AI — 작품 해석 엔진입니다. 일반
   - year: "Analysis pending"
   - medium: "Image-based analysis"
 
-검증 데이터 처리 (입력에 verification 블록이 포함된 경우 — 우선 적용)
-- verification.confidence가 75 이상이면 verification.artist와 verification.title을 결과에 그대로 반영합니다. 자체적으로 다른 작가/제목을 추측해 사용하지 않습니다.
-- verification.confidence가 75 미만이면 verification 결과를 신뢰하지 않습니다 — artist/title은 위 기본값을 사용하고, interpretation에 "라벨을 함께 촬영하면 보다 정확한 해석이 가능합니다" 류의 안내를 자연스럽게 포함합니다.
-- verification.labelText가 있으면 해석에 참고만 합니다 (단, labelText 내용을 단정적 사실로 단언하지 않습니다).
+인식 단계 처리 (recognitionSource — 입력에 명시되며 가장 우선 규칙)
+
+recognitionSource = "gemini" (Gemini가 작가/제목을 신뢰도 75 이상으로 식별)
+- verification.artist와 verification.title을 ground truth로 그대로 사용합니다. 절대 변경하지 않습니다.
+- 식별은 이미 완료된 것으로 간주하고 해석에만 집중합니다.
+- 검증된 결과이므로 라벨 촬영 안내문은 포함하지 않습니다.
+
+recognitionSource = "gemini_partial" (Gemini 부분 인식 — 라벨 텍스트 또는 약한 단서)
+- artist/title을 단정적 사실로 단언하지 않습니다. "~로 보입니다" 추정 어조 유지.
+- verification.labelText는 참고만 하고 단언하지 않습니다.
+- 시각적으로 명확하지 않으면 artist="Unknown artist", title="Artwork image" 기본값을 사용합니다.
+- interpretation에 "라벨을 함께 촬영하면 정확도가 높아집니다" 안내를 자연스럽게 포함합니다.
+
+recognitionSource = "claude_fallback" (Gemini 식별 실패 — Claude 2차 시각 분석)
+- 시각 단서로 2차 인식 시도는 가능하나, 정확한 작가/제목 단언은 절대 금지.
+- 불확실하면 artist="Unknown artist", title="Artwork image" 기본값을 사용합니다.
+- 해석은 식별이 아닌 시각적 특징(구도, 색조, 매체, 분위기)에 집중합니다.
+- confidence는 시각 단서가 매우 강할 때만 60에 근접, 아닐 땐 그 이하로 둡니다.
+- interpretation에 라벨 촬영 안내를 포함합니다.
+
+recognitionSource = "none" (이미지 없음 — 텍스트만 받음)
+- 가상의 스캔 결과를 만들어내지 않습니다. 이미지가 없다는 사실을 부정하지 않습니다.
+- 사용자 질문에 대한 일반 지식 기반 응답. 단정적 단언은 피합니다.
+- 사용자 질문에 작가명이 명시되어 있으면 그 값을 artist에 사용, 아니면 기본값.
 
 실제 작가 데이터 처리 (입력에 artistData 블록이 포함된 경우 — ground truth)
 - artistData.bio는 실제 외부 출처(Wikipedia 등)에서 가져온 사실 정보입니다. 작가 맥락은 본인 지식이 아닌 artistData를 우선 근거로 사용합니다.
@@ -140,10 +169,30 @@ Identification (when no verification block is present)
   - year: "Analysis pending"
   - medium: "Image-based analysis"
 
-Verification handling (when a verification block IS present — takes precedence)
-- If verification.confidence ≥ 75: use verification.artist and verification.title verbatim. Do not substitute your own guess.
-- If verification.confidence < 75: do not trust the verification — use the defaults above, and naturally suggest in interpretation that scanning the label will yield a more accurate reading.
-- If verification.labelText is present: use it as context only — do not assert its contents as fact.
+Recognition pipeline handling (recognitionSource — top-priority rule, always present in input)
+
+recognitionSource = "gemini" (Gemini identified artist/title at ≥75 confidence)
+- Use verification.artist and verification.title verbatim as ground truth. Do not change them.
+- Identification is settled — focus on interpretation only.
+- Do NOT include the "scan the label" guidance.
+
+recognitionSource = "gemini_partial" (Gemini partial — label text or weak cues)
+- Do not assert artist/title as fact. Use hedged phrasing ("appears to", "shows characteristics of").
+- verification.labelText is for context only — do not assert its contents.
+- If visually unclear, use defaults: artist="Unknown artist", title="Artwork image".
+- Naturally include the "scanning the label improves accuracy" guidance in interpretation.
+
+recognitionSource = "claude_fallback" (Gemini failed — Claude second-stage visual analysis)
+- You may attempt visual recognition, but never assert exact artist/title.
+- If uncertain, use defaults: artist="Unknown artist", title="Artwork image".
+- Focus on visual qualities (composition, palette, medium, mood), not identification.
+- Keep confidence at most 60 unless visual evidence is exceptionally strong.
+- Include the label-capture guidance in interpretation.
+
+recognitionSource = "none" (no image — text-only input)
+- Do not pretend an image was scanned.
+- Answer the user's question from general knowledge. Stay non-assertive about specifics.
+- If the user's question names an artist, use that name; otherwise use the defaults.
 
 Real artist data handling (when an artistData block IS present — ground truth)
 - artistData.bio comes from a real external source (Wikipedia). Use it as the ground truth for biographical and contextual statements about the artist; prefer it over your own training knowledge if they differ.
@@ -184,7 +233,8 @@ function hasMeaningfulInput(p: ReportParams): boolean {
       (p.userQuestion && p.userQuestion.trim().length > 0) ||
       (p.insight && Object.values(p.insight).some((v) => v !== undefined && v !== '')) ||
       p.verification ||
-      p.artistData,
+      p.artistData ||
+      (p.recognitionSource && p.recognitionSource !== 'none'),
   );
 }
 
@@ -203,6 +253,17 @@ function buildUserContent(params: ReportParams): UserContentBlock[] {
   }
 
   const lines: string[] = [];
+
+  // Recognition decision (route layer owns this — Claude follows it strictly).
+  if (params.recognitionSource) {
+    const block = [
+      `recognitionSource: ${params.recognitionSource}`,
+    ];
+    if (params.recognitionStatus) {
+      block.push(`recognitionStatus: ${params.recognitionStatus}`);
+    }
+    lines.push(block.join('\n'));
+  }
 
   if (params.verification) {
     const v = params.verification;
