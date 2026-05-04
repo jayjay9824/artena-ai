@@ -29,7 +29,7 @@ import type {
 type Phase =
   | 'idle'
   | 'sheet'
-  | 'auto_scanner'
+  | 'scanner'
   | 'analyzing'
   | 'result'
   | 'collection';
@@ -78,13 +78,13 @@ export default function Home() {
 
   // Both the central SCAN button and the sheet's '작품 자동 스캔' option
   // route through the auto scanner. No more manual cameraInput trigger.
-  const openAutoScanner = useCallback(() => {
-    setPhase('auto_scanner');
+  const openScanner = useCallback(() => {
+    setPhase('scanner');
   }, []);
-  const closeAutoScanner = useCallback(() => {
+  const cancelScanner = useCallback(() => {
     setPhase('idle');
   }, []);
-  const onAutoCapture = useCallback((dataUrl: string) => {
+  const onScannerCaptured = useCallback((dataUrl: string) => {
     setImageDataUrl(dataUrl);
     setPendingQuestion(null);
     setResultOrigin('scan');
@@ -368,7 +368,7 @@ export default function Home() {
         </header>
 
         <section className="flex flex-1 flex-col items-center justify-center px-6">
-          <ScanButton onClick={openAutoScanner} />
+          <ScanButton onClick={openScanner} />
 
           <div className="mt-12 text-center">
             <p className="text-[15px] font-light leading-relaxed text-white/75">
@@ -444,14 +444,14 @@ export default function Home() {
       <ScanSheet
         open={phase === 'sheet'}
         onClose={closeSheet}
-        onScan={openAutoScanner}
+        onScan={openScanner}
         onUpload={triggerUpload}
         onRecent={triggerRecent}
       />
       <AutoScannerView
-        active={phase === 'auto_scanner'}
-        onCapture={onAutoCapture}
-        onClose={closeAutoScanner}
+        active={phase === 'scanner'}
+        onCaptured={onScannerCaptured}
+        onCancel={cancelScanner}
       />
       <AnalyzingScreen active={phase === 'analyzing'} />
       <ResultScreen

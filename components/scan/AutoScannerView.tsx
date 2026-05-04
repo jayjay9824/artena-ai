@@ -13,24 +13,24 @@ type Mode = 'requesting' | 'camera' | 'file_fallback';
 
 type Props = {
   active: boolean;
-  onCapture: (dataUrl: string) => void;
-  onClose: () => void;
+  onCaptured: (dataUrl: string) => void;
+  onCancel: () => void;
 };
 
-export default function AutoScannerView({ active, onCapture, onClose }: Props) {
+export default function AutoScannerView({ active, onCaptured, onCancel }: Props) {
   return (
     <AnimatePresence>
-      {active && <Inner onCapture={onCapture} onClose={onClose} />}
+      {active && <Inner onCaptured={onCaptured} onCancel={onCancel} />}
     </AnimatePresence>
   );
 }
 
 function Inner({
-  onCapture,
-  onClose,
+  onCaptured,
+  onCancel,
 }: {
-  onCapture: (s: string) => void;
-  onClose: () => void;
+  onCaptured: (s: string) => void;
+  onCancel: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -108,9 +108,9 @@ function Inner({
     }
     handedOffRef.current = true;
     // Brief flash then hand off — capture animation has ~200ms presence.
-    const t = setTimeout(() => onCapture(dataUrl), 200);
+    const t = setTimeout(() => onCaptured(dataUrl), 200);
     return () => clearTimeout(t);
-  }, [state, mode, onCapture, resetDetection]);
+  }, [state, mode, onCaptured, resetDetection]);
 
   const onFileSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -119,7 +119,7 @@ function Inner({
     try {
       const dataUrl = await readFileAsDataUrl(file);
       handedOffRef.current = true;
-      onCapture(dataUrl);
+      onCaptured(dataUrl);
     } catch {
       /* silent — user can retry */
     }
@@ -149,7 +149,7 @@ function Inner({
       {/* Close (top-left) */}
       <header className="flex items-center justify-between px-4 pb-3 pt-[calc(env(safe-area-inset-top)+12px)]">
         <button
-          onClick={onClose}
+          onClick={onCancel}
           aria-label="닫기"
           className="flex h-10 w-10 items-center justify-center rounded-full
                      bg-white/[0.05] ring-1 ring-white/[0.08]
@@ -218,7 +218,7 @@ function Inner({
         {mode === 'file_fallback' ? (
           <FileFallback
             onPick={() => fileInputRef.current?.click()}
-            onClose={onClose}
+            onCancel={onCancel}
           />
         ) : (
           <CameraStatus mode={mode} state={state} confidence={confidence} />
@@ -286,10 +286,10 @@ function CameraStatus({
 
 function FileFallback({
   onPick,
-  onClose,
+  onCancel,
 }: {
   onPick: () => void;
-  onClose: () => void;
+  onCancel: () => void;
 }) {
   return (
     <div className="text-center">
@@ -311,7 +311,7 @@ function FileFallback({
         </button>
         <button
           type="button"
-          onClick={onClose}
+          onClick={onCancel}
           className="rounded-full bg-transparent px-5 py-2.5
                      text-[13px] font-light text-white/40
                      ring-1 ring-white/[0.06] transition active:scale-95"
