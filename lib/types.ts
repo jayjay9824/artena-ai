@@ -52,6 +52,8 @@ export type Verification = {
   confidence: number; // 0–100
   status: RecognitionStatus;
   source: 'gemini';
+  /** True when artist/title were extracted from labelText by labelParser. */
+  derivedFromLabel?: boolean;
 };
 
 /**

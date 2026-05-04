@@ -172,6 +172,17 @@ export async function POST(req: Request) {
                   if (merged.confidence > FALLBACK_CONFIDENCE_CAP) {
                     merged.confidence = FALLBACK_CONFIDENCE_CAP;
                   }
+                  // Soft messaging — when there's no label evidence, blank
+                  // out the chip values so the UI can render '—' rather
+                  // than the cold 'Unknown artist' string.
+                  const hasLabel = Boolean(
+                    verification?.labelText &&
+                      verification.labelText.length > 0,
+                  );
+                  if (!hasLabel) {
+                    if (merged.artist === 'Unknown artist') merged.artist = '';
+                    if (merged.title === 'Artwork image') merged.title = '';
+                  }
                   break;
                 }
                 case 'none':

@@ -73,6 +73,12 @@ export default function ScanSheet({
                 disabled={!onRecent}
               />
             </div>
+
+            {/* Subtle accuracy hint — encourages capturing the wall label */}
+            <div className="px-4 pb-1 pt-1 text-center text-[10px] font-light text-white/30">
+              작품 라벨을 함께 촬영하면 정확도가 높아집니다{' '}
+              <span className="text-white/45">✦</span>
+            </div>
           </motion.div>
         </>
       )}

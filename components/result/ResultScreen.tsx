@@ -601,13 +601,22 @@ function Interpretation({ text, isLive }: { text: string; isLive: boolean }) {
 }
 
 function Chip({ label, value }: { label: string; value: string }) {
+  // Empty / missing values render as a dim '—' so the row stays
+  // structurally present without asserting "Unknown artist" coldly.
+  const trimmed = (value ?? '').trim();
+  const isEmpty = trimmed.length === 0;
+  const display = isEmpty ? '—' : trimmed;
   return (
     <div className="rounded-2xl bg-white/[0.03] px-4 py-3 ring-1 ring-white/[0.07]">
       <div className="text-[10px] font-light tracking-[0.22em] text-white/35">
         {label.toUpperCase()}
       </div>
-      <div className="mt-1 text-[14px] font-light leading-tight text-white/90">
-        {value}
+      <div
+        className={`mt-1 text-[14px] font-light leading-tight ${
+          isEmpty ? 'text-white/30' : 'text-white/90'
+        }`}
+      >
+        {display}
       </div>
     </div>
   );

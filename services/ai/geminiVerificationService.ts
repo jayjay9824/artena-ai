@@ -9,6 +9,7 @@
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import type { Verification, RecognitionStatus } from '@/lib/types';
+import { parseLabelText } from '@/lib/labelParser';
 
 const DEFAULT_MODEL = 'gemini-2.0-flash';
 const REQUEST_TIMEOUT_MS = 8_000;
@@ -20,31 +21,42 @@ export type VerifyParams = {
 
 const SYSTEM_PROMPT = `You are AXVELA verification — an artwork identification engine.
 
-Your single job: extract verifiable information from the provided image.
-You do NOT interpret, comment, or describe the meaning of the work.
+Your job: extract verifiable text and identifying information from the image. You do NOT interpret, comment, or describe meaning.
 
-Look for:
-- Visible artist name (signature, label, plate, frame text)
-- Visible title (label, plate, frame text)
-- Any other label text (OCR)
+PRIORITY ORDER (always follow):
+1. Wall label, plaque, or printed text near the artwork — TRANSCRIBE every visible word into labelText, verbatim.
+2. Plaque or printed text on the artwork itself.
+3. Signature on the work.
+4. Visual recognition by style — LAST resort, only when no text is visible.
+
+When ANY label or text is visible:
+- Transcribe the ENTIRE label into labelText, including partially-readable parts and Korean/English mixes.
+- Extract the artist and title from the transcription if you can read them.
+- Set confidence HIGH (≥80) when the label is clear and complete.
+- Set confidence MEDIUM (50–79) when the label is partial or some text is illegible.
+
+When NO label or text is visible:
+- Do NOT invent an artist name. Set artist=null.
+- Set confidence based on style cues alone — typically below 50.
+- labelText should be empty string.
 
 Output ONLY this JSON object. No code fences, no prose, no markdown.
 
 {
-  "artist": "exact name if visible, otherwise null",
-  "title": "exact title if visible, otherwise null",
-  "labelText": "verbatim label text if any, otherwise empty string",
+  "artist": "exact name from label/signature, or null if not visible",
+  "title": "exact title from label, or null if not visible",
+  "labelText": "verbatim transcription of ALL visible text on label/plaque, or empty string",
   "confidence": 0
 }
 
-Confidence rubric (be honest — this drives downstream behavior):
-- 90-100: signature AND label both clearly visible and readable
-- 75-89: clear identifying evidence (signature OR label) clearly readable
-- 50-74: partial cues — plausible but uncertain identification
-- 25-49: weak signals, inference more than evidence
-- 0-24: no identifying evidence visible
+Confidence rubric:
+- 90–100: full label transcribed AND artist+title clearly readable
+- 80–89: label visible AND artist OR title clearly readable
+- 60–79: partial label — some text legible
+- 40–59: weak signals (small/blurry text, partial signature)
+- 0–39: no identifying text visible
 
-Never invent. Never guess. If you cannot read it, return null/empty and a low confidence.`;
+Never invent. Never guess. If you cannot read it, return null/empty with a low confidence.`;
 
 export async function verifyArtwork(
   params: VerifyParams,
@@ -123,17 +135,17 @@ function coerceVerification(raw: unknown): Verification | null {
   if (!raw || typeof raw !== 'object') return null;
   const r = raw as Record<string, unknown>;
 
-  const confidence =
+  const baseConfidence =
     typeof r.confidence === 'number' && Number.isFinite(r.confidence)
       ? Math.max(0, Math.min(100, Math.round(r.confidence)))
       : 0;
 
-  const artist =
+  const geminiArtist =
     typeof r.artist === 'string' && r.artist.trim().length > 0
       ? r.artist.trim()
       : null;
 
-  const title =
+  const geminiTitle =
     typeof r.title === 'string' && r.title.trim().length > 0
       ? r.title.trim()
       : null;
@@ -141,22 +153,53 @@ function coerceVerification(raw: unknown): Verification | null {
   const labelText =
     typeof r.labelText === 'string' ? r.labelText.trim() : '';
 
-  // Recognition status — derived strictly from confidence + presence of
-  // identifying signals. The decision is owned by Gemini (the recognizer);
-  // the route layer reads it back without re-deriving.
-  const status: RecognitionStatus =
-    confidence >= 75 && (artist || title)
-      ? 'FOUND'
-      : confidence >= 40 || labelText.length > 0
-        ? 'PARTIAL'
-        : 'NOT_FOUND';
+  // Label-first overlay: when labelText is present, run the deterministic
+  // parser on it. If the parser extracts an artist, it takes priority over
+  // Gemini's own artist field (the parser reads the OCR'd text directly,
+  // bypassing any visual-recognition guess Gemini may have layered on top).
+  const parsed = parseLabelText(labelText);
+
+  let finalArtist = geminiArtist;
+  let finalTitle = geminiTitle;
+  let derivedFromLabel = false;
+  let confidence = baseConfidence;
+
+  if (labelText.length > 0) {
+    if (parsed.artist) {
+      finalArtist = parsed.artist;
+      derivedFromLabel = true;
+      if (!finalTitle && parsed.title) finalTitle = parsed.title;
+      confidence = Math.min(95, confidence + parsed.confidenceBoost);
+    } else if (parsed.title && !finalTitle) {
+      finalTitle = parsed.title;
+      confidence = Math.min(95, confidence + parsed.confidenceBoost);
+    } else {
+      // labelText exists but parser couldn't structure it — still a signal.
+      confidence = Math.min(95, confidence + 10);
+    }
+  }
+
+  // Recognition status. Label-derived artist forces FOUND with a 75 floor:
+  // OCR'd text is more trustworthy than visual confidence alone.
+  let status: RecognitionStatus;
+  if (derivedFromLabel && finalArtist) {
+    status = 'FOUND';
+    if (confidence < 75) confidence = 75;
+  } else if (confidence >= 75 && (finalArtist || finalTitle)) {
+    status = 'FOUND';
+  } else if (confidence >= 40 || labelText.length > 0) {
+    status = 'PARTIAL';
+  } else {
+    status = 'NOT_FOUND';
+  }
 
   return {
-    artist,
-    title,
+    artist: finalArtist,
+    title: finalTitle,
     labelText,
     confidence,
     status,
     source: 'gemini',
+    derivedFromLabel,
   };
 }

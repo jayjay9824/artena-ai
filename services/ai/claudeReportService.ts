@@ -95,6 +95,11 @@ const SYSTEM_KO = `당신은 AXVELA AI — 작품 해석 엔진입니다. 일반
   - year: "Analysis pending"
   - medium: "Image-based analysis"
 
+라벨 우선 규칙 (모든 인식 단계에 공통 적용 — 가장 강한 제약)
+- verification.derivedFromLabel === true이면 verification.artist는 라벨에서 추출된 텍스트입니다. 절대로 "Unknown artist"로 변경하지 않습니다.
+- verification.labelText에 텍스트가 있으면, 그 정보를 시각적 추측보다 우선합니다.
+- 라벨에서 작가/제목이 도출되었다면 어느 분기에서도 그 값을 그대로 사용합니다.
+
 인식 단계 처리 (recognitionSource — 입력에 명시되며 가장 우선 규칙)
 
 recognitionSource = "gemini" (Gemini가 작가/제목을 신뢰도 75 이상으로 식별)
@@ -110,10 +115,11 @@ recognitionSource = "gemini_partial" (Gemini 부분 인식 — 라벨 텍스트 
 
 recognitionSource = "claude_fallback" (Gemini 식별 실패 — Claude 2차 시각 분석)
 - 시각 단서로 2차 인식 시도는 가능하나, 정확한 작가/제목 단언은 절대 금지.
-- 불확실하면 artist="Unknown artist", title="Artwork image" 기본값을 사용합니다.
+- verification.labelText가 비어 있으면 artist="", title=""으로 비웁니다. "Unknown artist" 라는 강한 단언을 출력하지 않습니다 (UI가 부드럽게 처리).
+- 라벨 텍스트가 있다면 위 라벨 우선 규칙을 따릅니다.
 - 해석은 식별이 아닌 시각적 특징(구도, 색조, 매체, 분위기)에 집중합니다.
 - confidence는 시각 단서가 매우 강할 때만 60에 근접, 아닐 땐 그 이하로 둡니다.
-- interpretation에 라벨 촬영 안내를 포함합니다.
+- interpretation에 "작가 정보 확인을 위해 라벨 촬영을 권장합니다" 류의 안내를 포함합니다.
 
 recognitionSource = "none" (이미지 없음 — 텍스트만 받음)
 - 가상의 스캔 결과를 만들어내지 않습니다. 이미지가 없다는 사실을 부정하지 않습니다.
@@ -169,6 +175,11 @@ Identification (when no verification block is present)
   - year: "Analysis pending"
   - medium: "Image-based analysis"
 
+Label-priority rule (applies across all recognition branches — strongest constraint)
+- If verification.derivedFromLabel === true, verification.artist came from OCR'd label text. Never change it to "Unknown artist".
+- If verification.labelText is non-empty, prefer its content over any visual guess.
+- A label-derived artist or title carries through every branch verbatim.
+
 Recognition pipeline handling (recognitionSource — top-priority rule, always present in input)
 
 recognitionSource = "gemini" (Gemini identified artist/title at ≥75 confidence)
@@ -184,10 +195,11 @@ recognitionSource = "gemini_partial" (Gemini partial — label text or weak cues
 
 recognitionSource = "claude_fallback" (Gemini failed — Claude second-stage visual analysis)
 - You may attempt visual recognition, but never assert exact artist/title.
-- If uncertain, use defaults: artist="Unknown artist", title="Artwork image".
+- If verification.labelText is empty, set artist="", title="" (empty strings). Do NOT output the strong claim "Unknown artist" — the UI will render placeholders gently.
+- If labelText is present, follow the label-priority rule above.
 - Focus on visual qualities (composition, palette, medium, mood), not identification.
 - Keep confidence at most 60 unless visual evidence is exceptionally strong.
-- Include the label-capture guidance in interpretation.
+- Include guidance like "scanning the label is recommended for accurate artist info" in interpretation.
 
 recognitionSource = "none" (no image — text-only input)
 - Do not pretend an image was scanned.
@@ -363,9 +375,18 @@ function coerceReport(raw: unknown): ArtworkReport | null {
       ? Math.max(0, Math.min(100, Math.round(r.confidence)))
       : 50;
 
+  // Empty strings are intentional and meaningful (claude_fallback +
+  // no-label path) — preserve them so the route layer can decide what
+  // to surface. pickString-with-fallback only fires when the field is
+  // missing entirely or non-string.
+  const passThroughString = (v: unknown, fallback: string): string => {
+    if (typeof v !== 'string') return fallback;
+    return v;
+  };
+
   return {
-    artist: pickString(r.artist, 'Unknown artist'),
-    title: pickString(r.title, 'Artwork image'),
+    artist: passThroughString(r.artist, 'Unknown artist'),
+    title: passThroughString(r.title, 'Artwork image'),
     year: pickString(r.year, 'Analysis pending'),
     medium: pickString(r.medium, 'Image-based analysis'),
     quickInsight,
