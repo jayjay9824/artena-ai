@@ -144,9 +144,12 @@ export default function AutoScannerView({ onCaptured, onCancel }: Props) {
           className="relative aspect-[4/5] w-full max-w-[420px] overflow-hidden
                      rounded-2xl bg-black ring-1 ring-white/10"
         >
-          {/* Live camera feed — only mounted in camera mode so
-              <video> never appears black-empty in fallback. */}
-          {mode === 'camera' && (
+          {/* Live camera feed — rendered as soon as the overlay mounts
+              (NOT only when mode==='camera'). videoRef must exist when
+              getUserMedia resolves so we can attach srcObject; gating
+              the <video> behind mode==='camera' was the actual bug
+              (videoRef.current was null at attach time → black frame). */}
+          {mode !== 'file_fallback' && (
             // eslint-disable-next-line jsx-a11y/media-has-caption
             <video
               ref={videoRef}
@@ -157,9 +160,9 @@ export default function AutoScannerView({ onCaptured, onCancel }: Props) {
             />
           )}
 
-          {/* Camera-not-ready placeholder (requesting permission, etc.) */}
+          {/* Brief placeholder text while getUserMedia is awaiting permission */}
           {mode === 'requesting' && (
-            <div className="absolute inset-0 flex items-center justify-center">
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
               <span className="text-[11px] font-light tracking-[0.22em] text-white/35">
                 CAMERA&nbsp;READY
               </span>
