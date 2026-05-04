@@ -23,6 +23,10 @@ const ACTIONS_HIGH = [
 
 function recognitionLabel(source?: RecognitionSource): string | null {
   switch (source) {
+    case 'image_match':
+      return '이미지 매치';
+    case 'image_match_partial':
+      return '유사 후보';
     case 'gemini':
       return 'Gemini 검증';
     case 'gemini_partial':

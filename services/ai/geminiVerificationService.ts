@@ -8,7 +8,11 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import type { Verification, RecognitionStatus } from '@/lib/types';
+import type {
+  Verification,
+  RecognitionStatus,
+  ArtworkCandidate,
+} from '@/lib/types';
 import { parseLabelText } from '@/lib/labelParser';
 
 const DEFAULT_MODEL = 'gemini-2.0-flash';
@@ -17,6 +21,8 @@ const REQUEST_TIMEOUT_MS = 8_000;
 export type VerifyParams = {
   imageBase64: string;
   imageMimeType: string;
+  /** Top-K image-similarity candidates from the vector layer. Optional. */
+  candidates?: ArtworkCandidate[];
 };
 
 const SYSTEM_PROMPT = `You are AXVELA verification — an artwork identification engine.
@@ -80,6 +86,22 @@ export async function verifyArtwork(
       },
     });
 
+    // When upstream image-similarity returned candidates, present them
+    // to Gemini as hypotheses — Gemini's job is to verify or reject.
+    let prompt = 'Identify the artwork.';
+    if (params.candidates && params.candidates.length > 0) {
+      const lines = [
+        'Image-similarity candidates from upstream vector search:',
+        ...params.candidates.slice(0, 5).map(
+          (c, i) =>
+            `  ${i + 1}. ${c.artist} — ${c.title}${c.year ? ` (${c.year})` : ''} [similarity ${c.similarity.toFixed(2)}]`,
+        ),
+        '',
+        'If the image visibly matches one of these candidates, return that artist/title verbatim and set confidence accordingly. If none match, return your own reading or null. Do NOT invent.',
+      ];
+      prompt = lines.join('\n');
+    }
+
     const generation = model.generateContent([
       {
         inlineData: {
@@ -87,7 +109,7 @@ export async function verifyArtwork(
           mimeType: params.imageMimeType,
         },
       },
-      'Identify the artwork.',
+      prompt,
     ]);
 
     // SDK does not accept AbortSignal directly; use Promise.race for hard cap.

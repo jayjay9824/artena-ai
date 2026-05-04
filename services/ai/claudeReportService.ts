@@ -102,6 +102,15 @@ const SYSTEM_KO = `당신은 AXVELA AI — 작품 해석 엔진입니다. 일반
 
 인식 단계 처리 (recognitionSource — 입력에 명시되며 가장 우선 규칙)
 
+recognitionSource = "image_match" (벡터 유사도 ≥0.85 — 카탈로그에서 정확 매치)
+- artist/title은 매치된 카탈로그 항목 그대로 사용. 절대 변경하지 않습니다.
+- 식별 완료된 것으로 간주하고 해석에 집중합니다. 라벨 안내 미포함.
+
+recognitionSource = "image_match_partial" (벡터 유사도 0.65–0.85 — 후보, Gemini 검증)
+- 매치 후보가 가능성 있게 보입니다. "~로 보입니다"의 추정 어조 유지.
+- artist/title은 후보를 사용하되, interpretation에 "비슷한 스타일이지만 정확히 같은 작품인지 라벨로 확인이 필요할 수 있습니다" 류 안내 포함.
+
+
 recognitionSource = "gemini" (Gemini가 작가/제목을 신뢰도 75 이상으로 식별)
 - verification.artist와 verification.title을 ground truth로 그대로 사용합니다. 절대 변경하지 않습니다.
 - 식별은 이미 완료된 것으로 간주하고 해석에만 집중합니다.
@@ -181,6 +190,15 @@ Label-priority rule (applies across all recognition branches — strongest const
 - A label-derived artist or title carries through every branch verbatim.
 
 Recognition pipeline handling (recognitionSource — top-priority rule, always present in input)
+
+recognitionSource = "image_match" (vector similarity ≥0.85 — confident catalog match)
+- Use the matched catalog artist/title verbatim. Do not change them.
+- Identification is settled — focus on interpretation. No label-capture guidance.
+
+recognitionSource = "image_match_partial" (vector similarity 0.65–0.85 — candidate verified by Gemini)
+- The match is plausible. Use hedged phrasing ("appears to be", "shows characteristics of").
+- Use the candidate artist/title, and include interpretation guidance like "the style aligns; a label would confirm exact identification".
+
 
 recognitionSource = "gemini" (Gemini identified artist/title at ≥75 confidence)
 - Use verification.artist and verification.title verbatim as ground truth. Do not change them.

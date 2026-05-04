@@ -4,9 +4,12 @@ import {
   getArtistData,
   extractArtistName,
 } from '@/services/artworkDataService';
+import { generateImageEmbedding } from '@/services/ai/embeddingService';
+import { searchSimilarArtworks } from '@/services/vectorSearchService';
 import type {
   RecognitionSource,
   RecognitionStatus,
+  ArtworkCandidate,
 } from '@/lib/types';
 
 // Anthropic SDK requires Node runtime — not edge.
@@ -15,6 +18,9 @@ export const runtime = 'nodejs';
 const VERIFIED_THRESHOLD = 75;
 const PARTIAL_THRESHOLD = 40;
 const FALLBACK_CONFIDENCE_CAP = 60;
+// Vector-similarity thresholds (cosine, 0–1)
+const IMAGE_MATCH_THRESHOLD = 0.85;
+const IMAGE_MATCH_PARTIAL_THRESHOLD = 0.65;
 
 type ReportRequest = {
   imageBase64?: string;
@@ -70,19 +76,48 @@ export async function POST(req: Request) {
     ? data.outputLanguage
     : 'ko';
 
-  // Step 1 — Gemini verification (blocking precondition).
+  // Step 0.5 — Image similarity search (BEFORE Gemini).
+  // Embedding is a deterministic stub today; the search returns top-K
+  // catalog candidates ranked by cosine similarity. When real CLIP /
+  // multimodal embedding lands, this layer becomes useful immediately.
+  let candidates: ArtworkCandidate[] = [];
+  if (imageBase64 && imageMimeType) {
+    try {
+      const embedding = await generateImageEmbedding(imageBase64);
+      candidates = await searchSimilarArtworks(embedding);
+    } catch {
+      candidates = [];
+    }
+  }
+  const top = candidates[0] ?? null;
+  const topSim = top?.similarity ?? 0;
+
+  // Step 1 — Gemini verification (with candidate hints when available).
   const verification =
     imageBase64 && imageMimeType
-      ? await verifyArtwork({ imageBase64, imageMimeType })
+      ? await verifyArtwork({
+          imageBase64,
+          imageMimeType,
+          candidates: topSim >= IMAGE_MATCH_PARTIAL_THRESHOLD
+            ? candidates
+            : undefined,
+        })
       : null;
 
   // Step 1.1 — Recognition decision layer.
-  // The route owns this decision. Claude is told via recognitionSource;
-  // it does not re-derive. Order of branches matters.
+  // Vector match takes precedence when similarity is strong; otherwise
+  // we fall back to the existing Gemini-driven decision.
   let recognitionSource: RecognitionSource = 'none';
   let recognitionStatus: RecognitionStatus = 'NOT_FOUND';
 
-  if (
+  if (top && topSim >= IMAGE_MATCH_THRESHOLD) {
+    recognitionSource = 'image_match';
+    recognitionStatus = 'FOUND';
+  } else if (top && topSim >= IMAGE_MATCH_PARTIAL_THRESHOLD) {
+    // Plausible candidate; we still want Gemini's read alongside it.
+    recognitionSource = 'image_match_partial';
+    recognitionStatus = 'PARTIAL';
+  } else if (
     verification &&
     verification.confidence >= VERIFIED_THRESHOLD &&
     (verification.artist || verification.title)
@@ -153,6 +188,30 @@ export async function POST(req: Request) {
 
               // Final merge — strict by recognitionSource.
               switch (recognitionSource) {
+                case 'image_match': {
+                  // Vector-search top hit ≥0.85 — treat as ground truth.
+                  if (top) {
+                    merged.artist = top.artist;
+                    merged.title = top.title;
+                    if (top.year) merged.year = top.year;
+                    if (top.medium) merged.medium = top.medium;
+                  }
+                  // Confidence reflects similarity (scaled 0.85–1.0 → 85–100)
+                  merged.confidence = Math.max(85, Math.round(topSim * 100));
+                  merged.isVerified = true;
+                  break;
+                }
+                case 'image_match_partial': {
+                  // 0.65–0.85: surface the candidate but don't assert verified.
+                  if (top) {
+                    merged.artist = top.artist;
+                    merged.title = top.title;
+                    if (top.year) merged.year = top.year;
+                  }
+                  merged.confidence = Math.round(topSim * 100);
+                  merged.isVerified = false;
+                  break;
+                }
                 case 'gemini': {
                   // Verified ground truth: artist/title from Gemini, true badge.
                   if (verification?.artist) merged.artist = verification.artist;

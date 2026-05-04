@@ -25,10 +25,22 @@ export type Insight = {
  *   none             — No image. Question-only or text exploration.
  */
 export type RecognitionSource =
+  | 'image_match'          // ≥0.85 vector-search match — primary identification
+  | 'image_match_partial'  // 0.65–0.85 vector candidate, Gemini-verified
   | 'gemini'
   | 'gemini_partial'
   | 'claude_fallback'
   | 'none';
+
+/** A single artwork catalog hit returned by the vector-search layer. */
+export type ArtworkCandidate = {
+  id: string;
+  artist: string;
+  title: string;
+  year?: string;
+  medium?: string;
+  similarity: number; // 0–1 cosine similarity
+};
 
 export type RecognitionStatus = 'FOUND' | 'PARTIAL' | 'NOT_FOUND';
 
