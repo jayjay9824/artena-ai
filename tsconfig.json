@@ -36,6 +36,11 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "AXVELA",
+    "AXVELA-GALLERY",
+    "axvela-gallery-os",
+    "axvela-os",
+    "axvela-passport-nextjs"
   ]
 }
