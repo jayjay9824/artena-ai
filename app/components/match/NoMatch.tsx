@@ -18,7 +18,7 @@ interface Props {
 export function NoMatch({ onTryAnotherImage, onSearchByText, onEnterManually }: Props) {
   return (
     <div style={{
-      minHeight: "calc(var(--vh, 1vh) * 100)",
+      minHeight: "100vh",
       background: "#F8F7F4",
       padding: "60px 22px 80px",
       maxWidth: 480, margin: "0 auto",

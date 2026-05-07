@@ -3,10 +3,10 @@ import { NextRequest, NextResponse } from "next/server";
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-const SYSTEM_PROMPT = `당신은 AXVELA AI의 Market Intelligence Report Generator다.
+const SYSTEM_PROMPT = `당신은 ARTENA AI의 Market Intelligence Report Generator다.
 
 역할:
-사용자가 입력한 작품 정보를 바탕으로, 미술 작품에 대한 "AXVELA 스타일 Market Intelligence Report"를 한국어로 작성한다.
+사용자가 입력한 작품 정보를 바탕으로, 미술 작품에 대한 "ARTENA 스타일 Market Intelligence Report"를 한국어로 작성한다.
 
 절대 원칙:
 - 확인되지 않은 사실을 단정적으로 쓰지 말 것
@@ -20,7 +20,7 @@ const SYSTEM_PROMPT = `당신은 AXVELA AI의 Market Intelligence Report Generat
 - 작품 개별 거래와 작가 전체 시장을 혼동하지 말 것`;
 
 function buildPrompt(a: Record<string, unknown>): string {
-  return `아래 작품 정보를 바탕으로 AXVELA Market Intelligence Report를 작성하라.
+  return `아래 작품 정보를 바탕으로 ARTENA Market Intelligence Report를 작성하라.
 
 작품 정보:
 ${JSON.stringify(a, null, 2)}
@@ -39,13 +39,13 @@ ${JSON.stringify(a, null, 2)}
   "interpretation": {
     "coreThemes": ["핵심 개념 1", "핵심 개념 2", "핵심 개념 3"],
     "structuralAnalysis": "구조적 해석 — 화면 구성, 색, 선, 형상이 만드는 의미 구조를 설명하는 단락",
-    "artenaSummary": "한 문장 해석 — 명확하고 절제된 톤 (AXVELA 톤으로 작성)"
+    "artenaSummary": "한 문장 해석 — 명확하고 절제된 톤"
   },
   "artistPositioning": {
     "base": "활동 기반 (국가/도시/갤러리 시스템)",
     "galleryHistory": "주요 갤러리 또는 기관 이력 — 공개 확인 가능한 것만",
     "marketPosition": "시장 포지션 설명",
-    "artenaEvaluation": "AXVELA 평가 — 해석 문장"
+    "artenaEvaluation": "ARTENA 평가 — 해석 문장"
   },
   "marketData": {
     "auctionSample": "경매 표본 수 또는 표본 제한 사유",
@@ -60,7 +60,7 @@ ${JSON.stringify(a, null, 2)}
       "공개 가격의 신뢰도",
       "gallery/private sale 반영 여부"
     ],
-    "artenaJudgment": "AXVELA 판단 — comparable이 강하거나 약한 이유, 가격 판단 어려운 이유, 필요한 추가 정보를 설명하는 단락"
+    "artenaJudgment": "comparable이 강하거나 약한 이유, 가격 판단 어려운 이유, 필요한 추가 정보를 설명하는 단락"
   },
   "priceRange": {
     "usd": { "low": "$X,XXX", "mid": "$XX,XXX", "high": "$XXX,XXX" },
@@ -85,7 +85,7 @@ ${JSON.stringify(a, null, 2)}
     "stage": "작가의 현재 시장 단계",
     "regional": "지역적 시장 특성",
     "collectorDemand": "collector 수요 구조",
-    "artenaInsight": "AXVELA 인사이트 핵심 문장 1개"
+    "artenaInsight": "ARTENA 인사이트 핵심 문장 1개"
   },
   "investmentInsight": {
     "holdingPeriod": "권장 보유 기간",
@@ -93,7 +93,7 @@ ${JSON.stringify(a, null, 2)}
     "riskLevel": "Low 또는 Mid 또는 High",
     "strategicNote": "전략적 해석 — 투자 권유 아닌 참고 관점으로"
   },
-  "finalSummary": "작품/작가 포지션, 공개 시장 데이터 수준, 가격 판단 가능 수준, AXVELA 핵심 결론을 포함한 한 단락 요약",
+  "finalSummary": "작품/작가 포지션, 공개 시장 데이터 수준, 가격 판단 가능 수준, ARTENA 핵심 결론을 포함한 한 단락 요약",
   "representativeWork": "작가의 가장 유명한 단일 작품명 (영문 표기 우선 — Wikipedia 검색에 사용됨. 예: 'Guernica', 'Water Lilies', 'Who the Bær')"
 }
 

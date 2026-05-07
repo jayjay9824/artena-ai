@@ -5,21 +5,20 @@ const FONT = "'KakaoSmallSans', -apple-system, BlinkMacSystemFont, 'SF Pro Text'
 
 interface Props {
   onCollection: () => void;
+  onCamera:     () => void;
   onProfile:    () => void;
   collectionLabel?: string;
   profileLabel?:    string;
 }
 
 /**
- * Home-only bottom dock — Collection (left) / Profile (right).
- *
- * The center camera FAB was removed: the ScanOrb on the home is
- * already the primary scan entry, so the FAB was a redundant
- * second route to the same flow. Other surfaces keep the standard
- * nav.
+ * Home-only bottom dock — Collection (left) / Camera FAB (center,
+ * floating slightly above the dock) / Profile (right). Replaces the
+ * 5-tab BottomNav on the first screen per spec; other surfaces keep
+ * the standard nav.
  */
 export function HomeDock({
-  onCollection, onProfile,
+  onCollection, onCamera, onProfile,
   collectionLabel = "Collection",
   profileLabel    = "Profile",
 }: Props) {
@@ -45,16 +44,38 @@ export function HomeDock({
       paddingTop:    20,
       paddingLeft:   24,
       paddingRight:  24,
-      // Step 7 — bottom nav target z. Sits above the ocean and the
-      // brand mark, below the center stack and the Intro splash so
-      // its glass surface never blocks the splash during transition.
-      zIndex:     20,
+      zIndex:     50,
       fontFamily: FONT,
     }}>
       {/* Left — Collection */}
       <DockItem onClick={onCollection} label={collectionLabel}>
         <CollectionIcon />
       </DockItem>
+
+      {/* Center — Camera FAB, lifted above the dock */}
+      <button
+        onClick={onCamera}
+        aria-label="Camera"
+        style={{
+          position:        "absolute",
+          left:            "50%",
+          top:             -28,
+          transform:       "translateX(-50%)",
+          width:           60,
+          height:          60,
+          borderRadius:    "50%",
+          background:      "#0F0F0F",
+          border:          "3px solid #FFFFFF",
+          cursor:          "pointer",
+          display:         "flex",
+          alignItems:      "center",
+          justifyContent:  "center",
+          boxShadow:       "0 10px 26px rgba(0,0,0,0.20)",
+          transition:      "transform .15s ease",
+        }}
+      >
+        <CameraIcon />
+      </button>
 
       {/* Right — Profile */}
       <DockItem onClick={onProfile} label={profileLabel}>
@@ -106,6 +127,16 @@ function CollectionIcon() {
       <rect x="12" y="3"  width="7" height="7" rx="1.2" stroke="#111111" strokeWidth="1.4" />
       <rect x="3"  y="12" width="7" height="7" rx="1.2" stroke="#111111" strokeWidth="1.4" />
       <rect x="12" y="12" width="7" height="7" rx="1.2" stroke="#111111" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+function CameraIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 22 22" fill="none" aria-hidden>
+      <rect   x="2.5" y="6"  width="17" height="12" rx="2" stroke="#FFFFFF" strokeWidth="1.4" />
+      <circle cx="11" cy="12" r="3.4"                     stroke="#FFFFFF" strokeWidth="1.4" />
+      <path   d="M7 6V5a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v1"   stroke="#FFFFFF" strokeWidth="1.4" strokeLinecap="round" />
     </svg>
   );
 }

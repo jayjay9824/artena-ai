@@ -1,18 +1,23 @@
-import type { Config } from 'tailwindcss';
+import type { Config } from "tailwindcss";
 
 const config: Config = {
   content: [
-    './app/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
-    './lib/**/*.{js,ts,jsx,tsx,mdx}',
+    "./pages/**/*.{js,ts,jsx,tsx,mdx}",
+    "./components/**/*.{js,ts,jsx,tsx,mdx}",
+    "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
     extend: {
-      spacing: {
-        'safe-t': 'env(safe-area-inset-top)',
-        'safe-b': 'env(safe-area-inset-bottom)',
-        'safe-l': 'env(safe-area-inset-left)',
-        'safe-r': 'env(safe-area-inset-right)',
+      fontFamily: {
+        sans: ["var(--font-inter)", "system-ui", "sans-serif"],
+      },
+      colors: {
+        ink: "#0a0a0a",
+        muted: "#6b6b6b",
+        border: "#e5e5e5",
+      },
+      letterSpacing: {
+        widest2: "0.2em",
       },
     },
   },

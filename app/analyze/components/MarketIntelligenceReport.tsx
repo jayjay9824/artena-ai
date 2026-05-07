@@ -322,25 +322,11 @@ export function MarketIntelligenceReport({
 
   useEffect(() => {
     const repWork = data.representativeWork || data.artworkOverview.title;
-    let cancelled = false;
     setWorkLoading(true);
-    fetchWikiImage(repWork)
-      .then((url) => {
-        if (cancelled) return;
-        setWorkImg(url);
-        setWorkLoading(false);
-      })
-      .catch(() => {
-        /* Fail-closed — drop loading flag so the report doesn't sit
-           in a "loading representative work…" state forever when the
-           wiki fetch errors (offline, in-app browser blocking
-           cross-origin, rate limit). The card simply renders without
-           the rep image; everything else still surfaces. */
-        if (cancelled) return;
-        setWorkImg(null);
-        setWorkLoading(false);
-      });
-    return () => { cancelled = true; };
+    fetchWikiImage(repWork).then((url) => {
+      setWorkImg(url);
+      setWorkLoading(false);
+    });
   }, [data.artworkOverview.title, data.representativeWork]);
 
   return (
@@ -587,7 +573,7 @@ export function MarketIntelligenceReport({
             본 리포트는 공개 시장 데이터 및 비교 분석 기반의 참고용 시장 추정 정보입니다.
             공식 감정서, 법적 평가, 세무 평가, 투자 자문이 아닙니다.
             비공개 갤러리 거래, 실제 계약 가격, 작품 상태, 프로비넌스는 반영되지 않을 수 있습니다.
-            AXVELA AI · Cultural Intelligence
+            AXVELA AI · Cultural Intelligence Engine
           </p>
         </div>
       </div>

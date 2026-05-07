@@ -12,7 +12,13 @@ import { MinimalHomeScreen } from "../components/home/MinimalHomeScreen";
 import { StagedAnalysisScreen } from "./components/StagedAnalysisScreen";
 import { useStagedAnalysis } from "./hooks/useStagedAnalysis";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
-import { useTabNav } from "../context/TabContext";
+import { useTabNav, AppTab } from "../context/TabContext";
+import { BottomNav } from "../components/BottomNav";
+import { CollectionPageContent } from "../collection/page";
+import { TastePageContent } from "../taste/page";
+import { RecommendationsPageContent } from "../recommendations/page";
+import { GalleryPageContent } from "../gallery/page";
+import { MyPageContent } from "../my/page";
 import { saveReport, generateReport } from "../services/reportService";
 import { matchArtwork } from "../services/matchingService";
 import { findArtworkById } from "../services/canonicalCatalogue";
@@ -20,29 +26,6 @@ import { useCollection } from "../collection/hooks/useCollection";
 import { NoMatch } from "../components/match/NoMatch";
 import { CandidateSelection, CandidateRow } from "../components/match/CandidateSelection";
 import type { SourceType, MatchedArtwork } from "../lib/types";
-import { useLanguage } from "../i18n/useLanguage";
-import { safeT, type TranslationFn } from "../lib/i18n/safeT";
-
-/**
- * Detect the dominant script of a string for the language-mismatch
- * guard.
- *
- *   "ko"      → contains Hangul (U+AC00–U+D7A3)
- *   "en"      → contains Latin alphabet but no Hangul
- *   "unknown" → only digits / punctuation / mixed scripts we
- *               can't classify confidently
- *
- * The Hangul check wins over Latin: a sentence like "AXVELA가
- * 작품을 분석합니다" is Korean even though it contains the brand
- * name in Latin. We only flag mismatches when the message is
- * unambiguously the wrong language.
- */
-function detectMessageLang(s: string | null | undefined): "ko" | "en" | "unknown" {
-  if (!s) return "unknown";
-  if (/[가-힣]/.test(s)) return "ko";
-  if (/[A-Za-z]/.test(s))         return "en";
-  return "unknown";
-}
 
 /* ── Types (kept local for the scan analysis shape) ───────────── */
 
@@ -89,17 +72,7 @@ function LoadingSpinner() {
 
 function ScanScreen() {
   const { goTo } = useTabNav();
-  const { t, lang } = useLanguage();
-  // Intro → Home cross-fade gates (Step 4):
-  //   introMounted — controls whether IntroSplash is in the tree
-  //   introDone    — controls Home layer opacity. Flips from
-  //                  IntroSplash.onReady (one rAF before Intro
-  //                  begins its own fade) so Intro and Home share
-  //                  the same fade window — Home is fully painted
-  //                  with its ocean background by the time Intro
-  //                  disappears.
-  const [introMounted, setIntroMounted] = useState(true);
-  const [introDone,    setIntroDone]    = useState(false);
+  const [showIntro,     setShowIntro]     = useState(true);
   const [screen,        setScreen]        = useState("upload");
   const [error,         setError]         = useState<string | null>(null);
   const [imagePreview,  setImagePreview]  = useState<string | null>(null);
@@ -136,29 +109,7 @@ function ScanScreen() {
   // non-Scan tab.
   const offline = useOfflineQueue();
 
-  // onReady fires the instant IntroSplash is about to fade out —
-  // flips Home opacity to 1 so the two layers cross-fade. onComplete
-  // fires after IntroSplash has self-unmounted; we mirror that into
-  // introMounted so any conditional rendering keyed on it stays in
-  // sync.
-  const handleIntroReady    = useCallback(() => setIntroDone(true), []);
-  const handleIntroComplete = useCallback(() => setIntroMounted(false), []);
-
-  // Step 5 — toggle `intro-active` on <html> while the home layer is
-  // still hidden behind the splash. globals.css uses this to force
-  // SCAN button opacity 0 + box-shadow none, which keeps the orb's
-  // heavy halo from compositing as a black ellipse on KakaoTalk
-  // before the ocean background paints.
-  useEffect(() => {
-    if (typeof document === "undefined") return;
-    const root = document.documentElement;
-    if (introDone) {
-      root.classList.remove("intro-active");
-    } else {
-      root.classList.add("intro-active");
-    }
-    return () => { root.classList.remove("intro-active"); };
-  }, [introDone]);
+  const handleIntroComplete = useCallback(() => setShowIntro(false), []);
 
   // Deep-link: ?artworkId=… restores a previously-analysed artwork
   // from the local Collection store. Skips intro and lands on the
@@ -170,11 +121,7 @@ function ScanScreen() {
     if (!id) return;
     const item = collectionItems.find(i => i.id === id);
     if (!item) return;
-    // Deep-link skip — drop the intro entirely and reveal the
-    // result directly. Both gates flip together so Home is visible
-    // and the splash is unmounted in a single render.
-    setIntroMounted(false);
-    setIntroDone(true);
+    setShowIntro(false);
     setAnalysis(item.analysis as unknown as Analysis);
     setImagePreview(item.imagePreview ?? null);
     setScreen("result");
@@ -218,9 +165,8 @@ function ScanScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [staged.error]);
 
-  // Hooks above all run unconditionally. Step 4 — IntroSplash is
-  // no longer rendered as an early return; instead it overlays the
-  // Home layer below so the two cross-fade.
+  // All hooks above run unconditionally
+  if (showIntro) return <IntroSplash onComplete={handleIntroComplete} />;
 
   /* ── Helpers ────────────────────────────────────────────────── */
 
@@ -530,10 +476,10 @@ function ScanScreen() {
   // Preview — confirm uploaded image before analysis
   if (screen === "preview") {
     return (
-      <div style={{ fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18", padding: "52px 22px 100px", maxWidth: 430, margin: "0 auto", background: "#F8F7F4", minHeight: "calc(var(--vh, 1vh) * 100)", boxSizing: "border-box" as const }}>
+      <div style={{ fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 14, color: "#1a1a18", padding: "52px 22px 100px", maxWidth: 430, margin: "0 auto", background: "#F8F7F4", minHeight: "100vh", boxSizing: "border-box" as const }}>
         <a href="/" style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 22, textDecoration: "none", color: "inherit" }}>
           <span style={{ fontSize: 17, letterSpacing: ".05em", fontStyle: "italic", fontFamily: "'KakaoBigSans', system-ui, sans-serif" }}>AXVELA</span>
-          <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase" as const, color: "#CCC" }}>Cultural Intelligence</span>
+          <span style={{ fontSize: 9, letterSpacing: ".14em", textTransform: "uppercase" as const, color: "#CCC" }}>Cultural Intelligence AI</span>
         </a>
         {imagePreview && (
           <div style={{ width: "100%", borderRadius: 14, overflow: "hidden", marginBottom: 18, background: "#000", boxShadow: "0 4px 24px rgba(0,0,0,0.1)" }}>
@@ -547,28 +493,7 @@ function ScanScreen() {
         <button onClick={() => { setScreen("upload"); setImagePreview(null); setPendingFile(null); setError(null); }} style={{ width: "100%", padding: "12px 0", background: "transparent", color: "#AAA", border: "0.5px solid #E0E0E0", borderRadius: 12, cursor: "pointer", fontFamily: "'KakaoSmallSans', system-ui, sans-serif", fontSize: 13 }}>
           다시 선택하기
         </button>
-        {error && (() => {
-          // STEP 8 — language-mismatch guard. If the API returned a
-          // rejection in the wrong language for the current UI, swap
-          // it for the localized rejection.generic key (via safeT so
-          // a missing dict still produces readable English).
-          const messageLang = detectMessageLang(error);
-          const mismatch =
-            (lang === "en" && messageLang === "ko") ||
-            (lang === "ko" && messageLang === "en");
-          const display = mismatch
-            ? safeT(
-                t as TranslationFn,
-                "rejection.generic",
-                "This doesn't appear to be an artwork. Please try a different image.",
-              )
-            : error;
-          return (
-            <div style={{ background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}>
-              <p style={{ fontSize: 12, color: "#DC2626", margin: 0 }}>{display}</p>
-            </div>
-          );
-        })()}
+        {error && <div style={{ background: "#FEF2F2", border: "0.5px solid #FECACA", borderRadius: 8, padding: "12px 14px", marginTop: 12 }}><p style={{ fontSize: 12, color: "#DC2626", margin: 0 }}>{error}</p></div>}
       </div>
     );
   }
@@ -662,65 +587,72 @@ function ScanScreen() {
   // Home — full replacement: ultra-minimal scan-first surface.
   // Legacy HomeScreen import kept for back-compat with code paths
   // that may compose it elsewhere; not rendered here.
-  //
-  // Step 4 cross-fade structure:
-  //   - Home wrapper is always mounted, with the ocean fallback
-  //     (color + image) painted underneath. SCAN orb sits on top
-  //     and only becomes visible (opacity 1) once introDone flips,
-  //     so the brand shadow never paints onto a blank background.
-  //   - IntroSplash overlays at z 9999, fades out + self-unmounts
-  //     once both its readiness gates clear. While fading the
-  //     splash carries pointer-events: none so it never blocks
-  //     clicks on the home below.
+  return (
+    <MinimalHomeScreen
+      onOpenScanner={() => setShowScanner(true)}
+      onCollection={() => goTo("collection")}
+      onProfile={() => goTo("my")}
+      onFileSelected={loadPreview}
+    />
+  );
+}
+
+/* ── Shell content (reads tab from context) ───────────────────── */
+
+function AppShellContent() {
+  const { activeTab } = useTabNav();
+  const [visited, setVisited] = useState<Set<AppTab>>(new Set(["scan"]));
+
+  useEffect(() => {
+    setVisited(prev => new Set([...prev, activeTab]));
+  }, [activeTab]);
+
   return (
     <>
-      <div
-        // Step 6 — `app-container` provides stacked min-height
-        // fallbacks (100vh → 100dvh → calc(var(--vh) * 100)) so
-        // KakaoTalk's WebView lands on the JS-driven --vh value
-        // from ViewportHeightSync and the home doesn't jump
-        // vertically during the cross-fade.
-        className="app-container"
-        // Step 7 — while hidden behind the splash the home is
-        // marked aria-hidden and pointer-events:none so screen
-        // readers don't double-announce and stray taps don't
-        // hit the SCAN button at opacity 0.
-        aria-hidden={!introDone}
-        style={{
-          position:           "relative",
-          backgroundColor:    "#2c4a6b",
-          backgroundImage:    "url('/ocean-background.jpg')",
-          backgroundSize:     "cover",
-          backgroundPosition: "center",
-          backgroundRepeat:   "no-repeat",
-          opacity:            introDone ? 1 : 0,
-          pointerEvents:      introDone ? "auto" : "none",
-          transition:         "opacity 800ms cubic-bezier(0.4, 0, 0.2, 1)",
-        }}
-      >
-        <MinimalHomeScreen
-          onOpenScanner={() => setShowScanner(true)}
-          onCollection={() => goTo("collection")}
-          onProfile={() => goTo("my")}
-          onFileSelected={loadPreview}
-        />
+      {/* Scan tab — always mounted, shown/hidden */}
+      <div style={{ display: activeTab === "scan" ? "block" : "none" }}>
+        <ScanScreen />
       </div>
-      {introMounted && (
-        <IntroSplash
-          onReady={handleIntroReady}
-          onComplete={handleIntroComplete}
-        />
+
+      {/* Other tabs — lazy-mounted on first visit, then kept alive */}
+      {visited.has("collection") && (
+        <div style={{ display: activeTab === "collection" ? "block" : "none" }}>
+          <CollectionPageContent />
+        </div>
+      )}
+      {visited.has("taste") && (
+        <div style={{ display: activeTab === "taste" ? "block" : "none" }}>
+          <TastePageContent />
+        </div>
+      )}
+      {visited.has("recommendations") && (
+        <div style={{ display: activeTab === "recommendations" ? "block" : "none" }}>
+          <RecommendationsPageContent />
+        </div>
+      )}
+      {visited.has("gallery") && (
+        <div style={{ display: activeTab === "gallery" ? "block" : "none" }}>
+          <GalleryPageContent />
+        </div>
+      )}
+      {visited.has("my") && (
+        <div style={{ display: activeTab === "my" ? "block" : "none" }}>
+          <MyPageContent />
+        </div>
       )}
     </>
   );
 }
 
-/* ── Route entry — scan-only (peer tabs removed for /analyze restore) ── */
+/* ── App shell entry point ────────────────────────────────────── */
+/* Providers live at app/layout.tsx now so every route can access them. */
 
 export default function AppShell() {
+  // Suspense boundary required by Next 15 because AppShellContent
+  // uses useSearchParams() (for the ?artworkId deep-link).
   return (
     <Suspense fallback={null}>
-      <ScanScreen />
+      <AppShellContent />
     </Suspense>
   );
 }

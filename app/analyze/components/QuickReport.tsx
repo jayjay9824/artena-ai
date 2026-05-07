@@ -19,7 +19,6 @@ import { useLanguage } from "../../i18n/useLanguage";
 import { deriveAnalysisResult, shouldShowMarket } from "../lib/objectCategory";
 import { CulturalHeritageIntelligence } from "./CulturalHeritageIntelligence";
 import { deriveRecognition } from "../lib/recognition";
-import { saveArtwork as saveArtworkToStore, removeArtwork as removeArtworkFromStore } from "../../utils/savedArtworks";
 import { PartialRecognitionToast } from "./PartialRecognitionToast";
 import { UncertainRecognitionSheet } from "./UncertainRecognitionSheet";
 import { AnimatePresence } from "framer-motion";
@@ -418,16 +417,6 @@ export function QuickReport({
       else        patch(itemId, { saved: next });
       if (next) {
         save(artwork, undefined);
-        // STEP 4 — mirror into utils/savedArtworks single source of
-        // truth so /profile/saved and the Profile counter pick the
-        // save up immediately. Dedup is internal to saveArtwork.
-        saveArtworkToStore({
-          id:           itemId,
-          title:        a.title  ?? "",
-          artist:       a.artist ?? "",
-          thumbnailUrl: imagePreview ?? "",
-          analysisData: a,
-        });
         trackEvent("artwork_saved", itemId);
         showToast("저장되었습니다", "컬렉션 보기", () => {
           trackEvent("view_collection_clicked", itemId);
@@ -436,8 +425,6 @@ export function QuickReport({
         });
       } else {
         unsave(artwork.artwork_id);
-        // STEP 4 — keep the canonical store in sync on un-save.
-        removeArtworkFromStore(itemId);
         trackEvent("artwork_unsaved", itemId);
       }
       return { ...prev, saved: next };
@@ -520,7 +507,7 @@ export function QuickReport({
 
       <div style={{
         maxWidth: 640, margin: "0 auto", background: "#FFFFFF",
-        minHeight: "calc(var(--vh, 1vh) * 100)", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
+        minHeight: "100vh", fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
         position: "relative" as const, paddingBottom: 96,
         boxSizing: "border-box" as const, overflowX: "hidden",
       }}>

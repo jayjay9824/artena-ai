@@ -12,7 +12,7 @@
  *   ─ artist
  *   ─ title
  *   ─ short insight (italic, bronze rule)
- *   ─ canonical share link (axvela.com/report/{id})
+ *   ─ canonical share link (axvela.ai/report/{id})
  */
 
 import { ImageResponse } from "next/og";
@@ -44,7 +44,7 @@ export async function GET(
   const year     = report.year   || "";
   const insight  = (report.artenaInsight || report.analysisSummary || "").trim().slice(0, 160);
   const imageUrl = report.representativeImageUrl || report.imageUrl;
-  const link     = `axvela.com/report/${id}`;
+  const link     = `axvela.ai/report/${id}`;
 
   return new ImageResponse(
     (

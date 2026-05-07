@@ -15,14 +15,6 @@ interface Props {
    * lead with the fallback actions per spec rule.
    */
   denied?: boolean;
-  /**
-   * STEP 3 — concrete recovery copy from useCameraPermission's
-   * errorCode (e.g. "카메라가 다른 앱에서 사용 중입니다…").
-   * Optional; when omitted the screen falls back to the generic
-   * t("scanner.permission_body") line so existing call sites stay
-   * source-compatible.
-   */
-  errorMessage?: string;
 }
 
 /**
@@ -37,7 +29,6 @@ export function CameraPermissionPrompt({
   onUploadImage,
   onSearchByText,
   denied = false,
-  errorMessage,
 }: Props) {
   const { t } = useLanguage();
   return (
@@ -87,11 +78,8 @@ export function CameraPermissionPrompt({
           color:      "rgba(255,255,255,0.7)",
           margin:     0,
           lineHeight: 1.6,
-          // whiteSpace pre-line preserves the \n linebreaks in
-          // the Korean error messages from useCameraPermission.
-          whiteSpace: "pre-line" as const,
         }}>
-          {errorMessage ?? t("scanner.permission_body")}
+          {t("scanner.permission_body")}
         </p>
       </div>
 

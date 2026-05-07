@@ -33,7 +33,7 @@ const ko: Dictionary = {
 
   /* ── common ────────────────────────────────────────────── */
   "common.app_name":         "AXVELA AI",
-  "common.tagline":          "컬처럴 인텔리전스",
+  "common.tagline":          "Cultural Intelligence AI",
   "common.save":             "저장",
   "common.saved":            "저장됨",
   "common.like":             "좋아요",
@@ -55,7 +55,6 @@ const ko: Dictionary = {
   "nav.recommendations": "추천",
   "nav.gallery":         "갤러리",
   "nav.my":              "프로필",
-  "nav.profile":         "프로필",
   "nav.exhibitions":     "전시 & 여행",
 
   /* ── home ──────────────────────────────────────────────── */
@@ -154,21 +153,6 @@ const ko: Dictionary = {
   "stage.price":       "가격 추정",
   "stage.comparables": "유사 작품",
 
-  /* ── stage labels + captions (FIXES v3 STEP 6) ─────────── */
-  "stage.label.basic":               "기본 정보",
-  "stage.label.market":              "시장 분석",
-  "stage.label.price":               "가격 추정",
-  "stage.label.comparables":         "유사 사례",
-  "stage.caption.basic":             "기본 정보를 확인하고 있어요",
-  "stage.caption.market":            "시장 데이터를 살피고 있어요",
-  "stage.caption.price":             "가격대를 추정하고 있어요",
-  "stage.caption.comparables":       "유사 거래 사례를 모으고 있어요",
-  "stage.caption.reading_image":     "엑스벨라가 작품을 분석하고 있습니다",
-  "stage.caption.background_notice": "곧 Quick View가 표시됩니다 — 시장 분석은 백그라운드에서 계속됩니다",
-
-  /* ── rejection (FIXES v3 STEP 8) ───────────────────────── */
-  "rejection.generic": "작품으로 판별되지 않았습니다. 다른 이미지로 다시 시도해주세요.",
-
   /* ── camera transition + minimal quick view ────────────── */
   "transition.analyzing": "분석 중…",
   "quick.ask":            "물어보기",
@@ -218,40 +202,6 @@ const ko: Dictionary = {
   "scanner.confirm_question":            "이 작품을 분석할까요?",
   "scanner.confirm_cta":                 "분석 시작",
   "scanner.confirm_rescan":              "다시 스캔",
-
-  /* ── AXVELA Mode System (Step 4) ───────────────────────── */
-  "mode.appreciation":                    "감상",
-  "mode.investment":                      "투자",
-  "mode.expert":                          "전문가",
-
-  /* ── AXVELA AI floating launcher ───────────────────────── */
-  "axvela.cta.title":                     "AXVELA AI",
-  "axvela.cta.subtitle":                  "작품에 대해 무엇이든 물어보세요",
-  "axvela.cta.aria_label":                "AXVELA AI 모드 활성화",
-  "axvela.modal.title":                   "AXVELA AI",
-  "axvela.modal.placeholder":             "작품에 대해 물어보세요…",
-  "axvela.modal.empty_title":             "무엇이든 물어보세요",
-  "axvela.modal.empty_body":              "미술사, 작가, 시장, 감상법 — AXVELA AI가 함께합니다.",
-  "axvela.modal.error":                   "답변 생성 중 오류가 발생했습니다. 다시 시도해 주세요.",
-  "axvela.modal.close":                   "닫기",
-  "axvela.chip.artist":                   "이 작가에 대해 알려줘",
-  "axvela.chip.value":                    "투자 가치는?",
-  "axvela.chip.similar":                  "비슷한 작품 추천",
-
-  /* ── AXVELA AI Mode Overlay (Phase 3) ─────────────────── */
-  "ai_overlay.title":                     "AXVELA AI",
-  "ai_overlay.aria_label":                "AXVELA AI 어시스턴트",
-  "ai_overlay.greeting_main":             "안녕하세요,\n컬렉터님 ✦",
-  "ai_overlay.greeting_pre":              "작품, 작가, 시장 맥락을 분석하고\n당신의 아트 컬렉션을 더 ",
-  "ai_overlay.greeting_highlight":        "특별하게",
-  "ai_overlay.greeting_post":             " 만들어 드릴게요.",
-  "ai_overlay.input_placeholder":         "무엇이든 물어보세요...",
-  "ai_overlay.disclaimer":                "AI는 실수를 할 수 있습니다. 중요한 정보는 확인해주세요.",
-  "ai_overlay.back":                      "뒤로",
-  "ai_overlay.history":                   "기록",
-  "ai_overlay.settings":                  "설정",
-  "ai_overlay.mic":                       "음성 입력",
-  "ai_overlay.send":                      "보내기",
 
   "profile.title":        "프로필",
   "profile.tagline":      "나의 AXVELA",
@@ -341,7 +291,7 @@ const en: Dictionary = {
 
   /* ── common ────────────────────────────────────────────── */
   "common.app_name":         "AXVELA AI",
-  "common.tagline":          "Cultural Intelligence",
+  "common.tagline":          "Cultural Intelligence AI",
   "common.save":             "Save",
   "common.saved":            "Saved",
   "common.like":             "Like",
@@ -363,7 +313,6 @@ const en: Dictionary = {
   "nav.recommendations": "For You",
   "nav.gallery":         "Gallery",
   "nav.my":              "Profile",
-  "nav.profile":         "Profile",
   "nav.exhibitions":     "Exhibitions & Travel",
 
   /* ── home ──────────────────────────────────────────────── */
@@ -462,21 +411,6 @@ const en: Dictionary = {
   "stage.price":       "Price estimate",
   "stage.comparables": "Comparables",
 
-  /* ── stage labels + captions (FIXES v3 STEP 6) ─────────── */
-  "stage.label.basic":               "Basic info",
-  "stage.label.market":              "Market analysis",
-  "stage.label.price":               "Price estimate",
-  "stage.label.comparables":         "Comparables",
-  "stage.caption.basic":             "Reading basic information",
-  "stage.caption.market":            "Analyzing market data",
-  "stage.caption.price":             "Estimating price range",
-  "stage.caption.comparables":       "Gathering comparable sales",
-  "stage.caption.reading_image":     "AXVELA is analyzing the artwork",
-  "stage.caption.background_notice": "Quick View will appear shortly — market analysis continues in background",
-
-  /* ── rejection (FIXES v3 STEP 8) ───────────────────────── */
-  "rejection.generic": "This doesn't appear to be an artwork. Please try a different image.",
-
   /* ── camera transition + minimal quick view ────────────── */
   "transition.analyzing": "Analyzing…",
   "quick.ask":            "Ask",
@@ -526,40 +460,6 @@ const en: Dictionary = {
   "scanner.confirm_question":            "Analyze this artwork?",
   "scanner.confirm_cta":                 "Analyze",
   "scanner.confirm_rescan":              "Rescan",
-
-  /* ── AXVELA Mode System (Step 4) ───────────────────────── */
-  "mode.appreciation":                    "Appreciation",
-  "mode.investment":                      "Investment",
-  "mode.expert":                          "Expert",
-
-  /* ── AXVELA AI floating launcher ───────────────────────── */
-  "axvela.cta.title":                     "AXVELA AI",
-  "axvela.cta.subtitle":                  "Ask anything about art",
-  "axvela.cta.aria_label":                "Activate AXVELA AI mode",
-  "axvela.modal.title":                   "AXVELA AI",
-  "axvela.modal.placeholder":             "Ask anything about art…",
-  "axvela.modal.empty_title":             "Ask anything",
-  "axvela.modal.empty_body":              "Art history, artists, markets, how to look — AXVELA AI is here.",
-  "axvela.modal.error":                   "Sorry, something went wrong. Please try again.",
-  "axvela.modal.close":                   "Close",
-  "axvela.chip.artist":                   "Tell me about this artist",
-  "axvela.chip.value":                    "What's the investment value?",
-  "axvela.chip.similar":                  "Recommend similar works",
-
-  /* ── AXVELA AI Mode Overlay (Phase 3) ─────────────────── */
-  "ai_overlay.title":                     "AXVELA AI",
-  "ai_overlay.aria_label":                "AXVELA AI assistant",
-  "ai_overlay.greeting_main":             "Hello,\nCollector ✦",
-  "ai_overlay.greeting_pre":              "I'll read artworks, artists, and market context\nto make your art collection ",
-  "ai_overlay.greeting_highlight":        "more meaningful",
-  "ai_overlay.greeting_post":             ".",
-  "ai_overlay.input_placeholder":         "Ask anything...",
-  "ai_overlay.disclaimer":                "AI can make mistakes. Verify important information.",
-  "ai_overlay.back":                      "Back",
-  "ai_overlay.history":                   "History",
-  "ai_overlay.settings":                  "Settings",
-  "ai_overlay.mic":                       "Voice input",
-  "ai_overlay.send":                      "Send",
 
   "profile.title":        "Profile",
   "profile.tagline":      "Your AXVELA",

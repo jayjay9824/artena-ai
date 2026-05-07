@@ -1,11 +1,6 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { NextRequest, NextResponse } from "next/server";
 import { preprocessImageBase64 } from "../../../services/imagePreprocess";
-import {
-  readUserLang,
-  languageInstructionFor,
-  rejectionFallbackFor,
-} from "../../../services/ai/userLang";
 
 export const runtime = "nodejs";
 
@@ -75,13 +70,6 @@ export async function POST(req: NextRequest) {
   try {
     const contentType = req.headers.get("content-type") ?? "";
 
-    // STEP 8 — V1 quick fix: read user language from header / cookies
-    // and inject a one-line instruction so Claude responds in the
-    // user's language. Rejection fallback is also localised so the
-    // 422 path never crosses languages.
-    const userLang   = readUserLang(req);
-    const langInject = languageInstructionFor(userLang);
-
     let response;
     if (contentType.includes("application/json")) {
       const { query } = await req.json();
@@ -90,10 +78,7 @@ export async function POST(req: NextRequest) {
       response = await client.messages.create({
         model: "claude-haiku-4-5",
         max_tokens: 600,
-        messages: [{
-          role:    "user",
-          content: `${TEXT_PROMPT(query)}\n\n${langInject}`,
-        }],
+        messages: [{ role: "user", content: TEXT_PROMPT(query) }],
       });
     } else {
       const fd = await req.formData();
@@ -115,7 +100,7 @@ export async function POST(req: NextRequest) {
           role: "user",
           content: [
             { type: "image", source: { type: "base64", media_type: cleaned.mediaType, data: cleaned.base64 } },
-            { type: "text",  text: `${IMAGE_PROMPT}\n\n${langInject}` },
+            { type: "text",  text: IMAGE_PROMPT },
           ],
         }],
       });
@@ -127,10 +112,7 @@ export async function POST(req: NextRequest) {
     if (!m) throw new Error("JSON 파싱 실패");
     const parsed = JSON.parse(m[0]);
     if (parsed.isArtwork === false) {
-      return NextResponse.json({
-        success: false,
-        error:   parsed.rejectionReason || rejectionFallbackFor(userLang),
-      }, { status: 422 });
+      return NextResponse.json({ success: false, error: parsed.rejectionReason || "미술 작품이 아닙니다." }, { status: 422 });
     }
     return NextResponse.json({ success: true, data: parsed });
   } catch (err: unknown) {

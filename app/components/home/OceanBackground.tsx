@@ -56,14 +56,8 @@ export function OceanBackground() {
       style={{
         position: "absolute",
         inset:    0,
-        zIndex:   1,
+        zIndex:   0,
         overflow: "hidden",
-        // Decorative — never captures taps. Inner gradient veil
-        // already opts out, but the outer wrapper hosts the <video>
-        // element which is pointer-active by default; explicit
-        // pointer-events:none guarantees the ocean can't intercept
-        // a button tap above it.
-        pointerEvents: "none",
         // Fallback only — visible while the video buffers or if the
         // file is missing. Pacific deep-blue with a soft sun glint.
         background:
@@ -77,18 +71,7 @@ export function OceanBackground() {
         loop
         muted
         playsInline
-        /* preload="metadata" — the file is 14MB. With preload="auto"
-           every visit blasts the whole MP4 over the wire; users who
-           bounce or navigate before play() resolves left a
-           net::ERR_ABORTED in the network log and burned mobile data
-           for nothing. metadata loads only the codec / duration
-           headers (~few KB); playback streams from there. */
-        preload="metadata"
-        /* Poster paints instantly while the video buffers — same
-           ocean-background.jpg the layout.tsx already preloads at
-           page level, so this is a free reuse of an in-cache asset
-           (~6KB) instead of a black frame. */
-        poster="/ocean-background.jpg"
+        preload="auto"
         // Browser support quirks — order matters: source > src attr.
         // Some Android builds prefer an explicit <source>.
         style={{

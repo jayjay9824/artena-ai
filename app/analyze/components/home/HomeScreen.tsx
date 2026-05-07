@@ -50,7 +50,7 @@ export function HomeScreen({ onOpenScanner, onFileSelected, error }: HomeScreenP
       maxWidth:      430,
       margin:        "0 auto",
       background:    "#FFFFFF",
-      minHeight: "calc(var(--vh, 1vh) * 100)",
+      minHeight:     "100vh",
       boxSizing:     "border-box" as const,
       display:       "flex",
       flexDirection: "column",

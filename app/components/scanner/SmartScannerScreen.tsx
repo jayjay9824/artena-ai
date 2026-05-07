@@ -12,6 +12,7 @@ import { CameraPreview } from "./CameraPreview";
 import { FocusFrame, type FocusFrameState } from "./FocusFrame";
 import { QRPurposeOverlay } from "./QRPurposeOverlay";
 import { QRNoticeSheet } from "./QRNoticeSheet";
+import { ConfirmCaptureCard } from "./ConfirmCaptureCard";
 import type {
   ScanSuccessPayload, ScannerState, QRDetection,
 } from "../../types/scanner";
@@ -96,14 +97,10 @@ export function SmartScannerScreen({
   onQRPicked,
 }: Props) {
   const { t } = useLanguage();
-  const { permissionStatus, requestPermission, errorMessage } = useCameraPermission();
+  const { permissionStatus, requestPermission } = useCameraPermission();
   const { videoRef, startCamera, stopCamera, isCameraActive } = useCameraLifecycle();
-  // Auto-scan flow per user feedback (2026-04-30) — the confirm-
-  // before-analyze gate ("작품 감지됨 / 이 작품을 분석할까요?")
-  // was friction; we run end-to-end without prompting. Detection →
-  // lock → analyze → result happens automatically.
-  const { scannerState, detectionTarget, confidence, forceCapture } =
-    useSmartScanner({ mockDetectionEnabled: true, requireConfirmation: false });
+  const { scannerState, detectionTarget, confidence, forceCapture, reset } =
+    useSmartScanner({ mockDetectionEnabled: true, requireConfirmation: true });
   const lowLight = useLowLightDetection(videoRef, isCameraActive);
 
   const [flashOn,      setFlashOn]      = useState(false);
@@ -266,9 +263,22 @@ export function SmartScannerScreen({
     forceCapture();
   };
 
-  // Confirm-before-analyze handlers removed (2026-04-30) along
-  // with the ConfirmCaptureCard surface. forceCapture remains for
-  // the long-detect tap-to-capture fallback.
+  /* User-confirmed analyze (confirm-before-analyze gate). The scanner
+     paused at the detected state waiting for this tap. From here,
+     forceCapture() drives locking → success → existing capture
+     pipeline (frame freeze, haptic, transition, onScanSuccess). */
+  const handleConfirmAnalyze = () => {
+    logScannerEvent("user_confirmed_analyze", { target: detectionTarget });
+    forceCapture();
+  };
+
+  /* Rescan — drop the current detection and re-run the cycle. */
+  const handleRescan = () => {
+    logScannerEvent("user_rescan_requested");
+    successHandledRef.current = false;
+    capturedViaTapRef.current = false;
+    reset();
+  };
 
   /**
    * BLOCK A — image upload pipeline.
@@ -334,11 +344,6 @@ export function SmartScannerScreen({
         onUploadImage={handleUpload}
         onSearchByText={handleSearch}
         denied={denied}
-        // Surfaces concrete recovery copy when useCameraPermission
-        // categorised the failure (in_app_unsupported, camera_in_use,
-        // camera_not_found, etc.). Falls back to the generic
-        // permission body when no error has occurred yet.
-        errorMessage={denied ? errorMessage ?? undefined : undefined}
       />
     );
   }
@@ -525,11 +530,21 @@ export function SmartScannerScreen({
         </>
       )}
 
-      {/* Confirm-before-analyze surface removed (2026-04-30) — the
-          scanner now auto-progresses detection → lock → success
-          without prompting. handleConfirmAnalyze / handleRescan
-          remain in scope as no-ops in case other paths reference
-          them, but the visible gate is gone. */}
+      {/* Confirm-before-analyze. Surface the gate while the scanner
+          is paused at a detected state. Hidden during exit / capture. */}
+      <AnimatePresence>
+        {(scannerState === "artwork_detected" ||
+          scannerState === "label_detected"   ||
+          scannerState === "qr_detected") &&
+          !isExiting && !frozenFrame && qrDetections.length === 0 && (
+          <ConfirmCaptureCard
+            key="confirm-capture"
+            onConfirm={handleConfirmAnalyze}
+            onRescan={handleRescan}
+            confidence={confidence}
+          />
+        )}
+      </AnimatePresence>
 
       {/* STEP 3 — multi-QR AR overlay. Caller feeds qrDetections;
           mock cycle leaves it empty so this stays inert by default. */}
