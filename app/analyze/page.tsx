@@ -12,13 +12,7 @@ import { MinimalHomeScreen } from "../components/home/MinimalHomeScreen";
 import { StagedAnalysisScreen } from "./components/StagedAnalysisScreen";
 import { useStagedAnalysis } from "./hooks/useStagedAnalysis";
 import { useOfflineQueue } from "./hooks/useOfflineQueue";
-import { useTabNav, AppTab } from "../context/TabContext";
-import { BottomNav } from "../components/BottomNav";
-import { CollectionPageContent } from "../collection/page";
-import { TastePageContent } from "../taste/page";
-import { RecommendationsPageContent } from "../recommendations/page";
-import { GalleryPageContent } from "../gallery/page";
-import { MyPageContent } from "../my/page";
+import { useTabNav } from "../context/TabContext";
 import { saveReport, generateReport } from "../services/reportService";
 import { matchArtwork } from "../services/matchingService";
 import { findArtworkById } from "../services/canonicalCatalogue";
@@ -721,62 +715,12 @@ function ScanScreen() {
   );
 }
 
-/* ── Shell content (reads tab from context) ───────────────────── */
-
-function AppShellContent() {
-  const { activeTab } = useTabNav();
-  const [visited, setVisited] = useState<Set<AppTab>>(new Set(["scan"]));
-
-  useEffect(() => {
-    setVisited(prev => new Set([...prev, activeTab]));
-  }, [activeTab]);
-
-  return (
-    <>
-      {/* Scan tab — always mounted, shown/hidden */}
-      <div style={{ display: activeTab === "scan" ? "block" : "none" }}>
-        <ScanScreen />
-      </div>
-
-      {/* Other tabs — lazy-mounted on first visit, then kept alive */}
-      {visited.has("collection") && (
-        <div style={{ display: activeTab === "collection" ? "block" : "none" }}>
-          <CollectionPageContent />
-        </div>
-      )}
-      {visited.has("taste") && (
-        <div style={{ display: activeTab === "taste" ? "block" : "none" }}>
-          <TastePageContent />
-        </div>
-      )}
-      {visited.has("recommendations") && (
-        <div style={{ display: activeTab === "recommendations" ? "block" : "none" }}>
-          <RecommendationsPageContent />
-        </div>
-      )}
-      {visited.has("gallery") && (
-        <div style={{ display: activeTab === "gallery" ? "block" : "none" }}>
-          <GalleryPageContent />
-        </div>
-      )}
-      {visited.has("my") && (
-        <div style={{ display: activeTab === "my" ? "block" : "none" }}>
-          <MyPageContent />
-        </div>
-      )}
-    </>
-  );
-}
-
-/* ── App shell entry point ────────────────────────────────────── */
-/* Providers live at app/layout.tsx now so every route can access them. */
+/* ── Route entry — scan-only (peer tabs removed for /analyze restore) ── */
 
 export default function AppShell() {
-  // Suspense boundary required by Next 15 because AppShellContent
-  // uses useSearchParams() (for the ?artworkId deep-link).
   return (
     <Suspense fallback={null}>
-      <AppShellContent />
+      <ScanScreen />
     </Suspense>
   );
 }
