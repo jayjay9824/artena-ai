@@ -169,7 +169,7 @@ export function ArtistReport({ data }: { data: ArtistReportData }) {
       </SectionBlock>
 
       <div style={{ paddingTop: 20, borderTop: "1px solid #F2F2F2", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <span style={{ fontSize: 9, color: "#CCC", letterSpacing: ".12em" }}>AXVELA · Cultural Intelligence Engine</span>
+        <span style={{ fontSize: 9, color: "#CCC", letterSpacing: ".12em" }}>AXVELA · Cultural Intelligence</span>
         <span style={{ fontSize: 9, color: "#CCC" }}>For informational purposes only</span>
       </div>
     </div>

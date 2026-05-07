@@ -2,6 +2,7 @@
 import React from "react";
 import type { AnalysisStages, StageKey, StageStatus } from "../types/staged";
 import { useLanguage } from "../../i18n/useLanguage";
+import { safeT, type TranslationFn } from "../../lib/i18n/safeT";
 
 const FONT = "'KakaoSmallSans', system-ui, sans-serif";
 
@@ -13,10 +14,10 @@ interface SectionRow {
 }
 
 const ROWS: SectionRow[] = [
-  { key: "basic",       labelKey: "stage.basic",       fallback: "Basic info"      },
-  { key: "market",      labelKey: "stage.market",      fallback: "Market analysis" },
-  { key: "price",       labelKey: "stage.price",       fallback: "Price estimate"  },
-  { key: "comparables", labelKey: "stage.comparables", fallback: "Comparables"     },
+  { key: "basic",       labelKey: "stage.label.basic",       fallback: "Basic info"      },
+  { key: "market",      labelKey: "stage.label.market",      fallback: "Market analysis" },
+  { key: "price",       labelKey: "stage.label.price",       fallback: "Price estimate"  },
+  { key: "comparables", labelKey: "stage.label.comparables", fallback: "Comparables"     },
 ];
 
 /**
@@ -64,7 +65,7 @@ export function ProgressiveSections({ stages }: { stages: AnalysisStages }) {
               fontWeight: status === "ready" ? 600 : 400,
               letterSpacing: ".02em",
             }}>
-              {t(row.labelKey) || row.fallback}
+              {safeT(t as TranslationFn, row.labelKey, row.fallback)}
             </span>
             <StatusTag status={status} />
           </div>

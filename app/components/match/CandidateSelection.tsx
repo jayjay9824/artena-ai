@@ -34,7 +34,7 @@ function badgeFor(confidence: number): { label: string; tone: "best" | "possible
 export function CandidateSelection({ candidates, onSelect, onNoMatch }: Props) {
   return (
     <div style={{
-      minHeight: "100vh",
+      minHeight: "calc(var(--vh, 1vh) * 100)",
       background: "#F8F7F4",
       padding: "60px 22px 80px",
       maxWidth: 480, margin: "0 auto",

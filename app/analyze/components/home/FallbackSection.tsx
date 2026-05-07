@@ -105,7 +105,11 @@ export function FallbackSection({ onCamera, onLabel, onTextSearch }: FallbackSec
                 borderRadius: 10,
                 padding: "11px 14px",
                 fontFamily: "'KakaoSmallSans', system-ui, sans-serif",
-                fontSize: 13, color: "#111",
+                /* iOS Safari zooms when an input < 16px gains focus.
+                   Hold the visual size at 13px via line-height / padding
+                   if needed, but font-size MUST be ≥ 16 to avoid the
+                   zoom-on-focus jump. */
+                fontSize: 16, color: "#111",
                 background: "#FAFAFA",
                 outline: "none",
               }}

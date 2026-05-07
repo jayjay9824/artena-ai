@@ -47,10 +47,17 @@ export function ScanOrb({ onClick, label = "SCAN" }: Props) {
         />
       </svg>
 
-      {/* Black orb CTA */}
+      {/* Black orb CTA. The `scan-button` className lets globals.css
+          gate visibility + shadow weight on intro-active and on
+          kakao-inapp WebViews — the orb's heavy 50px halo used to
+          composite as a black ellipse on KakaoTalk before the ocean
+          background was painted. Inline shadow stays as the default
+          baseline; CSS overrides take effect only when the parent
+          classes are present. */}
       <button
         onClick={onClick}
         aria-label={label}
+        className="scan-button"
         style={{
           width:           240,
           height:          240,
